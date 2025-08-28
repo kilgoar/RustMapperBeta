@@ -228,7 +228,19 @@ public static class PrefabManager
     }
 
 
-
+	public static GameObject SetupVolume(GameObject go, string filePath){
+		NetworkManager.Register(go);
+		// gameobject's selection criteria for prefab
+		//go.SetLayerRecursively(3);
+		//go.SetTagRecursively("Untagged");
+		//go.tag = "Prefab";
+		
+		//performance
+		//go.SetStaticRecursively(false);
+		var prefabDataHolder = go.GetComponent<PrefabDataHolder>();
+		prefabDataHolder.prefabData = new PrefabData { id = AssetManager.ToID(filePath) };
+		return go;
+	}
 
     /// <summary>Sets up the prefabs loaded from the bundle file for use in the editor.</summary>
     /// <param name="go">GameObject to process, should be from one of the asset bundles.</param>

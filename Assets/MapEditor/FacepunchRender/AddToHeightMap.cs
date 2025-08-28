@@ -25,10 +25,10 @@ public class AddToHeightMap : MonoBehaviour
         Debug.Log($"Bounds: min={bounds.min}, max={bounds.max}");
         Debug.Log($"Terrain Position: {terrainPosition}, Terrain Size: {terrainSize}, HeightMap Resolution: {TerrainManager.HeightMapRes}");
 
-        int xMin = Mathf.FloorToInt(((bounds.min.x - terrainPosition.x) / terrainSize.x) * TerrainManager.HeightMapRes);
-        int xMax = Mathf.FloorToInt(((bounds.max.x - terrainPosition.x) / terrainSize.x) * TerrainManager.HeightMapRes);
-        int zMin = Mathf.FloorToInt(((bounds.min.z - terrainPosition.z) / terrainSize.z) * TerrainManager.HeightMapRes);
-        int zMax = Mathf.FloorToInt(((bounds.max.z - terrainPosition.z) / terrainSize.z) * TerrainManager.HeightMapRes);
+        int xMin = Mathf.FloorToInt(((bounds.min.x - terrainPosition.x ) / terrainSize.x) * TerrainManager.HeightMapRes);
+        int xMax = Mathf.FloorToInt(((bounds.max.x - terrainPosition.x  ) / terrainSize.x) * TerrainManager.HeightMapRes);
+        int zMin = Mathf.FloorToInt(((bounds.min.z - terrainPosition.z ) / terrainSize.z) * TerrainManager.HeightMapRes);
+        int zMax = Mathf.FloorToInt(((bounds.max.z - terrainPosition.z ) / terrainSize.z) * TerrainManager.HeightMapRes);
 
         xMin = Mathf.Clamp(xMin, 0, TerrainManager.HeightMapRes - 1);
         xMax = Mathf.Clamp(xMax, 0, TerrainManager.HeightMapRes - 1);
@@ -46,11 +46,11 @@ public class AddToHeightMap : MonoBehaviour
 
         for (int i = zMin; i <= zMax; i++)
         {
-            float normZ = ((float)i + 0.5f) / TerrainManager.HeightMapRes;
+            float normZ = ((float)i) / TerrainManager.HeightMapRes;
 
             for (int j = xMin; j <= xMax; j++)
             {
-                float normX = ((float)j + 0.5f) / TerrainManager.HeightMapRes;
+                float normX = ((float)j) / TerrainManager.HeightMapRes;
 
                 Vector3 origin = new Vector3(
                     terrainPosition.x + normX * terrainSize.x,
@@ -61,8 +61,12 @@ public class AddToHeightMap : MonoBehaviour
                 Ray ray = new Ray(origin, Vector3.down);
                 RaycastHit raycastHit;
 
+                // --- Start of Debug Ray Addition ---
+                // Draw the ray in the Scene view for debugging (green if it hits, red if it misses)
                 if (component.Raycast(ray, out raycastHit, bounds.size.y))
                 {
+                    // Draw green ray from origin to the hit point
+                    Debug.DrawRay(origin, Vector3.down * raycastHit.distance, Color.green, 5f);
                     float newHeight = (raycastHit.point.y - terrainPosition.y) / terrainSize.y;
                     float currentHeight = currentHeightMap[i, j];
 
@@ -78,8 +82,11 @@ public class AddToHeightMap : MonoBehaviour
                 }
                 else
                 {
+                    // Draw red ray for the full distance if no hit
+                    Debug.DrawRay(origin, Vector3.down * bounds.size.y, Color.red, 5f);
                     regionHeights[i - zMin, j - xMin] = currentHeightMap[i, j];
                 }
+                // --- End of Debug Ray Addition ---
             }
         }
 

@@ -113,20 +113,20 @@ public class InspectorWindow : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning($"No TerrainPlacement component found on {selected.name}");
-            }
-			AddToHeightMap[] colliderHeights = selected.GetComponentsInChildren<AddToHeightMap>();
-			
-			if (colliderHeights.Length > 0)
-			{
-				foreach (AddToHeightMap heightMap in colliderHeights)
+                
+				AddToHeightMap[] colliderHeights = selected.GetComponentsInChildren<AddToHeightMap>();
+				
+				if (colliderHeights.Length > 0)
 				{
-					heightMap.Apply();
+					foreach (AddToHeightMap heightMap in colliderHeights)
+					{
+						heightMap.Apply();
+					}
 				}
-			}
-			else
-			{
-				Debug.LogWarning($"No AddToHeightMap components found on {selected.name} or its children");
+				else
+				{
+					Debug.LogWarning($"No AddToHeightMap components found on {selected.name} or its children");
+				}
 			}
         }
     }

@@ -342,7 +342,10 @@ public static class AssetManager
 		}*/
 		
 		if(VolumesCache.ContainsKey(filePath)){
-			return (GameObject)VolumesCache[filePath];
+			go = (GameObject)VolumesCache[filePath];
+			PrefabManager.SetupVolume(go, filePath);
+			AssetCache.Add(filePath, go);
+			return go;
 		}
 		
 		if (SceneAssetCache.ContainsKey(filePath)){
@@ -399,7 +402,10 @@ public static class AssetManager
 public static void SetVolumesCache()
 {
     int loaded = 0;
-    if (File.Exists(Path.Combine(SettingsManager.AppDataPath() ,VolumesListPath)))
+    GameObject volumesRoot = new GameObject("VolumesRoot"); // Create parent object
+    volumesRoot.SetActive(false); // Keep inactive to avoid scene clutter
+
+    if (File.Exists(Path.Combine(SettingsManager.AppDataPath(), VolumesListPath)))
     {
         Debug.Log("loaded " + VolumesListPath);
         var volumes = File.ReadAllLines(VolumesListPath);
@@ -408,21 +414,18 @@ public static void SetVolumesCache()
         {
             try
             {
-                //Debug.Log($"Processing line {i}: {volumes[i]}");
                 var lineSplit = volumes[i].Split(':');
-                //Debug.Log(lineSplit.Length + " fields found");
                 if (lineSplit.Length < 4) continue;
 
                 lineSplit[0] = lineSplit[0].Trim(); // Volume Type
                 lineSplit[1] = lineSplit[1].Trim(); // Prefab Path
                 lineSplit[2] = lineSplit[2].Trim(); // Hex Color
                 lineSplit[3] = lineSplit[3].Trim(); // Scale Multiplier
-                //Debug.Log($"Volume Type: {lineSplit[0]}, Prefab Path: {lineSplit[1]}, Hex Color: {lineSplit[2]}, Scale Multiplier: {lineSplit[3]}");
                 
                 if (!int.TryParse(lineSplit[3], out int scaleMultiplier))
                 {
                     Debug.LogWarning($"Invalid scale multiplier '{lineSplit[3]}' for volume {lineSplit[1]}");
-                    scaleMultiplier = 1; // Default value
+                    scaleMultiplier = 1;
                 }
 
                 switch (lineSplit[0])
@@ -432,12 +435,12 @@ public static void SetVolumesCache()
                         if (transCube != null)
                         {
                             GameObject instantiatedTransCube = UnityEngine.Object.Instantiate(transCube);
+                            instantiatedTransCube.transform.SetParent(volumesRoot.transform); // Parent to VolumesRoot
                             MeshRenderer transCubeRenderer = instantiatedTransCube.GetComponentInChildren<MeshRenderer>();
                             if (transCubeRenderer != null && ColorUtility.TryParseHtmlString($"#{lineSplit[2]}", out Color transCubeColor))
                             {
-                                //Debug.Log("setting volume color");
-								transCubeColor.a = 0.5f; // Set alpha to 0.5
-                                transCubeRenderer.material.SetColor("_Color", transCubeColor); // Adjusts Albedo base color
+                                transCubeColor.a = 0.5f;
+                                transCubeRenderer.material.SetColor("_Color", transCubeColor);
                             }
                             else
                             {
@@ -461,12 +464,12 @@ public static void SetVolumesCache()
                         if (transSphere != null)
                         {
                             GameObject instantiatedTransSphere = UnityEngine.Object.Instantiate(transSphere);
+                            instantiatedTransSphere.transform.SetParent(volumesRoot.transform); // Parent to VolumesRoot
                             MeshRenderer transSphereRenderer = instantiatedTransSphere.GetComponentInChildren<MeshRenderer>();
                             if (transSphereRenderer != null && ColorUtility.TryParseHtmlString($"#{lineSplit[2]}", out Color transSphereColor))
                             {
-                                //Debug.Log("setting volume color");
-								transSphereColor.a = 0.5f; // Set alpha to 0.5
-                                transSphereRenderer.material.SetColor("_Color", transSphereColor); // Adjusts Albedo base color
+                                transSphereColor.a = 0.5f;
+                                transSphereRenderer.material.SetColor("_Color", transSphereColor);
                             }
                             else
                             {
@@ -489,7 +492,6 @@ public static void SetVolumesCache()
                         Debug.LogWarning($"Unknown volume type '{lineSplit[0]}' for {lineSplit[1]}");
                         break;
                 }
-                //Debug.Log($"Completed iteration {i} for volume {lineSplit[1]}");
             }
             catch (Exception ex)
             {

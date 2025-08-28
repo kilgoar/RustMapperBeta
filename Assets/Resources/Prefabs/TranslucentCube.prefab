@@ -9,13 +9,14 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6431822700879895215}
-  m_Layer: 8
+  - component: {fileID: 7838056846853734572}
+  m_Layer: 3
   m_Name: TranslucentCube
-  m_TagString: Untagged
+  m_TagString: Prefab
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 2147483647
-  m_IsActive: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
 --- !u!4 &6431822700879895215
 Transform:
   m_ObjectHideFlags: 0
@@ -32,6 +33,35 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7838056846853734572
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8608059045773853684}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ac657da345586d438e4676d14b75310, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  prefabData:
+    category: 
+    id: 0
+    position:
+      x: 0
+      y: 0
+      z: 0
+    rotation:
+      x: 0
+      y: 0
+      z: 0
+    scale:
+      x: 0
+      y: 0
+      z: 0
+  lodComponents: []
+  connections: []
 --- !u!1 &8947381107540040796
 GameObject:
   m_ObjectHideFlags: 0
@@ -44,12 +74,12 @@ GameObject:
   - component: {fileID: 9074495708098917337}
   - component: {fileID: 6396655135594844737}
   - component: {fileID: 8542036333634636282}
-  m_Layer: 8
+  m_Layer: 3
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 2147483647
+  m_StaticEditorFlags: 0
   m_IsActive: 1
 --- !u!4 &4810683397498090478
 Transform:
