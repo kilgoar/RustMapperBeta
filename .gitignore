@@ -1,0 +1,28 @@
+*.ide
+*.ide-shm
+*.ide-wal
+Library/*
+*.bin
+*.info
+*.info
+/Temp/
+/Logs/
+/Builds/
+/Assets/UIRecycleTree/**/*
+/Assets/EasyRoads3D/**/*
+/Assets/EasyRoads3D scenes/**/*
+/Assets/Runtime Transform Gizmos/**/*
+/Assets/Live Terrain Editor/**/*
+*.log
+*.info
+*.log
+*.pdb
+*.csproj
+/.vs/
+/obj/
+*.sln
+AssetDump.txt
+UserSettings/EditorUserSettings.asset
+ProjectSettings/MemorySettings.asset
+UserSettings/Layouts/default-2021.dwlt
+ProjectSettings/SceneTemplateSettings.json

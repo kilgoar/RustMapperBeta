@@ -1,0 +1,1274 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+using UnityEngine;
+using RustMapEditor.Variables;
+using static TerrainManager;
+using static RustMapEditor.Maths.Array;
+using static WorldConverter;
+using static WorldSerialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.IO;
+
+#if UNITY_EDITOR
+using Unity.EditorCoroutines.Editor;
+using UnityEditor;
+#endif
+
+using System.Collections;
+
+public static class MapManager
+{
+	public static bool isLoading;
+	#if UNITY_EDITOR
+	
+    #region Init
+    [InitializeOnLoadMethod]
+    private static void Init()
+    {
+        EditorApplication.update += OnProjectLoad;
+    }
+	
+    private static void OnProjectLoad()
+    {
+        if (Land != null)
+        {
+            EditorApplication.update -= OnProjectLoad;
+            if (!EditorApplication.isPlaying){
+                //CreateMap(1000);
+			}
+        }
+    }
+	
+    #endregion
+	
+	#endif
+	
+	public static void RuntimeInit(){
+		MapManager.CreateMap(SettingsManager.application.newSize, SettingsManager.application.newSplat, SettingsManager.application.newBiome, SettingsManager.application.newHeight * 1000f);
+	}
+
+    public static class Callbacks
+    {
+        public delegate void MapManagerCallback(string mapName = "");
+
+        /// <summary>Called after a map has been loaded. Calls on both map loaded and map created.</summary>
+        public static event MapManagerCallback MapLoaded;
+        /// <summary>Called after map has been saved and written to disk.</summary>
+        public static event MapManagerCallback MapSaved;
+
+        public static void OnMapLoaded(string mapName = "") => MapLoaded?.Invoke(mapName);
+				
+        public static void OnMapSaved(string mapName = "") => MapSaved?.Invoke(mapName);
+    }
+    
+    public static List<int> GetEnumSelection<T>(T enumGroup)
+    {
+        var selectedEnums = new List<int>();
+        for (int i = 0; i < Enum.GetValues(typeof(T)).Length; i++)
+        {
+            int layer = 1 << i;
+            if ((Convert.ToInt32(enumGroup) & layer) != 0)
+                selectedEnums.Add(i);
+        }
+        return selectedEnums;
+    }
+
+    public static void RotateMap(Selections.Objects objectSelection, bool CW)
+    {
+        foreach (var item in GetEnumSelection(objectSelection))
+        {
+            switch (item)
+            {
+                case 0:
+                case 1:
+                case 2:
+                    RotateLayer((LayerType) item, CW);
+                    break;
+                case 3:
+                    RotateTopologyLayers((TerrainTopology.Enum)TerrainTopology.EVERYTHING, CW);
+                    break;
+                case 4:
+                    RotateHeightMap(CW);
+                    break;
+                case 5:
+                    RotateHeightMap(CW, TerrainType.Water);
+                    break;
+                case 6:
+                    PrefabManager.RotatePrefabs(CW);
+                    break;
+                case 7:
+                    PathManager.RotatePaths(CW);
+                    break;
+            }
+        }
+    }
+
+    #region SplatMap Methods
+    /// <summary>Rotates the selected layer.</summary>
+    /// <param name="landLayerToPaint">The LayerType to rotate. (Ground, Biome, Alpha, Topology)</param>
+    /// <param name="CW">True = 90°, False = 270°</param>
+    /// <param name="topology">The Topology layer, if selected.</param>
+
+    public static void RotateLayer(LayerType landLayerToPaint, bool CW, int topology = 0)
+    {
+        switch (landLayerToPaint)
+        {
+            case LayerType.Ground:
+            case LayerType.Biome:
+            case LayerType.Topology:
+                SetSplatMap(Rotate(GetSplatMap(landLayerToPaint, topology), CW), landLayerToPaint, topology);
+                break;
+            case LayerType.Alpha:
+                SetAlphaMap(Rotate(GetAlphaMap(), CW));
+                break;
+        }
+    }
+
+    /// <summary>Rotates the selected topologies.</summary>
+    /// <param name="topologyLayers">The Topology layers to rotate.</param>
+    /// <param name="CW">True = 90°, False = 270°</param>
+	
+
+    public static void RotateTopologyLayers(TerrainTopology.Enum topologyLayers, bool CW)
+    {
+        List<int> topologyElements = GetEnumSelection(topologyLayers);
+
+		#if UNITY_EDITOR
+        int progressId = Progress.Start("Rotating Topologies", null, Progress.Options.Sticky);
+		#endif 
+		
+        for (int i = 0; i < topologyElements.Count; i++)
+        {
+			#if UNITY_EDITOR
+            Progress.Report(progressId, (float)i / topologyElements.Count, "Rotating: " + ((TerrainTopology.Enum)TerrainTopology.IndexToType(i)).ToString());
+			#endif
+            RotateLayer(LayerType.Topology, CW, i);
+        }
+		#if UNITY_EDITOR
+        Progress.Finish(progressId);
+		#endif
+    }
+
+    /// <summary>Paints if all the conditions passed in are true.</summary>
+    /// <param name="landLayerToPaint">The LayerType to paint. (Ground, Biome, Alpha, Topology)</param>
+    /// <param name="texture">The texture to paint.</param>
+    /// <param name="conditions">The conditions to check.</param>
+    /// <param name="topology">The Topology layer, if selected.</param>
+    public static void PaintConditional(LayerType landLayerToPaint, int texture, Conditions conditions, int topology = 0)
+    {
+        int splatRes = SplatMapRes;
+        bool[,] conditionsMet = new bool[splatRes, splatRes]; // Paints wherever the conditionsmet is false.
+
+		#if UNITY_EDITOR
+        int progressId = Progress.Start("Conditional Paint");
+		#endif
+        for (int i = 0; i < TerrainSplat.COUNT; i++)
+            if (conditions.GroundConditions.CheckLayer[i])
+                conditionsMet = CheckConditions(GetSplatMap(LayerType.Ground), conditionsMet, i, conditions.GroundConditions.Weight[i]);
+
+		#if UNITY_EDITOR
+        Progress.Report(progressId, 0.2f, "Checking Biome");
+		#endif
+        for (int i = 0; i < TerrainBiome.COUNT; i++)
+            if (conditions.BiomeConditions.CheckLayer[i])
+                conditionsMet = CheckConditions(GetSplatMap(LayerType.Biome), conditionsMet, i, conditions.BiomeConditions.Weight[i]);
+
+		#if UNITY_EDITOR
+        Progress.Report(progressId, 0.3f, "Checking Alpha");
+		#endif
+		if (conditions.AlphaConditions.CheckAlpha)
+            conditionsMet = CheckConditions(GetAlphaMap(), conditionsMet, (conditions.AlphaConditions.Texture == 0) ? true : false);
+
+		#if UNITY_EDITOR
+        Progress.Report(progressId, 0.5f, "Checking Topology");
+		#endif
+        for (int i = 0; i < TerrainTopology.COUNT; i++)
+            if (conditions.TopologyConditions.CheckLayer[i])
+                conditionsMet = CheckConditions(GetSplatMap(LayerType.Topology, i), conditionsMet, (int)conditions.TopologyConditions.Texture[i], 0.5f);
+
+		#if UNITY_EDITOR
+        Progress.Report(progressId, 0.7f, "Checking Heights");
+		#endif
+        if (conditions.TerrainConditions.CheckHeights)
+            conditionsMet = CheckConditions(GetHeights(), conditionsMet, conditions.TerrainConditions.Heights.HeightLow, conditions.TerrainConditions.Heights.HeightHigh);
+
+		#if UNITY_EDITOR
+        Progress.Report(progressId, 0.8f, "Checking Slopes");
+		#endif
+        if (conditions.TerrainConditions.CheckSlopes)
+            conditionsMet = CheckConditions(GetSlopes(), conditionsMet, conditions.TerrainConditions.Slopes.SlopeLow, conditions.TerrainConditions.Slopes.SlopeHigh);
+
+		#if UNITY_EDITOR
+        Progress.Report(progressId, 0.8f, "Painting");
+		#endif
+        switch (landLayerToPaint)
+        {
+            case LayerType.Ground:
+            case LayerType.Biome:
+            case LayerType.Topology:
+                float[,,] splatMapToPaint = GetSplatMap(landLayerToPaint, topology);
+                int textureCount = LayerCount(landLayerToPaint);
+                Parallel.For(0, splatRes, i =>
+                {
+                    for (int j = 0; j < splatRes; j++)
+                        if (conditionsMet[i, j] == false)
+                        {
+                            for (int k = 0; k < textureCount; k++)
+                                splatMapToPaint[i, j, k] = 0f;
+                            splatMapToPaint[i, j, texture] = 1f;
+                        }
+                });
+                SetSplatMap(splatMapToPaint, landLayerToPaint, topology);
+                break;
+            case LayerType.Alpha:
+                bool[,] alphaMapToPaint = GetAlphaMap();
+                Parallel.For(0, splatRes, i =>
+                {
+                    for (int j = 0; j < splatRes; j++)
+                        alphaMapToPaint[i, j] = (conditionsMet[i, j] == false) ? conditionsMet[i, j] : alphaMapToPaint[i, j];
+                });
+                SetAlphaMap(alphaMapToPaint);
+                break;
+        }
+		#if UNITY_EDITOR
+        Progress.Finish(progressId);
+		#endif
+    }
+
+    /// <summary>Paints the layer wherever the height conditions are met.</summary>
+    /// <param name="landLayerToPaint">The LayerType to paint. (Ground, Biome, Alpha, Topology)</param>
+    /// <param name="heightLow">The minimum height to paint at 100% weight.</param>
+    /// <param name="heightHigh">The maximum height to paint at 100% weight.</param>
+    /// <param name="t">The texture to paint.</param>
+    /// <param name="topology">The Topology layer, if selected.</param>
+    public static void PaintHeight(LayerType landLayerToPaint, float heightLow, float heightHigh, int t, int topology = 0)
+    {
+        switch (landLayerToPaint)
+        {
+            case LayerType.Ground:
+            case LayerType.Biome:
+            case LayerType.Topology:
+
+                SetSplatMap(SetRange(GetSplatMap(landLayerToPaint, topology), HeightToSplat(GetHeights()), t, heightLow, heightHigh), landLayerToPaint, topology);
+
+                break;
+            case LayerType.Alpha:
+                bool value = (t == 0) ? true : false;
+                SetAlphaMap(SetRange(GetAlphaMap(), GetHeights(), value, heightLow, heightHigh));
+                break;
+        }
+    }
+
+
+	[ConsoleCommand("Paints heights with gradients")]
+	public static void PaintHeightBlend(Layers layerData, float heightLow, float heightHigh, float minBlendLow, float maxBlendHigh, int t)
+	{
+		// Determine the layer type and index from the Layers object
+		LayerType layerType;
+		int layerIndex = -1;
+		if (layerData.Ground != 0)
+		{
+			layerType = LayerType.Ground;
+			layerIndex = TerrainSplat.TypeToIndex((int)layerData.Ground);
+		}
+		else if (layerData.Biome != 0)
+		{
+			layerType = LayerType.Biome;
+			layerIndex = TerrainBiome.TypeToIndex((int)layerData.Biome);
+		}
+		else
+		{
+			Debug.LogError("PaintHeightBlend only supports Ground and Biome layers.");
+			return;
+		}
+
+		// Validate height range
+		if (!(minBlendLow < heightLow && heightLow < heightHigh && heightHigh < maxBlendHigh))
+		{
+			Debug.LogError($"Invalid height range: minBlendLow ({minBlendLow}) must be < heightLow ({heightLow}) < heightHigh ({heightHigh}) < maxBlendHigh ({maxBlendHigh}).");
+			return;
+		}
+
+		// Execute the painting
+		SetLayerData(
+			SetRangeBlend(
+				GetSplatMap(layerType),
+				HeightToSplat(GetHeights()),
+				t,
+				heightLow / 1000f,  // Normalize to 0-1
+				heightHigh / 1000f, // Normalize to 0-1
+				minBlendLow / 1000f,
+				maxBlendHigh / 1000f
+			),
+			layerType
+		);
+	}
+    /// <summary>Paints the layer wherever the height conditions are met with a weighting determined by the range the height falls in.</summary>
+    /// <param name="landLayerToPaint">The LayerType to paint. (Ground, Biome, Alpha, Topology)</param>
+    /// <param name="heightLow">The minimum height to paint at 100% weight.</param>
+    /// <param name="heightHigh">The maximum height to paint at 100% weight.</param>
+    /// <param name="minBlendLow">The minimum height to start to paint. The texture weight will increase as it gets closer to the heightlow.</param>
+    /// <param name="maxBlendHigh">The maximum height to start to paint. The texture weight will increase as it gets closer to the heighthigh.</param>
+    /// <param name="t">The texture to paint.</param>
+    public static void PaintHeightBlend(LayerType landLayerToPaint, float heightLow, float heightHigh, float minBlendLow, float maxBlendHigh, int t)
+    {
+        switch (landLayerToPaint)
+        {
+            case LayerType.Ground:
+            case LayerType.Biome:
+
+                SetLayerData(SetRangeBlend(GetSplatMap(landLayerToPaint), HeightToSplat(GetHeights()), t, heightLow, heightHigh, minBlendLow, maxBlendHigh), landLayerToPaint);
+
+                break;
+        }
+    }
+
+    /// <summary>Sets whole layer to the active texture.</summary>
+    /// <param name="landLayerToPaint">The LayerType to paint. (Ground, Biome, Alpha, Topology)</param>
+    /// <param name="t">The texture to paint.</param>
+    /// <param name="topology">The Topology layer, if selected.</param>
+    public static void PaintLayer(LayerType landLayerToPaint, int t, int topology = 0)
+    {
+        switch (landLayerToPaint)
+        {
+            case LayerType.Ground:
+            case LayerType.Biome:
+            case LayerType.Topology:
+                SetSplatMap(SetValues(GetSplatMap(landLayerToPaint, topology), t), landLayerToPaint, topology);
+                break;
+            case LayerType.Alpha:
+                SetAlphaMap(SetValues(GetAlphaMap(), true));
+                break;
+        }
+    }
+
+    /// <summary>Paints the selected Topology layers.</summary>
+    /// <param name="topologyLayers">The Topology layers to clear.</param>
+	public static void PaintTopologyLayers(TerrainTopology.Enum topologyLayers)
+	{
+		List<int> topologyElements = GetEnumSelection(topologyLayers);
+
+		#if UNITY_EDITOR
+		int progressId = Progress.Start("Paint Topologies");
+		#endif
+
+		for (int i = 0; i < topologyElements.Count; i++)
+		{
+			#if UNITY_EDITOR
+			Progress.Report(progressId, (float)i / topologyElements.Count, "Painting: " + ((TerrainTopology.Enum)TerrainTopology.IndexToType(i)).ToString());
+			#endif
+			PaintLayer(LayerType.Topology, 0, i);
+		}
+
+		#if UNITY_EDITOR
+		Progress.Finish(progressId);
+		#endif
+	}
+
+    /// <summary>Sets whole layer to the inactive texture. Alpha and Topology only.</summary>
+    /// <param name="landLayerToPaint">The LayerType to clear. (Alpha, Topology)</param>
+    /// <param name="topology">The Topology layer, if selected.</param>
+    public static void ClearLayer(LayerType landLayerToPaint, int topology = 0)
+    {
+        switch (landLayerToPaint)
+        {
+            case LayerType.Topology:
+                SetSplatMap(SetValues(GetSplatMap(landLayerToPaint, topology), 1), landLayerToPaint, topology);
+                break;
+            case LayerType.Alpha:
+                SetAlphaMap(SetValues(GetAlphaMap(), false));
+                break;
+        }
+    }
+
+    /// <summary>Clears the selected Topology layers.</summary>
+    /// <param name="topologyLayers">The Topology layers to clear.</param>
+	public static void ClearTopologyLayers(TerrainTopology.Enum topologyLayers)
+	{
+		List<int> topologyElements = GetEnumSelection(topologyLayers);
+
+		#if UNITY_EDITOR
+		int progressId = Progress.Start("Clear Topologies");
+		#endif
+
+		for (int i = 0; i < topologyElements.Count; i++)
+		{
+			#if UNITY_EDITOR
+			Progress.Report(progressId, (float)i / topologyElements.Count, "Clearing: " + ((TerrainTopology.Enum)TerrainTopology.IndexToType(i)).ToString());
+			#endif
+			ClearLayer(LayerType.Topology, i);
+		}
+
+		#if UNITY_EDITOR
+		Progress.Finish(progressId);
+		#endif
+	}
+
+    /// <summary>Inverts the active and inactive textures. Alpha and Topology only.</summary>
+    /// <param name="landLayerToPaint">The LayerType to invert. (Alpha, Topology)</param>
+    /// <param name="topology">The Topology layer, if selected.</param>
+    public static void InvertLayer(LayerType landLayerToPaint, int topology = 0)
+    {
+        switch (landLayerToPaint)
+        {
+            case LayerType.Topology:
+                SetSplatMap(Invert(GetSplatMap(landLayerToPaint, topology)), landLayerToPaint, topology);
+                break;
+            case LayerType.Alpha:
+                SetAlphaMap(Invert(GetAlphaMap()));
+                break;
+        }
+    }
+
+    /// <summary>Inverts the selected Topology layers.</summary>
+    /// <param name="topologyLayers">The Topology layers to invert.</param>
+    public static void InvertTopologyLayers(TerrainTopology.Enum topologyLayers)
+    {
+        List<int> topologyElements = GetEnumSelection(topologyLayers);
+		#if UNITY_EDITOR
+        int progressId = Progress.Start("Invert Topologies");
+		#endif
+			
+        for (int i = 0; i < topologyElements.Count; i++)
+        {
+			#if UNITY_EDITOR
+			Progress.Report(progressId, (float)i / topologyElements.Count, "Inverting: " + ((TerrainTopology.Enum)TerrainTopology.IndexToType(i)).ToString());
+			#endif
+            InvertLayer(LayerType.Topology, i);
+        }
+		#if UNITY_EDITOR
+        Progress.Finish(progressId);
+		#endif
+    }
+
+    /// <summary>Paints the layer wherever the slope conditions are met. Includes option to blend.</summary>
+    /// <param name="landLayerToPaint">The LayerType to paint. (Ground, Biome, Alpha, Topology)</param>
+    /// <param name="slopeLow">The minimum slope to paint at 100% weight.</param>
+    /// <param name="slopeHigh">The maximum slope to paint at 100% weight.</param>
+    /// <param name="t">The texture to paint.</param>
+    /// <param name="topology">The Topology layer, if selected.</param>
+    public static void PaintSlope(LayerType landLayerToPaint, float slopeLow, float slopeHigh, int t, int topology = 0) // Paints slope based on the current slope input, the slope range is between 0 - 90
+    {
+        switch (landLayerToPaint)
+        {
+            case LayerType.Ground:
+            case LayerType.Biome:
+            case LayerType.Topology:
+
+                SetSplatMap(SetRange(GetSplatMap(landLayerToPaint, topology), HeightToSplat(GetSlopes()), t, slopeLow, slopeHigh), landLayerToPaint, topology);
+
+                break;
+            case LayerType.Alpha:
+                bool value = (t == 0) ? true : false;
+                SetAlphaMap(SetRange(GetAlphaMap(), GetSlopes(), value, slopeLow, slopeHigh));
+                break;
+        }
+    }
+
+    /// <summary> Paints the layer wherever the slope conditions are met. Includes option to blend.</summary>
+    /// <param name="landLayerToPaint">The LayerType to paint. (Ground, Biome, Alpha, Topology)</param>
+    /// <param name="slopeLow">The minimum slope to paint at 100% weight.</param>
+    /// <param name="slopeHigh">The maximum slope to paint at 100% weight.</param>
+    /// <param name="minBlendLow">The minimum slope to start to paint. The texture weight will increase as it gets closer to the slopeLow.</param>
+    /// <param name="maxBlendHigh">The maximum slope to start to paint. The texture weight will increase as it gets closer to the slopeHigh.</param>
+    /// <param name="t">The texture to paint.</param>
+    /// <param name="topology">The Topology layer, if selected.</param>
+    public static void PaintSlopeBlend(LayerType landLayerToPaint, float slopeLow, float slopeHigh, float minBlendLow, float maxBlendHigh, int t) // Paints slope based on the current slope input, the slope range is between 0 - 90
+    {
+        switch (landLayerToPaint)
+        {
+            case LayerType.Ground:
+            case LayerType.Biome:
+
+                SetSplatMap(SetRangeBlend(GetSplatMap(landLayerToPaint),  HeightToSplat(GetSlopes()), t, slopeLow, slopeHigh, minBlendLow, maxBlendHigh), landLayerToPaint);
+                break;
+        }
+    }
+	
+	/// <summary>Paints the layer wherever the curve conditions are met. Includes option to blend.</summary>
+	/// <param name="landLayerToPaint">The LayerType to paint. (Ground, Biome, Alpha, Topology)</param>
+	/// <param name="curveLow">The minimum curve to paint at 100% weight.</param>
+	/// <param name="curveHigh">The maximum curve to paint at 100% weight.</param>
+	/// <param name="t">The texture to paint.</param>
+	/// <param name="topology">The Topology layer, if selected.</param>
+	public static void PaintCurve(LayerType landLayerToPaint, float curveLow, float curveHigh, int t, int topology = 0)
+	{
+		TerrainManager.UpdateHeightCache();
+		switch (landLayerToPaint)
+		{
+			case LayerType.Ground:
+				SetSplatMap(SetRange(GetSplatMap(landLayerToPaint, topology), HeightToSplat(GetCurves(1000)), t, curveLow, curveHigh), landLayerToPaint, topology);
+				break;
+		}
+	}
+	
+	public static float[,,] GetCurve(LayerType landLayerToPaint, float curveLow, float curveHigh, int t, int topology = 0)
+	{
+		TerrainManager.UpdateHeightCache();
+		switch (landLayerToPaint)
+		{
+			case LayerType.Ground:
+				return SetRange(GetSplatMap(landLayerToPaint, topology), HeightToSplat(GetCurves(1000)), t, curveLow, curveHigh);
+				break;
+		}
+		return null;
+	}
+
+	/// <summary> Paints the layer wherever the curve conditions are met. Includes option to blend.</summary>
+	/// <param name="landLayerToPaint">The LayerType to paint. (Ground, Biome, Alpha, Topology)</param>
+	/// <param name="curveLow">The minimum curve to paint at 100% weight.</param>
+	/// <param name="curveHigh">The maximum curve to paint at 100% weight.</param>
+	/// <param name="minBlendLow">The minimum curve to start to paint. The texture weight will increase as it gets closer to the curveLow.</param>
+	/// <param name="maxBlendHigh">The maximum curve to start to paint. The texture weight will increase as it gets closer to the curveHigh.</param>
+	/// <param name="t">The texture to paint.</param>
+	/// <param name="topology">The Topology layer, if selected.</param>
+	public static void PaintCurveBlend(LayerType landLayerToPaint, float curveLow, float curveHigh, float minBlendLow, float maxBlendHigh, int t)
+	{
+		
+		TerrainManager.UpdateHeightCache();
+		switch (landLayerToPaint)
+		{
+			case LayerType.Ground:
+				SetSplatMap(SetRangeBlend(GetSplatMap(landLayerToPaint), HeightToSplat(GetCurves(1000)), t, curveLow, curveHigh, minBlendLow, maxBlendHigh), landLayerToPaint);
+				break;
+		}
+	}
+
+
+    /// <summary>Paints the splats wherever the water is above 500 and is above the terrain.</summary>
+    /// <param name="landLayerToPaint">The LayerType to paint. (Ground, Biome, Alpha, Topology)</param>
+    /// <param name="aboveTerrain">Check if the watermap is above the terrain before painting.</param>
+    /// <param name="tex">The texture to paint.</param>
+    /// <param name="topology">The Topology layer, if selected.</param>
+    public static void PaintRiver(LayerType landLayerToPaint, bool aboveTerrain, int tex, int topology = 0)
+    {
+        switch (landLayerToPaint)
+        {
+            case LayerType.Ground:
+            case LayerType.Biome:
+            case LayerType.Topology:
+                SetSplatMap(SetRiver(GetSplatMap(landLayerToPaint, topology), GetHeights(), GetHeights(TerrainManager.TerrainType.Water), aboveTerrain, tex), landLayerToPaint, topology);
+                break;
+            case LayerType.Alpha:
+
+                SetAlphaMap(SetRiver(GetAlphaMap(), GetHeights(), HeightToSplat(GetHeights(TerrainManager.TerrainType.Water)), aboveTerrain, tex == 0));
+
+                break;
+            
+        }
+    }
+    #endregion
+
+    /// <summary>Centres the Prefab and Path parent objects.</summary>
+	public static void CentreSceneObjects(MapInfo mapInfo)
+	{
+		Vector3 centerPosition = new Vector3(mapInfo.size.x / 2, 500, mapInfo.size.z / 2);
+
+		PrefabManager.PrefabParent.GetComponent<LockObject>().SetPosition(centerPosition);
+		if( PrefabManager.EditorSpace.GetComponent<LockObject>() != null){
+			PrefabManager.EditorSpace.GetComponent<LockObject>().SetPosition(centerPosition);
+			}
+		PathManager.PathParent.GetComponent<LockObject>().SetPosition(centerPosition);
+	}
+
+
+	public static void SaveMonument(string path)
+    {
+		//PrefabManager.RenamePrefabCategories(PrefabManager.CurrentMapPrefabs, path.Split('/').Last().Split('.')[0] + UnityEngine.Random.Range(0,10) + UnityEngine.Random.Range(0,10) + UnityEngine.Random.Range(0,10) + UnityEngine.Random.Range(0,10));
+		string name = path.Split('/').Last().Split('.')[0];
+		PrefabManager.RenamePrefabCategories(PrefabManager.CurrentMapPrefabs, ":" + name + "::");
+		PrefabManager.RenameNPCs(PrefabManager.CurrentMapNPCs, ":" + name + "::");
+        Debug.LogError("attempting to save monument");
+		MonumentManager.TerrainToRMPrefab(TerrainManager.Land, TerrainManager.Water).SaveRMPrefab(path);
+		Callbacks.OnMapSaved(path);
+    }
+
+	#if UNITY_EDITOR
+    /// <summary>Loads and sets up the map.</summary>
+    public static void Load(MapInfo mapInfo, string loadPath = "")
+    {
+        EditorCoroutineUtility.StartCoroutineOwnerless(Coroutines.Load(mapInfo, loadPath));
+    }
+
+    /// <summary>Saves the map.</summary>
+    /// <param name="path">The path to save to.</param>
+    public static void Save(string path)
+    {
+        EditorCoroutineUtility.StartCoroutineOwnerless(Coroutines.Save(path));
+    }
+	
+	public static void SaveCustomPrefab(string path)
+    {
+		//PrefabManager.RenamePrefabCategories(PrefabManager.CurrentMapPrefabs, path.Split('/').Last().Split('.')[0] + UnityEngine.Random.Range(0,10) + UnityEngine.Random.Range(0,10) + UnityEngine.Random.Range(0,10) + UnityEngine.Random.Range(0,10));
+		string name = path.Split('/').Last().Split('.')[0];
+		PrefabManager.RenamePrefabCategories(PrefabManager.CurrentMapPrefabs, ":" + name + "::");
+		PrefabManager.RenameNPCs(PrefabManager.CurrentMapNPCs, ":" + name + "::");
+		Debug.LogError("saving custom prefab");
+        EditorCoroutineUtility.StartCoroutineOwnerless(Coroutines.SaveCustomPrefab(path));
+    }
+	
+	
+	#else
+	public static void Load(MapInfo mapInfo, string loadPath = "")
+    {
+        CoroutineManager.Instance.StartRuntimeCoroutine(Coroutines.Load(mapInfo, loadPath));
+    }
+
+    /// <summary>Saves the map.</summary>
+    /// <param name="path">The path to save to.</param>
+    public static void Save(string path)
+    {
+		PrefabManager.BlacklistCurrent();
+        CoroutineManager.Instance.StartRuntimeCoroutine(Coroutines.Save(path));
+    }
+	
+	public static void SaveCustomPrefab(string path)
+    {
+		//PrefabManager.RenamePrefabCategories(PrefabManager.CurrentMapPrefabs, path.Split('/').Last().Split('.')[0] + UnityEngine.Random.Range(0,10) + UnityEngine.Random.Range(0,10) + UnityEngine.Random.Range(0,10) + UnityEngine.Random.Range(0,10));
+		string name = path.Split('/').Last().Split('.')[0];
+		PrefabManager.RenamePrefabCategories(PrefabManager.CurrentMapPrefabs, ":" + name + "::");
+		PrefabManager.RenameNPCs(PrefabManager.CurrentMapNPCs, ":" + name + "::");
+        CoroutineManager.Instance.StartRuntimeCoroutine(Coroutines.SaveCustomPrefab(path));
+    }
+	
+
+	
+	#endif
+	[ConsoleCommand("export prefabdata into JSON")]
+
+        public static void SaveJson(string path, List<PathData> paths = null)
+        {
+            string name = path.Split('/').Last().Split('.')[0];
+            PrefabManager.RenamePrefabCategories(PrefabManager.CurrentMapPrefabs, ":" + name + "::");
+            PrefabManager.RenameNPCs(PrefabManager.CurrentMapNPCs, ":" + name + "::");
+
+            // Convert NodeCollection[] to List<PathData> if paths is null
+            if (paths == null)
+            {
+                paths = PathManager.CurrentMapPaths
+                    .Where(nc => nc != null && nc.pathData != null)
+                    .Select(nc => nc.pathData)
+                    .ToList();
+                Debug.Log($"SaveJson: Using CurrentMapPaths, found {paths.Count} valid PathData entries.");
+            }
+            else
+            {
+                Debug.Log($"SaveJson: Using provided paths list with {paths.Count} entries.");
+            }
+
+            var world = TerrainToCustomPrefab((-1, 0));
+            world.SavePrefabJSON(path, paths);
+            Callbacks.OnMapSaved(path);
+        }
+		
+
+// Define the JSON object classes
+[Serializable]
+public class SpawnData
+{
+    public SpawnEntry[] Spawns;
+}
+
+[Serializable]
+public class SpawnEntry
+{
+    public string Timestamp;
+    public string PlayerName;
+    public long PlayerId;
+    public string PrefabPath;
+    public string ShortName;
+    public Position Position;
+    public bool IsItem;
+    public string Command;
+}
+
+[Serializable]
+public class Position
+{
+    public float x;
+    public float y;
+    public float z;
+}
+
+
+public static void LoadDumpJSON(string path)
+{
+    try
+    {
+        // Read JSON file
+        string jsonContent = File.ReadAllText(path);
+        Debug.Log($"JSON Content: {jsonContent.Substring(0, Math.Min(jsonContent.Length, 200))}..."); // Log first 200 chars for debugging
+
+        // Deserialize JSON into SpawnData
+        SpawnData spawnData = JsonConvert.DeserializeObject<SpawnData>(jsonContent);
+
+        if (spawnData?.Spawns == null || spawnData.Spawns.Length == 0)
+        {
+            Debug.LogError("No spawns found in JSON data or JSON is invalid");
+            return;
+        }
+
+        for (int i = 0; i < spawnData.Spawns.Length; i++)
+        {
+            SpawnEntry spawn = spawnData.Spawns[i];
+            if (spawn == null)
+            {
+                Debug.LogWarning($"Spawn entry at index {i} is null");
+                continue;
+            }
+
+            // Check critical fields
+            if (string.IsNullOrEmpty(spawn.PrefabPath))
+            {
+                Debug.LogWarning($"Spawn entry at index {i} has null or empty PrefabPath");
+                continue;
+            }
+
+            if (spawn.Position == null)
+            {
+                Debug.LogWarning($"Spawn entry at index {i} has null Position");
+                continue;
+            }
+
+            // Log the entry being processed for debugging
+            Debug.Log($"Processing spawn entry {i}: PrefabPath={spawn.PrefabPath}, Position=({spawn.Position.x}, {spawn.Position.y}, {spawn.Position.z})");
+
+            // Convert position to Vector3
+            Vector3 position = new Vector3(spawn.Position.x, spawn.Position.y, spawn.Position.z);
+
+            // Spawn the item
+            if (AssetManager.PathLookup.TryGetValue(spawn.PrefabPath, out uint id))
+            {
+                try
+                {
+                    GeologyItem item = new GeologyItem(id);
+                    if (item == null)
+                    {
+                        Debug.LogWarning($"Failed to create GeologyItem for ID {id} at index {i}");
+                        continue;
+                    }
+
+                    if (PrefabManager.PrefabParent == null)
+                    {
+                        Debug.LogWarning($"PrefabManager.PrefabParent is null for spawn entry at index {i}");
+                        continue;
+                    }
+
+                    GenerativeManager.spawnGeoItem(item, position, Vector3.zero, Vector3.one, PrefabManager.PrefabParent);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Failed to spawn item for entry {i} (PrefabPath={spawn.PrefabPath}): {ex.Message}\n{ex.StackTrace}");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"Prefab path not found: {spawn.PrefabPath} at index {i}");
+            }
+        }
+    }
+    catch (JsonException jsonEx)
+    {
+        Debug.LogError($"JSON parsing error for {path}: {jsonEx.Message}\n{jsonEx.StackTrace}");
+    }
+    catch (Exception ex)
+    {
+        Debug.LogError($"Failed to load or process JSON from {path}: {ex.Message}\n{ex.StackTrace}");
+    }
+}
+	
+	[ConsoleCommand("Creates a new map synchronously")]
+	public static void NewMap(int size)
+	{
+		// Create MapInfo for a flat map
+		MapInfo mapInfo = EmptyMap(size, 503f, TerrainSplat.Enum.Grass, TerrainBiome.Enum.Temperate);
+
+		// Synchronous terrain setup
+		isLoading = true;
+
+		// Delete existing prefabs and paths
+		PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs);
+		PathManager.DeletePaths(PathManager.CurrentMapPaths);
+
+		// Center scene objects
+		CentreSceneObjects(mapInfo);
+
+		// Set terrain data (simulating Coroutines.SetTerrains)
+		TerrainManager.Land.terrainData.heightmapResolution = mapInfo.terrainRes;
+		TerrainManager.Land.terrainData.size = mapInfo.size;
+		TerrainManager.Land.terrainData.alphamapResolution = mapInfo.splatRes;
+		TerrainManager.Land.terrainData.baseMapResolution = mapInfo.splatRes;
+		
+		TerrainManager.Ocean.terrainData.heightmapResolution = mapInfo.terrainRes;
+		TerrainManager.Ocean.terrainData.size = mapInfo.size;
+		TerrainManager.Ocean.terrainData.alphamapResolution = mapInfo.splatRes;
+		TerrainManager.Ocean.terrainData.baseMapResolution = mapInfo.splatRes;
+		
+		TerrainManager.Water.terrainData.heightmapResolution = mapInfo.terrainRes;
+		TerrainManager.Water.terrainData.alphamapResolution = mapInfo.splatRes;
+		TerrainManager.Water.terrainData.baseMapResolution = mapInfo.splatRes;
+		TerrainManager.Water.terrainData.size = mapInfo.size;
+
+		// Set heightmap with undo
+		RegisterHeightMapUndo(TerrainType.Land, $"New Map {size}");
+		TerrainManager.Land.terrainData.SetHeights(0, 0, mapInfo.land.heights);
+		TerrainManager.Water.terrainData.SetHeights(0, 0, mapInfo.water.heights);
+		TerrainManager.Callbacks.InvokeHeightMapUpdated(TerrainType.Land);
+
+		TerrainManager.SyncTerrainResolutions();
+		// Set splatmaps
+		TerrainManager.SetSplatMap(mapInfo.splatMap, LayerType.Ground);
+		TerrainManager.SetSplatMap(mapInfo.biomeMap, LayerType.Biome);
+		TerrainManager.SetAlphaMap(mapInfo.alphaMap);
+
+		// Set topology data
+		TopologyData.Set(mapInfo.topology);
+		for (int i = 0; i < TerrainTopology.COUNT; i++)
+		{
+			TerrainManager.SetSplatMap(TopologyData.GetTopologyLayer(TerrainTopology.IndexToType(i)), LayerType.Topology, i);
+		}
+		
+		TerrainManager.ChangeLayer(LayerType.Ground);
+
+		// Spawn prefabs and paths
+		PrefabManager.SpawnPrefabs(mapInfo.prefabData, 0);
+		PathManager.SpawnPaths(mapInfo.pathData, 0);
+
+		// Complete setup
+		AreaManager.Reset();
+		ClearUndo();
+		isLoading = false;
+
+		// Signal completion
+		Callbacks.OnMapLoaded("New Map");
+		
+		Debug.Log($"New map of size {size} created successfully.");
+	}
+	
+    public static void CreateMap(int size, TerrainSplat.Enum ground, TerrainBiome.Enum biome, float landHeight = 503f)
+    {
+		#if UNITY_EDITOR
+        EditorCoroutineUtility.StartCoroutineOwnerless(Coroutines.CreateMap(size, ground, biome, landHeight));
+		#else
+		CoroutineManager.Instance.StartCoroutine(Coroutines.CreateMap(size, ground, biome, landHeight));
+		#endif
+		
+    }
+	
+	public static void MergeREPrefab(MapInfo mapInfo, string loadPath = "")
+    {	
+		#if UNITY_EDITOR
+		int progressID = Progress.Start("Load: " + loadPath.Split('/').Last(), "Preparing Map", Progress.Options.Sticky);
+		int spwPrefab = Progress.Start("Prefabs", null, Progress.Options.Sticky, progressID);
+        int spwCircuit = Progress.Start("Circuits", null, Progress.Options.Sticky, progressID);
+		int spwNPCs = Progress.Start("NPCs", null, Progress.Options.Sticky, progressID);
+		PrefabManager.SpawnPrefabs(mapInfo.prefabData, spwPrefab);
+		PrefabManager.SpawnCircuits(mapInfo.circuitData, spwCircuit);
+		PrefabManager.SpawnNPCs(mapInfo.npcData, spwNPCs);
+		#else
+		PrefabManager.SpawnPrefabs(mapInfo.prefabData, 0);
+		PrefabManager.SpawnCircuits(mapInfo.circuitData, 0);
+		PrefabManager.SpawnNPCs(mapInfo.npcData, 0);
+		#endif
+	
+    }
+	
+	[ConsoleCommand("Loads a map from a map file and adds only prefabs with IDs not already in CurrentMapPrefabs")]
+	public static void LoadUniquePrefabs(string path)
+	{
+		#if UNITY_EDITOR
+		int progressID = Progress.Start("Load Unique Prefabs: " + Path.GetFileNameWithoutExtension(path), "Preparing Map", Progress.Options.Sticky);
+		int spwPrefab = Progress.Start("Unique Prefabs", null, Progress.Options.Sticky, progressID);
+		#else
+		int spwPrefab = 0;
+		#endif
+
+		try
+		{
+			// Load map info from the specified path
+			WorldSerialization world = new WorldSerialization();
+			world.Load(path);
+			MapInfo mapInfo = WorldConverter.WorldToTerrain(world);
+
+
+			// Get existing prefabs' IDs for comparison
+			HashSet<uint> existingPrefabIDs = new HashSet<uint>();
+			foreach (var prefab in PrefabManager.CurrentMapPrefabs)
+			{
+				if (prefab != null)
+				{
+					existingPrefabIDs.Add(prefab.prefabData.id);
+				}
+			}
+
+			// Filter out prefabs with IDs that already exist
+			List<WorldSerialization.PrefabData> uniquePrefabs = mapInfo.prefabData
+				.Where(prefab => !existingPrefabIDs.Contains(prefab.id))
+				.ToList();
+
+			Debug.Log($"Loading {uniquePrefabs.Count} unique prefabs out of {mapInfo.prefabData.Length} total prefabs from {path}.");
+
+			// Convert List to array for SpawnPrefabs
+			PrefabManager.SpawnPrefabs(uniquePrefabs.ToArray(), spwPrefab);
+
+			#if UNITY_EDITOR
+			Progress.Finish(spwPrefab, Progress.Status.Succeeded);
+			Progress.Finish(progressID, Progress.Status.Succeeded);
+			#endif
+
+			Callbacks.OnMapLoaded(path);
+		}
+		catch (Exception ex)
+		{
+			Debug.LogError($"Failed to load or process prefabs from {path}: {ex.Message}\n{ex.StackTrace}");
+			#if UNITY_EDITOR
+			Progress.Finish(spwPrefab, Progress.Status.Failed);
+			Progress.Finish(progressID, Progress.Status.Failed);
+			#endif
+		}
+	}
+	
+	public static void MergeOffsetREPrefab(MapInfo mapInfo, Transform parent, string loadPath = "")
+    {
+		#if UNITY_EDITOR
+		int progressID = Progress.Start("Load: " + loadPath.Split('/').Last(),  "Preparing Map", Progress.Options.Sticky);
+		int spwPrefab = Progress.Start("Prefabs", null, Progress.Options.Sticky, progressID);
+		//int spwCircuit = Progress.Start("Circuits", null, Progress.Options.Sticky, progressID);
+		
+        
+		PrefabManager.SpawnCustomPrefabs(mapInfo.prefabData, spwPrefab, parent);
+		//PrefabManager.SpawnCircuits(mapInfo.circuitData, spwCircuit);
+		#else
+		PrefabManager.SpawnCustomPrefabs(mapInfo.prefabData, 0, parent);
+		#endif
+    }
+	
+	public static void SaveCollectionPrefab(string path, Transform collectionRoot)
+	{
+		#if UNITY_EDITOR
+		EditorCoroutineUtility.StartCoroutineOwnerless(Coroutines.SaveCollectionPrefab(path, collectionRoot));
+		#else
+		CoroutineManager.Instance.StartRuntimeCoroutine(Coroutines.SaveCollectionPrefab(path, collectionRoot));
+		#endif
+	}
+	
+	public static void LoadRMPrefab(WorldSerialization world, string loadPath = "")
+	{
+		CoroutineManager.Instance.StartRuntimeCoroutine(Coroutines.LoadRMPrefab(world, loadPath));
+	}
+
+	//distinct from World Serialization's LoadREPrefab
+	public static void LoadREPrefab(MapInfo mapInfo, string loadPath)
+    {
+		CoroutineManager.Instance.StartRuntimeCoroutine(Coroutines.LoadREPrefab(mapInfo, loadPath));
+    }
+
+   private class Coroutines
+	{
+		
+			//distinct from World Serialization's LoadREPrefab
+			public static IEnumerator LoadREPrefab(MapInfo mapInfo, string loadPath)
+			{
+				MapManager.isLoading = true;
+				
+				yield return PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs, 0);
+				PrefabManager.DeleteCircuits(PrefabManager.CurrentMapElectrics, 0);
+				PrefabManager.DeleteNPCs(PrefabManager.CurrentMapNPCs, 0);
+				PrefabManager.DeleteModifiers(PrefabManager.CurrentModifiers);
+				
+				TerrainManager.Load(mapInfo);		
+				MapManager.CentreSceneObjects(mapInfo);
+				
+				PrefabManager.SpawnPrefabs(mapInfo.prefabData, 0);
+				PrefabManager.SpawnCircuits(mapInfo.circuitData, 0);
+				PrefabManager.SpawnNPCs(mapInfo.npcData, 0);
+				
+				PrefabManager.SpawnModifiers(mapInfo.modifierData);
+				MapManager.isLoading = false;
+				MapManager.Callbacks.OnMapLoaded(loadPath);
+				
+				
+				//we will need to also hold the unknown data here
+				yield return null;
+	
+			}
+		
+		public static IEnumerator LoadRMPrefab(WorldSerialization world, string loadPath = "")
+		{
+			MapManager.isLoading = true;
+
+			// Delete existing data
+			yield return PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs, 0);
+			PrefabManager.DeleteCircuits(PrefabManager.CurrentMapElectrics, 0);
+			PrefabManager.DeleteNPCs(PrefabManager.CurrentMapNPCs, 0);
+			PrefabManager.DeleteModifiers(PrefabManager.CurrentModifiers);
+
+			// Load terrain data using TerrainManager.Load
+			MapInfo terrainInfo = RMPrefabToTerrain(world);
+			TerrainManager.Load(terrainInfo, 0);
+
+			// Center scene objects
+			MapManager.CentreSceneObjects(terrainInfo);
+
+			// Spawn prefabs, circuits, NPCs, and modifiers
+			PrefabManager.SpawnPrefabs(terrainInfo.prefabData, 0);
+			PrefabManager.SpawnCircuits(terrainInfo.circuitData, 0);
+			PrefabManager.SpawnNPCs(terrainInfo.npcData, 0);
+			PrefabManager.SpawnModifiers(terrainInfo.modifierData);
+
+			// Attach monument component
+			//WorldConverter.AttachMonument(world.rmPrefab, TerrainManager.Land.gameObject);
+	
+			MapManager.isLoading = false;
+			MapManager.Callbacks.OnMapLoaded(loadPath);
+			yield return null;
+		}
+		
+	    public static IEnumerator SaveCollectionPrefab(string path, Transform collectionRoot)	{
+
+				// Convert the collection to a WorldSerialization with REPrefab data
+				WorldSerialization world = WorldConverter.CollectionToREPrefab(collectionRoot);
+				yield return null;
+				world.SaveREPrefab(path);
+			}
+		
+		
+
+		
+		/*
+			public static IEnumerator LoadREPrefab(MapInfo mapInfo, string path = "")
+			{
+		#if UNITY_EDITOR
+				ProgressManager.RemoveProgressBars("Load:");
+
+				int progressID = Progress.Start("Load: " + path.Split('/').Last(), "Preparing Map", Progress.Options.Sticky);
+				int delPrefab = Progress.Start("Prefabs", null, Progress.Options.Sticky, progressID);
+				int spwPrefab = Progress.Start("Prefabs", null, Progress.Options.Sticky, progressID);
+				int spwCircuit = Progress.Start("Circuits", null, Progress.Options.Sticky, progressID);
+				int spwNPCs = Progress.Start("NPCs", null, Progress.Options.Sticky, progressID);
+				yield return null;
+
+				yield return PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs, delPrefab);
+				PrefabManager.DeleteCircuits(PrefabManager.CurrentMapElectrics);
+				PrefabManager.DeleteNPCs(PrefabManager.CurrentMapNPCs);
+
+				CentreSceneObjects(mapInfo);
+				PrefabManager.SpawnPrefabs(mapInfo.prefabData, spwPrefab);
+				PrefabManager.SpawnCircuits(mapInfo.circuitData, spwCircuit);
+				PrefabManager.SpawnNPCs(mapInfo.npcData, spwNPCs);
+
+				var sw = new System.Diagnostics.Stopwatch();
+				while (Progress.GetProgressById(spwPrefab).running)
+				{
+					if (sw.Elapsed.TotalMilliseconds > 0.05f)
+					{
+						sw.Restart();
+						yield return null;
+					}
+				}
+
+				Progress.Report(progressID, 0.99f, "Loaded");
+				Progress.Finish(progressID, Progress.Status.Succeeded);
+
+				Callbacks.OnMapLoaded(path);
+		#else
+				PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs);
+				PrefabManager.DeleteCircuits(PrefabManager.CurrentMapElectrics);
+				PrefabManager.DeleteNPCs(PrefabManager.CurrentMapNPCs);
+				CentreSceneObjects(mapInfo);
+				PrefabManager.SpawnPrefabs(mapInfo.prefabData);
+				PrefabManager.SpawnCircuits(mapInfo.circuitData);
+				PrefabManager.SpawnNPCs(mapInfo.npcData);
+				Callbacks.OnMapLoaded(path);
+				yield return null;
+		#endif
+			}
+			*/
+
+			public static IEnumerator Load(MapInfo mapInfo, string path = "")
+			{
+				LoadScreen.Instance.Show();
+				isLoading = true;
+		#if UNITY_EDITOR
+				ProgressManager.RemoveProgressBars("Load:");
+
+				int progressID = Progress.Start("Load: " + path.Split('/').Last(), "Preparing Map", Progress.Options.Sticky);
+				int delPrefab = Progress.Start("Prefabs", null, Progress.Options.Sticky, progressID);
+				int spwPrefab = Progress.Start("Prefabs", null, Progress.Options.Sticky, progressID);
+				int delPath = Progress.Start("Paths", null, Progress.Options.Sticky, progressID);
+				int spwPath = Progress.Start("Paths", null, Progress.Options.Sticky, progressID);
+				int terrainID = Progress.Start("Terrain", null, Progress.Options.Sticky, progressID);
+				yield return null;
+
+				yield return PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs, delPrefab);
+				PathManager.DeletePaths(PathManager.CurrentMapPaths, delPath);
+				CentreSceneObjects(mapInfo);
+				TerrainManager.Load(mapInfo, terrainID);
+				Debug.Log("terrains loading...");
+				PrefabManager.SpawnPrefabs(mapInfo.prefabData, spwPrefab);
+				Debug.Log("prefabs loading...");
+				PathManager.SpawnPaths(mapInfo.pathData, spwPath);
+				Debug.Log("paths loading...");
+
+				var sw = new System.Diagnostics.Stopwatch();
+				sw.Start();
+
+				while (Progress.GetProgressById(terrainID).progress < 0.99f || Progress.GetProgressById(spwPrefab).running || Progress.GetProgressById(spwPath).running)
+				{
+					if (sw.Elapsed.TotalMilliseconds > 0.05f)
+					{
+						sw.Restart();
+						yield return null;
+					}
+				}
+
+				Progress.Report(progressID, 0.99f, "Loaded");
+				Progress.Finish(terrainID, Progress.Status.Succeeded);
+				Progress.Finish(progressID, Progress.Status.Succeeded);
+				Callbacks.OnMapLoaded(path);
+				
+		#else
+				
+												
+				yield return PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs, 0);
+				PathManager.DeletePaths(PathManager.CurrentMapPaths);
+				CentreSceneObjects(mapInfo);
+				TerrainManager.Load(mapInfo);
+				PrefabManager.SpawnPrefabs(mapInfo.prefabData);
+				PathManager.SpawnPaths(mapInfo.pathData);
+				Callbacks.OnMapLoaded(path);
+				yield return null;
+				
+		#endif
+		
+			isLoading = false;
+			}
+
+/// <summary>Saves the map.</summary>
+/// <param name="path">The path to save to.</param>
+public static IEnumerator Save(string path)
+{
+    SaveLayer();
+    yield return null; // Allow frame update after SaveLayer
+
+    yield return BlacklistCurrent();
+
+    TerrainToWorld(Land, Water, (0,0,0)).Save(path);
+    Callbacks.OnMapSaved(path);
+}
+
+	/// <summary>Checks for blacklisted prefabs and deletes them if confirmed by the user.</summary>
+	/// <returns>An IEnumerator that yields until the blacklist operation is complete.</returns>
+	private static IEnumerator BlacklistCurrent()
+	{
+		PrefabDataHolder[] currentPrefabs = PrefabManager.CurrentMapPrefabs;
+		List<PrefabDataHolder> blacklistedPrefabs = new List<PrefabDataHolder>();
+
+		// Identify blacklisted prefabs
+		foreach (PrefabDataHolder prefab in currentPrefabs)
+		{
+			if (prefab != null)
+			{
+				string path = AssetManager.ToPath(prefab.prefabData.id).Replace("\\", "/"); // Normalize path
+				if (PrefabManager.ItemBlacklist.TryGetValue(path, out ItemSettings settings) && settings.blacklisted)
+				{
+					blacklistedPrefabs.Add(prefab);
+				}
+			}
+		}
+
+		// If no blacklisted prefabs, exit early
+		if (blacklistedPrefabs.Count == 0)
+		{
+			Debug.Log("No blacklisted prefabs found in current map.");
+			yield break;
+		}
+
+		// Create confirmation message
+		string message = $"Found {blacklistedPrefabs.Count} blacklisted prefabs. Delete?";
+
+		// Show confirmation dialog and wait for response
+		Task<bool> confirmationTask = ConfirmationManager.Instance.ShowConfirmationAsync(
+			title: "Bad Prefabs",
+			message: message,
+			yes: "Delete",
+			no: "Cancel"
+		);
+
+		// Yield until the confirmation task completes
+		while (!confirmationTask.IsCompleted)
+		{
+			yield return null;
+		}
+
+		// Process user response
+		if (confirmationTask.Result)
+		{
+			int deletedCount = 0;
+			foreach (PrefabDataHolder prefab in blacklistedPrefabs)
+			{
+				if (prefab != null && prefab.gameObject != null)
+				{
+					GameObject.DestroyImmediate(prefab.gameObject);
+					deletedCount++;
+				}
+			}
+			PrefabManager.NotifyItemsChanged();
+			Debug.Log($"Deleted {deletedCount} blacklisted prefabs.");
+		}
+		else
+		{
+			Debug.Log("Blacklist deletion cancelled by user.");
+		}
+	}
+
+			#if UNITY_EDITOR
+			public static IEnumerator CreateMap(int size, TerrainSplat.Enum ground, TerrainBiome.Enum biome, float landHeight = 503f)
+			{
+				yield return EditorCoroutineUtility.StartCoroutineOwnerless(Load(EmptyMap(size, landHeight, ground, biome), "New Map"));
+			}
+			#else
+			public static IEnumerator CreateMap(int size, TerrainSplat.Enum ground, TerrainBiome.Enum biome, float landHeight = 503f)
+			{
+				yield return CoroutineManager.Instance.StartCoroutine(Load(EmptyMap(size, landHeight, ground, biome), "New Map"));
+			}
+			#endif
+
+			public static IEnumerator SaveCustomPrefab(string path)
+			{
+				#if UNITY_EDITOR
+				ProgressManager.RemoveProgressBars("Save:");
+
+				int progressID = Progress.Start("Save: " + path.Split('/').Last(), "Saving Map", Progress.Options.Sticky);
+				int prefabID = Progress.Start("Prefabs", null, Progress.Options.Sticky, progressID);
+				int circuitID = Progress.Start("Circuits", null, Progress.Options.Sticky, progressID);
+
+				#endif
+				
+				yield return null;
+				
+				#if UNITY_EDITOR
+				TerrainToCustomPrefab((prefabID, circuitID)).SaveREPrefab(path);
+		
+				Progress.Report(progressID, 0.99f, "Saved");
+				Progress.Finish(prefabID, Progress.Status.Succeeded);
+				Progress.Finish(circuitID, Progress.Status.Succeeded);
+				Progress.Finish(progressID, Progress.Status.Succeeded);
+
+				Callbacks.OnMapSaved(path);
+				#else
+				TerrainToCustomPrefab((0, 0)).SaveREPrefab(path);
+				Callbacks.OnMapSaved(path);
+				#endif
+			}
+			
+
+			
+			
+	}
+
+}

@@ -1,0 +1,192 @@
+#pragma kernel ProcessHeightmap
+
+Texture2D<float> Heightmap;        // Input heightmap
+Texture2D<float> BrushTex;         // Brush texture from MainScript
+SamplerState sampler_BrushTex;
+RWTexture2D<float> Result;         // Output heightmap
+float BrushStrength;               // General brush strength
+uint BrushSize;
+uint SplatRatio;
+uint StartX, StartZ;
+uint Width, Height;
+uint Mode; // 0 = Smooth, 1 = Hydraulic Erosion
+
+// 5x5 Gaussian kernel for smoothing
+static const float gaussianKernel[5][5] = {
+    { 1.0/16.0, 1.0/8.0, 1.0/4.0, 1.0/8.0, 1.0/16.0 },
+    { 1.0/8.0,  1.0/4.0, 1.0/2.0, 1.0/4.0, 1.0/8.0 },
+    { 1.0/4.0,  1.0/2.0,    1.0,   1.0/2.0, 1.0/4.0 },
+    { 1.0/8.0,  1.0/4.0, 1.0/2.0, 1.0/4.0, 1.0/8.0 },
+    { 1.0/16.0, 1.0/8.0, 1.0/4.0, 1.0/8.0, 1.0/16.0 }
+};
+static const float gaussianKernelSum = 6.75; // Correct sum of Gaussian kernel weights
+
+[numthreads(8,8,1)]
+void ProcessHeightmap(uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.y;
+    uint j = id.x;
+
+    // Check if within bounds of the region
+    if (i >= Height || j >= Width)
+        return;
+
+    // Adjust coordinates to account for StartX, StartZ
+    uint texX = j + StartX;
+    uint texY = i + StartZ;
+
+    // Calculate brush influence
+    uint offsetX = StartX - (StartX / SplatRatio) * SplatRatio; 
+    uint offsetZ = StartZ - (StartZ / SplatRatio) * SplatRatio; 
+    uint brushX = j * SplatRatio - offsetX;
+    uint brushY = i * SplatRatio - offsetZ;
+    float brushInfluence = 0.0;
+
+    if (brushX < BrushSize && brushY < BrushSize)
+    {
+        float2 uv = float2((float)brushX / BrushSize, (float)brushY / BrushSize);
+        float brushValue = BrushTex.SampleLevel(sampler_BrushTex, uv, 0).r;
+        float brushMultiplier = Mode == 0 ? 1000.0 : 0.1; // 100.0 for smooth, 1.0 for erosion
+        brushInfluence = brushValue * BrushStrength * brushMultiplier;
+    }
+
+    if (brushInfluence > 0.0)
+    {
+        float height = Heightmap[int2(texX, texY)];
+        
+        if (Mode == 0) // Smoothing mode (unchanged)
+        {
+            float smoothedHeight = 0.0;
+            float totalWeight = 0.0;
+
+            for (int ni = -2; ni <= 2; ni++)
+            {
+                for (int nj = -2; nj <= 2; nj++)
+                {
+                    int niX = (int)texY + ni;
+                    int njX = (int)texX + nj;
+                    float kernelWeight = gaussianKernel[ni + 2][nj + 2];
+                    
+                    if (niX >= 0 && niX < (int)Height + (int)StartZ && njX >= 0 && njX < (int)Width + (int)StartX)
+                    {
+                        smoothedHeight += Heightmap[int2(njX, niX)] * kernelWeight;
+                        totalWeight += kernelWeight;
+                    }
+                }
+            }
+
+            if (totalWeight > 0.0)
+            {
+                smoothedHeight /= totalWeight;
+            }
+
+            height = lerp(height, smoothedHeight, clamp(brushInfluence, 0.0, 1.0));
+        }
+        else // Hydraulic erosion mode (Mode == 1)
+        {
+            // Calculate surface normal in 5x5 neighborhood
+            float3 normal = float3(0.0, 0.0, 1.0); // Default normal (flat)
+            float2 gradient = float2(0.0, 0.0);
+            float maxSlope = 0.0;
+
+            // Compute gradients in x and z directions (5x5 neighborhood)
+            for (int ni = -2; ni <= 2; ni++)
+            {
+                for (int nj = -2; nj <= 2; nj++)
+                {
+                    if (ni == 0 && nj == 0) continue;
+                    int niX = (int)texY + ni;
+                    int njX = (int)texX + nj;
+                    if (niX >= 0 && niX < (int)Height + (int)StartZ && njX >= 0 && njX < (int)Width + (int)StartX)
+                    {
+                        float neighborHeight = Heightmap[int2(njX, niX)];
+                        float distance = sqrt((float)(ni * ni + nj * nj));
+                        float slope = (height - neighborHeight) / max(distance, 0.001);
+                        gradient += float2(nj, ni) * slope;
+                    }
+                }
+            }
+
+            // Derive normal from gradients (approximate)
+            normal.xy = -gradient * 0.5; // Scale gradient to approximate normal
+            normal = normalize(normal);
+
+            // Calculate downhill direction using trigonometry (project normal to horizontal plane)
+            float2 flowDir = normalize(float2(normal.x, normal.y)); // Downhill direction
+            float slopeAngle = acos(normal.z); // Slope angle from normal (0 = flat, pi/2 = vertical)
+            float slopeFactor = sin(slopeAngle); // Steeper slopes erode more
+
+            // Erosion based on slope
+            float erosionAmount = slopeFactor * brushInfluence * 0.1; // Increased for stronger effect
+
+            // Erode material from current point
+            height -= erosionAmount;
+
+            // Deposit material along flow direction (distribute to nearest pixels)
+            float totalDeposited = 0.0;
+            for (int step = 1; step <= 2; step++)
+            {
+                float2 depositOffset = flowDir * (float)step;
+                int2 depositPos = int2((int)(texX + depositOffset.x + 0.5), (int)(texY + depositOffset.y + 0.5));
+                if (depositPos.x >= 0 && depositPos.x < (int)Width + (int)StartX && 
+                    depositPos.y >= 0 && depositPos.y < (int)Height + (int)StartZ)
+                {
+                    // Calculate local slope at deposit position (3x3 for performance)
+                    float depositSlope = 0.0;
+                    for (int ni = -1; ni <= 1; ni++)
+                    {
+                        for (int nj = -1; nj <= 1; nj++)
+                        {
+                            if (ni == 0 && nj == 0) continue;
+                            int depNiX = depositPos.y + ni;
+                            int depNjX = depositPos.x + nj;
+                            if (depNiX >= 0 && depNiX < (int)Height + (int)StartZ && depNjX >= 0 && depNjX < (int)Width + (int)StartX)
+                            {
+                                float neighborHeight = Heightmap[int2(depNjX, depNiX)];
+                                float distance = sqrt((float)(ni * ni + nj * nj));
+                                depositSlope += abs((Heightmap[depositPos] - neighborHeight) / max(distance, 0.001));
+                            }
+                        }
+                    }
+                    depositSlope *= 0.125; // Normalize for 8 neighbors
+                    float depositionFactor = max(0.0, 1.0 - depositSlope * 2.0); // Favor flat areas
+                    float depositAmount = erosionAmount * 0.2 * depositionFactor / step; // Reduced deposition
+                    Result[depositPos] = Heightmap[depositPos] + depositAmount;
+                    totalDeposited += depositAmount;
+                }
+            }
+
+            // Stronger 5x5 Gaussian blur with increased blending
+            float smoothedHeight = 0.0;
+            float totalWeight = 0.0;
+            for (int ni = -2; ni <= 2; ni++)
+            {
+                for (int nj = -2; nj <= 2; nj++)
+                {
+                    int niX = (int)texY + ni;
+                    int njX = (int)texX + nj;
+                    float kernelWeight = gaussianKernel[ni + 2][nj + 2];
+                    
+                    if (niX >= 0 && niX < (int)Height + (int)StartZ && njX >= 0 && njX < (int)Width + (int)StartX)
+                    {
+                        smoothedHeight += Heightmap[int2(njX, niX)] * kernelWeight;
+                        totalWeight += kernelWeight;
+                    }
+                }
+            }
+            if (totalWeight > 0.0)
+            {
+                smoothedHeight /= totalWeight;
+                height = lerp(height, smoothedHeight, .4); // Increased blending for stronger smoothing
+            }
+        }
+
+        // Clamp height to valid range [0, 1]
+        height = clamp(height, 0.0, 1.0);
+        Result[int2(j, i)] = height;
+    }
+    else
+    {
+        Result[int2(j, i)] = Heightmap[int2(texX, texY)];
+    }
+}

@@ -1,0 +1,109 @@
+// SplatMapBlur.compute
+#pragma kernel BlurSplatMap
+
+Texture2D<float4> Terrain_Control0; // First 4 splat channels
+Texture2D<float4> Terrain_Control1; // Next 4 splat channels
+Texture2D<float> BrushTex;          // Brush texture from MainScript
+SamplerState sampler_BrushTex;
+RWTexture2D<float4> Result0;       // Output for first 4 channels
+RWTexture2D<float4> Result1;       // Output for next 4 channels
+float BrushStrength;
+uint BrushSize;
+uint SplatRatio;
+uint StartX, StartZ;
+uint Width, Height;
+uint TextureCount;
+
+// 5x5 Gaussian kernel
+static const float kernel[5][5] = {
+    { 1.0/16.0, 1.0/8.0, 1.0/4.0, 1.0/8.0, 1.0/16.0 },
+    { 1.0/8.0,  1.0/4.0, 1.0/2.0, 1.0/4.0, 1.0/8.0 },
+    { 1.0/4.0,  1.0/2.0,    1.0,   1.0/2.0, 1.0/4.0 },
+    { 1.0/8.0,  1.0/4.0, 1.0/2.0, 1.0/4.0, 1.0/8.0 },
+    { 1.0/16.0, 1.0/8.0, 1.0/4.0, 1.0/8.0, 1.0/16.0 }
+};
+static const float kernelSum = 4.0; // Sum of kernel weights
+
+[numthreads(8,8,1)]
+void BlurSplatMap(uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.y;
+    uint j = id.x;
+
+    // Check if within bounds of the region
+    if (i >= Height || j >= Width)
+        return;
+
+    // Adjust coordinates to account for StartX, StartZ
+    uint texX = j + StartX;
+    uint texY = i + StartZ;
+
+    // Calculate brush influence
+    uint offsetX = StartX - (StartX / SplatRatio) * SplatRatio; 
+    uint offsetZ = StartZ - (StartZ / SplatRatio) * SplatRatio; 
+    uint brushX = j * SplatRatio - offsetX;
+    uint brushY = i * SplatRatio - offsetZ;
+    float brushInfluence = 0.0;
+
+    if (brushX < BrushSize && brushY < BrushSize)
+    {
+        float2 uv = float2((float)brushX / BrushSize, (float)brushY / BrushSize);
+        brushInfluence = BrushTex.SampleLevel(sampler_BrushTex, uv, 0).r * BrushStrength * 100.0;
+    }
+
+    if (brushInfluence > 0.0)
+    {
+        float4 weights0 = 0.0; // Channels 0-3
+        float4 weights1 = 0.0; // Channels 4-7
+        float totalWeight = 0.0;
+
+        // Apply 5x5 Gaussian kernel
+        for (int ni = -2; ni <= 2; ni++)
+        {
+            for (int nj = -2; nj <= 2; nj++)
+            {
+                int niX = (int)texY + ni; // Adjusted for StartZ
+                int njX = (int)texX + nj; // Adjusted for StartX
+                if (niX >= 0 && niX < (int)Height + (int)StartZ && njX >= 0 && njX < (int)Width + (int)StartX)
+                {
+                    float kernelWeight = kernel[ni + 2][nj + 2] / kernelSum;
+                    weights0 += Terrain_Control0[int2(njX, niX)] * kernelWeight;
+                    if (TextureCount > 4)
+                        weights1 += Terrain_Control1[int2(njX, niX)] * kernelWeight;
+                    totalWeight += kernelWeight;
+                }
+            }
+        }
+
+        // Blend with original weights
+        float4 original0 = Terrain_Control0[int2(texX, texY)];
+        float4 blended0 = lerp(original0, weights0, clamp(brushInfluence, 0.0, 1.0));
+        float4 blended1 = 0.0;
+        if (TextureCount > 4)
+        {
+            float4 original1 = Terrain_Control1[int2(texX, texY)];
+            blended1 = lerp(original1, weights1, clamp(brushInfluence, 0.0, 1.0));
+        }
+
+        // Normalize weights across all channels
+        float sum = blended0.x + blended0.y + blended0.z + blended0.w;
+        if (TextureCount > 4)
+            sum += blended1.x + blended1.y + blended1.z + blended1.w;
+
+        if (sum <= 0.0)
+        {
+            blended0.x = 1.0; // Default to first texture
+            sum = 1.0;
+        }
+
+        Result0[int2(j, i)] = blended0 / sum;
+        if (TextureCount > 4)
+            Result1[int2(j, i)] = blended1 / sum;
+    }
+    else
+    {
+        Result0[int2(j, i)] = Terrain_Control0[int2(texX, texY)];
+        if (TextureCount > 4)
+            Result1[int2(j, i)] = Terrain_Control1[int2(texX, texY)];
+    }
+}

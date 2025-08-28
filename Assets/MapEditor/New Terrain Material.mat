@@ -1,0 +1,141 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: New Terrain Material
+  m_Shader: {fileID: 4800000, guid: a3b7efc0f4e20864e84fe53cb4141a32, type: 3}
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BrushTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _PotatoDetailTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TerrainHolesTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TerrainOverride_Alpha:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TerrainOverride_Biome:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TerrainOverride_Control0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TerrainOverride_Control1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TerrainOverride_Normal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WetnessLayer_Mask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _BiomeMode: 0
+    - _BrushSize: 0.078125
+    - _BrushStrength: 1
+    - _Cutoff: 1
+    - _CutoffRange: 0
+    - _DecalLayerMask: 0
+    - _DstBlend: 0
+    - _LODTransitionDistance: 50
+    - _LandMask: 0
+    - _Layer0_Factor: 1
+    - _Layer0_Falloff: 1
+    - _Layer0_Metallic: 0
+    - _Layer0_Smoothness: 0.5
+    - _Layer0_SpecularReflectivity: 0
+    - _Layer1_Factor: 1
+    - _Layer1_Falloff: 1
+    - _Layer1_Metallic: 0
+    - _Layer1_Smoothness: 0.5
+    - _Layer1_SpecularReflectivity: 0
+    - _Layer2_Factor: 1
+    - _Layer2_Falloff: 1
+    - _Layer2_Metallic: 0
+    - _Layer2_Smoothness: 0.5
+    - _Layer2_SpecularReflectivity: 0
+    - _Layer3_Factor: 1
+    - _Layer3_Falloff: 1
+    - _Layer3_Metallic: 0
+    - _Layer3_Smoothness: 0.5
+    - _Layer3_SpecularReflectivity: 0
+    - _Layer4_Factor: 1
+    - _Layer4_Falloff: 1
+    - _Layer4_Metallic: 0
+    - _Layer4_Smoothness: 0.5
+    - _Layer4_SpecularReflectivity: 0
+    - _Layer5_Factor: 1
+    - _Layer5_Falloff: 1
+    - _Layer5_Metallic: 0
+    - _Layer5_Smoothness: 0.5
+    - _Layer5_SpecularReflectivity: 0
+    - _Layer6_Factor: 1
+    - _Layer6_Falloff: 1
+    - _Layer6_Metallic: 0
+    - _Layer6_Smoothness: 0.5
+    - _Layer6_SpecularReflectivity: 0
+    - _Layer7_Factor: 1
+    - _Layer7_Falloff: 1
+    - _Layer7_Metallic: 0
+    - _Layer7_Smoothness: 0.5
+    - _Layer7_SpecularReflectivity: 0
+    - _LayerFallback_Metallic: 0
+    - _LayerFallback_Smoothness: 0
+    - _Mode: 0
+    - _PotatoDetailWorldUVScale: 0
+    - _PreviewMode: 0
+    - _ShoreWetnessLayer: 0
+    - _ShoreWetnessLayer_BlendFactor: 1
+    - _ShoreWetnessLayer_BlendFalloff: 1
+    - _ShoreWetnessLayer_Range: 1
+    - _ShoreWetnessLayer_WetAlbedoScale: 0.5
+    - _ShoreWetnessLayer_WetSmoothness: 0.8
+    - _SplatRatio: 1.0019531
+    - _SrcBlend: 1
+    - _TerrainParallax: 0
+    - _TerrainTarget: 0.033333335
+    - _Terrain_Type: 0
+    - _TopologyMode: -1
+    - _UseTerrainOverrides: 0
+    - _WetnessLayer: 0
+    - _WetnessLayer_WetAlbedoScale: 0
+    - _WetnessLayer_WetSmoothness: 0
+    - _WetnessLayer_Wetness: 0
+    - _ZWrite: 1
+    m_Colors:
+    - _BrushPos: {r: 0.61328125, g: 0.921875, b: 0, a: 0}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _LayerFallback_Albedo: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_BuildTextureStacks: []

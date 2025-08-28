@@ -1,0 +1,107 @@
+#pragma kernel MakeCliffMap
+
+// Input textures
+Texture2D<float> Height; // R8: Height values (0-1)
+Texture2D<float> Slope;  // R8: Slope values (0-1)
+Texture2D<float> Curvature; // R8: Curvature values (0-1)
+Texture2D<float4> Biome; // RGBA32: Biome weights (r=0, g=1, b=2, a=3)
+Texture2D<float4> TopologyTexture; // RGBA32: Topology bitmask (32 bits across RGBA)
+
+// Output textures
+RWTexture2D<float> SpawnMap; // R8: 1 for spawnable, 0 for non-spawnable
+RWTexture2D<float> MaskPixels; // R8: 1 for red, 0 for black
+
+// Counter buffer for spawnCount
+RWStructuredBuffer<uint> SpawnCount;
+
+// Parameters
+float heightMin, heightMax;
+float slopeLow, slopeHigh;
+float curveMin, curveMax, curveWeight;
+float frequencyInv;
+uint avoidTopo;
+uint topologies; // Bitmask for inverted topologies
+uint arid, temperate, tundra, arctic;
+uint HeightMapRes, SplatMapRes;
+float resRatio;
+
+// Random number generator (simple hash for thread-safe pseudo-random)
+float Random(uint2 id)
+{
+    uint seed = id.x * 1973 + id.y * 9277 + 26699;
+    seed = (seed ^ 61) ^ (seed >> 16);
+    seed *= 9;
+    seed = seed ^ (seed >> 4);
+    seed *= 0x27d4eb2d;
+    seed = seed ^ (seed >> 15);
+    return frac(seed / 4294967296.0);
+}
+
+// Decode topology bitmask from RGBA texture
+int GetTopologyBitmask(float2 uv)
+{
+    float4 color = TopologyTexture[uint2(uv * float2(SplatMapRes, SplatMapRes))];
+    int r = (int)(color.r * 255.0);
+    int g = (int)(color.g * 255.0);
+    int b = (int)(color.b * 255.0);
+    int a = (int)(color.a * 255.0);
+    int bitmask = (a << 24) | (b << 16) | (g << 8) | r;
+    return bitmask;
+}
+
+[numthreads(8,8,1)]
+void MakeCliffMap(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= HeightMapRes || id.y >= HeightMapRes) return;
+
+    uint2 pixel = uint2(id.x, id.y);
+    float2 uv = float2((float)id.x / HeightMapRes, (float)id.y / HeightMapRes); // Normalized UVs
+    uint iResRatio = (uint)(id.x / resRatio);
+    uint jResRatio = (uint)(id.y / resRatio);
+
+    // Default output
+    SpawnMap[pixel] = 0.0;
+    MaskPixels[pixel] = 0.0;
+
+    // Random frequency check
+    if (Random(pixel) >= frequencyInv) return;
+
+    // Height check
+    float height = Height[pixel];
+    if ((heightMin != -100000.0 && height < heightMin) || (heightMax != 100000.0 && height > heightMax)) return;
+
+    // Slope check
+    float slope = Slope[pixel] * 0.01; // Adjust density scaling as needed
+    if ((slopeLow != -100000.0 && slope < slopeLow) || (slopeHigh != 100000.0 && slope > slopeHigh)) return;
+
+    // Curvature check
+    float curve = Curvature[pixel] * curveWeight;
+    if ((curveMin != -100000.0 && curve < curveMin) || (curveMax != 100000.0 && curve > curveMax)) return;
+
+    // Topology check
+    bool topologyValid = avoidTopo ? true : false;
+    int topologyBitmask = GetTopologyBitmask(uv);
+    if (avoidTopo)
+    {
+        if ((topologyBitmask & topologies) != 0) // Any forbidden topology present
+            topologyValid = false;
+    }
+    else
+    {
+        if ((topologyBitmask & topologies) != 0) // Any allowed topology present
+            topologyValid = true;
+    }
+    if (!topologyValid) return;
+
+    // Biome check
+    float4 biomeValues = Biome[uint2(iResRatio, jResRatio)];
+    if (biomeValues.r >= 0.1 && !arid) return;
+    if (biomeValues.g >= 0.1 && !temperate) return;
+    if (biomeValues.b >= 0.1 && !tundra) return;
+    if (biomeValues.a >= 0.1 && !arctic) return;
+
+    // Set spawnable
+    SpawnMap[pixel] = 1.0;
+    MaskPixels[pixel] = 1.0; // Red in R8
+    InterlockedAdd(SpawnCount[0], 1);
+}

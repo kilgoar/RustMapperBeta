@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - Prefabs
+  - Paths
+  - Electrics
+  - Land
+  - NPC
+  - Water
+  - Modifiers
+  - LandMask
+  - Prefab
+  - TransformTool
+  - EditorSpace
+  - Collection
+  - raytestTemplate
+  - loading
+  - EmptyLOD
+  - EasyRoads
+  - DefaultCollider
+  - AppCanvas
+  - Node
+  - NodeParent
+  - Path
+  - Ocean
+  - beg
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - Prefabs
+  - Water
+  - UI
+  - WorldTool
+  - 
+  - 
+  - Paths
+  - Land
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0

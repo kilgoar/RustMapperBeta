@@ -1,0 +1,180 @@
+{
+    "geologyItems": [
+        {
+            "customPrefab": "Custom/polygons/cube",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        },
+        {
+            "customPrefab": "Custom/polygons/parkourCube",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        },
+        {
+            "customPrefab": "Custom/polygons/parkourdodecahedron",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        },
+        {
+            "customPrefab": "Custom/polygons/parkourOctahedron",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        },
+        {
+            "customPrefab": "Custom/polygons/parkourOctahedronMetal",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        },
+        {
+            "customPrefab": "Custom/polygons/parkourTetrahedron",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        },
+        {
+            "customPrefab": "Custom/polygons/parkourTruncIcosa",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        },
+        {
+            "customPrefab": "Custom/polygons/parkourTwig",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        },
+        {
+            "customPrefab": "Custom/polygons/tetrahedron",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        },
+        {
+            "customPrefab": "Custom/polygons/twigdoubletetrahedron",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        },
+        {
+            "customPrefab": "Custom/polygons/woodDodecahedron",
+            "custom": true,
+            "prefabID": 0,
+            "emphasis": 1
+        }
+    ],
+    "geologyCollisions": [
+        {
+            "minMax": true,
+            "radius": 50.0,
+            "layer": 8
+        },
+        {
+            "minMax": true,
+            "radius": 20.0,
+            "layer": 512
+        },
+        {
+            "minMax": false,
+            "radius": 70.0,
+            "layer": 512
+        }
+    ],
+    "newCollisions": {
+        "minMax": true,
+        "radius": 50.0,
+        "layer": 256
+    },
+    "filename": "Presets/Geology/mars overhang rocks.json",
+    "title": "pythagoras fields",
+    "density": 132,
+    "frequency": 419,
+    "floor": 505,
+    "ceiling": 1000,
+    "biomeIndex": 0,
+    "seed": 0,
+    "spawns": 0,
+    "biomeLayer": 1,
+    "colliderLayer": 0,
+    "closeColliderLayer": 0,
+    "avoidTopo": true,
+    "flipping": true,
+    "tilting": false,
+    "normalizeX": false,
+    "normalizeY": true,
+    "normalizeZ": false,
+    "biomeExclusive": true,
+    "cliffTest": false,
+    "overlap": false,
+    "closeOverlap": false,
+    "temperate": false,
+    "arid": true,
+    "arctic": false,
+    "tundra": false,
+    "road": false,
+    "monument": false,
+    "dither": false,
+    "useSeed": false,
+    "slopeRange": false,
+    "curveRange": false,
+    "heightRange": true,
+    "featureMenu": true,
+    "rotationMenu": true,
+    "scaleMenu": false,
+    "placementMenu": true,
+    "collisionMenu": true,
+    "presetMenu": true,
+    "jitterMenu": true,
+    "preview": true,
+    "scalesLow": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+    },
+    "scalesHigh": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+    },
+    "rotationsLow": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+    },
+    "rotationsHigh": {
+        "x": 0.0,
+        "y": 360.0,
+        "z": 0.0
+    },
+    "jitterLow": {
+        "x": -0.1845616102218628,
+        "y": 0.018377304077148439,
+        "z": 0.18308639526367188
+    },
+    "jitterHigh": {
+        "x": 0.585784912109375,
+        "y": 0.13235688209533692,
+        "z": 0.19362688064575196
+    },
+    "zOffset": -0.15000000596046449,
+    "colliderDistance": 0.0,
+    "closeColliderDistance": 0.0,
+    "balance": 0.0,
+    "slopeLow": 26.410537719726564,
+    "slopeHigh": 147.50717163085938,
+    "heights": {
+        "slopeLow": 0.0,
+        "slopeHigh": 48.04412841796875,
+        "heightMin": 0.5,
+        "heightMax": 1.0,
+        "curveMin": -1.0839223861694337,
+        "curveMax": 1.076789140701294,
+        "slopeWeight": 1.0,
+        "curveWeight": 1.0
+    },
+    "topologies": 1139238144
+}

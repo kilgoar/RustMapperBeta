@@ -1,0 +1,14 @@
+{
+  "blacklistItems": [
+    {
+      "path": "assets/content/vehicles/bikes/motorbike_sidecar.prefab",
+      "hidden": false,
+      "blacklisted": true
+    },
+    {
+      "path": "assets/content/vehicles/bikes/motorbike.prefab",
+      "hidden": false,
+      "blacklisted": true
+    }
+  ]
+}

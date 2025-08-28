@@ -1,0 +1,50 @@
+// RotateTexture.compute
+#pragma kernel RotateTexture
+
+Texture2D<float4> _MainTex;
+RWTexture2D<float4> _ResultTex;
+float _Rotation;
+float4 _DefaultColor;
+
+// Define sampler state for linear filtering and clamp addressing
+SamplerState sampler_linear_clamp
+{
+    Filter = MIN_MAG_MIP_LINEAR;
+    AddressU = Clamp;
+    AddressV = Clamp;
+};
+
+[numthreads(16, 16, 1)] // Increased for better GPU utilization
+void RotateTexture(uint3 id : SV_DispatchThreadID)
+{
+    // Get texture dimensions
+    uint width, height;
+    _MainTex.GetDimensions(width, height);
+
+    // Skip if out of bounds
+    if (id.x >= width || id.y >= height) return;
+
+    // Normalize thread ID to UV coordinates
+    float2 uv = float2(id.x / (float)width, id.y / (float)height);
+    float2 pivot = float2(0.5, 0.5);
+
+    // Apply rotation (same as original vertex shader)
+    float cosA = cos(_Rotation);
+    float sinA = sin(_Rotation);
+    float2x2 rotationMatrix = float2x2(cosA, -sinA, sinA, cosA);
+    float2 rotatedUV = mul(rotationMatrix, uv - pivot) + pivot;
+
+    // Sample texture or use default color for out-of-bounds UVs
+    float4 color;
+    if (rotatedUV.x >= 0.0 && rotatedUV.x <= 1.0 && rotatedUV.y >= 0.0 && rotatedUV.y <= 1.0)
+    {
+        color = _MainTex.SampleLevel(sampler_linear_clamp, rotatedUV, 0);
+    }
+    else
+    {
+        color = _DefaultColor;
+    }
+
+    // Write to result texture
+    _ResultTex[id.xy] = color;
+}
