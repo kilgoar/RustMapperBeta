@@ -82,6 +82,7 @@ public static class AssetManager
 		string bundlePath = SettingsManager.application.rustDirectory;
 		
 		string[] pathSegments = { "Program Files (x86)", "Steam", "steamapps", "common", "Rust"};
+		string[] pathSegments2 = { "SteamLibrary", "steamapps", "common", "Rust"};
 		string bundleTry = Path.Combine(pathSegments);
 		
 		Debug.LogError(bundlePath);
@@ -90,8 +91,18 @@ public static class AssetManager
 			
 			foreach (string drive in drives)			{
 				string alternativePath = Path.Combine(drive, bundleTry);
+				string alternativePath2 = Path.Combine(drive, bundleTry);
 
 				if (Directory.Exists(alternativePath))				{
+					FilePreset app = SettingsManager.application;
+					app.rustDirectory = alternativePath;
+					SettingsManager.application = app;
+					SettingsManager.SaveSettings();
+					bundlePath = Path.Combine(alternativePath, bundleExt);
+					break;
+				}
+				
+				if (Directory.Exists(alternativePath2))				{
 					FilePreset app = SettingsManager.application;
 					app.rustDirectory = alternativePath;
 					SettingsManager.application = app;

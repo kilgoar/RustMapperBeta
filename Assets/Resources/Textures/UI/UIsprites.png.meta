@@ -129,10 +129,10 @@ TextureImporter:
       name: doorIcon
       rect:
         serializedVersion: 2
-        x: 662
-        y: 1116
-        width: 46
-        height: 37
+        x: 661
+        y: 1114
+        width: 42
+        height: 42
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -360,10 +360,10 @@ TextureImporter:
       name: doorIconGreen
       rect:
         serializedVersion: 2
-        x: 606
-        y: 1116
-        width: 46
-        height: 37
+        x: 605
+        y: 1114
+        width: 42
+        height: 42
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}

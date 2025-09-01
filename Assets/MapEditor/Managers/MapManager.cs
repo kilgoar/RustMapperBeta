@@ -813,8 +813,6 @@ public static void LoadDumpJSON(string path)
 		TerrainManager.Water.terrainData.baseMapResolution = mapInfo.splatRes;
 		TerrainManager.Water.terrainData.size = mapInfo.size;
 
-		// Set heightmap with undo
-		RegisterHeightMapUndo(TerrainType.Land, $"New Map {size}");
 		TerrainManager.Land.terrainData.SetHeights(0, 0, mapInfo.land.heights);
 		TerrainManager.Water.terrainData.SetHeights(0, 0, mapInfo.water.heights);
 		TerrainManager.Callbacks.InvokeHeightMapUpdated(TerrainType.Land);

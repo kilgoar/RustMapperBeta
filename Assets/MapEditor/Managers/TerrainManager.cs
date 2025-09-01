@@ -1201,9 +1201,10 @@ private static void ConfigureShaderGlobals(Terrain terrain)
 		float normalizedAdjustment = heightAdjustment / 1000f;
 
 		// Register undo and apply the offset
-		RegisterHeightMapUndo(TerrainType.Land, $"Adjust Height by {heightAdjustment}m");
+		
+		float [,] before = (float[,])GetHeightMap().Clone();
 		Land.terrainData.SetHeights(0, 0, RustMapEditor.Maths.Array.Offset(GetHeightMap(), normalizedAdjustment, true));
-
+		RegisterHeightMapUndoRedo(TerrainType.Land, $"Adjust Height by {heightAdjustment}m", before);
 		// Notify listeners of the update
 		Callbacks.InvokeHeightMapUpdated(TerrainType.Land);
 	}
@@ -1244,11 +1245,11 @@ private static void ConfigureShaderGlobals(Terrain terrain)
 
         // Get the current layer data
         float[,,] layerMap = TerrainManager.GetLayerData(layerType, layerIndex);
+		float[,,] before = (float[,,])layerMap.Clone();
         int res = layerMap.GetLength(0);
         int layerCount = TerrainManager.LayerCount(layerType); // 8 for Ground, 4 for Biome, 2 for Topology
 
-        // Register undo before modifying
-        TerrainManager.RegisterSplatMapUndo($"Paint Border Layer {layerType} Index {layerIndex}, Radius {radius}");
+        
 
         // Paint the borders with blending over the radius
         for (int x = 0; x < res; x++)
@@ -1304,6 +1305,7 @@ private static void ConfigureShaderGlobals(Terrain terrain)
 
         // Apply the updated layer back to TerrainManager
         TerrainManager.SetLayerData(layerMap, layerType, layerIndex);
+		TerrainManager.RegisterSplatMapUndo($"Paint Border Layer {layerType} Index {layerIndex}, Radius {radius}", before);
 
         // Notify listeners of the update
         TerrainManager.Callbacks.InvokeLayerUpdated(layerType, layerIndex);
@@ -1412,7 +1414,7 @@ private static void ConfigureShaderGlobals(Terrain terrain)
     /// <summary>Sets a region of the topology map.</summary>
     public static void SetTopologyMapRegion(int[,] array, int x, int y, int width, int height, int layer = -1)
     {
-		RegisterTopologyMapUndo($"Set Topology Map Region Layer {layer}", layer);
+		//RegisterTopologyMapUndo($"Set Topology Map Region Layer {layer}", layer);
         if (array == null || array.GetLength(0) != height || array.GetLength(1) != width)
         {
             Debug.LogError($"SetTopologyMapRegion: Invalid array dimensions. Expected [{height}, {width}], got [{array?.GetLength(0)}, {array?.GetLength(1)}]");
@@ -1463,7 +1465,6 @@ private static void ConfigureShaderGlobals(Terrain terrain)
 
  public static void SetAlphaMapRegion(float[,] alphaData, int x, int y, int width, int height)
 {
-	RegisterAlphaUndo("Set Alpha Region");
 	
     if (alphaData == null || alphaData.GetLength(0) != height || alphaData.GetLength(1) != width)
     {
@@ -1567,8 +1568,7 @@ int res = heightMap.GetLength(0);
 // Create a copy of the original heightmap for blending
 float[,] originalHeightMap = (float[,])heightMap.Clone();
 
-// Register undo before modifying
-RegisterHeightMapUndo(TerrainType.Land, $"Border Tuck to {targetHeight}m, Radius {radius}, Padding {padding}");
+float [,] before = (float[,])GetHeightMap().Clone();
 
 // Apply padding and S-shaped blending
 for (int x = 0; x < res; x++)
@@ -1646,6 +1646,7 @@ for (int x = 0; x < res; x++)
 
 // Apply the modified heightmap
 Land.terrainData.SetHeights(0, 0, heightMap);
+RegisterHeightMapUndoRedo(TerrainType.Land, $"Border Tuck to {targetHeight}m, Radius {radius}, Padding {padding}", before);
 
 // Notify listeners of the update
 Callbacks.InvokeHeightMapUpdated(TerrainType.Land);
@@ -1875,7 +1876,7 @@ public static bool[,] UpscaleBitmap(bool[,] source)
 					Debug.LogError($"SetLayerArray({layer}, {topology}) topology parameter out of bounds. Should be between 0 - {TerrainTopology.COUNT - 1}");
 					return;
 				}
-				RegisterTopologyMapUndo($"Set {layer} Layer Array", topology);
+				//RegisterTopologyMapUndo($"Set {layer} Layer Array", topology);
 				
 				Topology[topology] = array;
 				bool[,] bitmap = ConvertSplatToBitmap(array);
@@ -2247,11 +2248,13 @@ public static bool[,] UpscaleBitmap(bool[,] source)
     /// <param name="CW">True = 90°, False = 270°</param>
     public static void RotateHeightMap(bool CW, TerrainType terrain = TerrainType.Land, Area dmns = null)
     {
-        RegisterHeightMapUndo(terrain, "Rotate HeightMap");
+        float [,] before = (float[,])GetHeightMap().Clone();
         if (terrain == TerrainType.Land)
             Land.terrainData.SetHeights(0, 0, RustMapEditor.Maths.Array.Rotate(GetHeightMap(), CW, dmns));
         else
             Water.terrainData.SetHeights(0, 0, RustMapEditor.Maths.Array.Rotate(GetHeightMap(TerrainType.Water), CW, dmns));
+		
+		RegisterHeightMapUndoRedo(terrain, "Rotate HeightMap", before);
     }
 
     /// <summary>Sets the HeightMap to the height input.</summary>
@@ -2259,22 +2262,26 @@ public static bool[,] UpscaleBitmap(bool[,] source)
     public static void SetHeightMapHeight(float height, TerrainType terrain = TerrainType.Land, Area dmns = null)
     {
         height /= 1000f; // Normalises user input to a value between 0 - 1f.
-        RegisterHeightMapUndo(terrain, "Set HeightMap Height");
+        float [,] before = (float[,])GetHeightMap().Clone();
 
         if (terrain == TerrainType.Land)
             Land.terrainData.SetHeights(0, 0, RustMapEditor.Maths.Array.SetValues(GetHeightMap(), height, dmns));
         else
             Water.terrainData.SetHeights(0, 0, RustMapEditor.Maths.Array.SetValues(GetHeightMap(TerrainType.Water), height, dmns));
+		
+		RegisterHeightMapUndoRedo(terrain, "Set HeightMap Height", before);
     }
 
     /// <summary>Inverts the HeightMap heights.</summary>
     public static void InvertHeightMap(TerrainType terrain = TerrainType.Land, Area dmns = null)
     {
-        RegisterHeightMapUndo(terrain, "Invert HeightMap");
+        float [,] before = (float[,])GetHeightMap().Clone();
         if (terrain == TerrainType.Land)
             Land.terrainData.SetHeights(0, 0, RustMapEditor.Maths.Array.Invert(GetHeightMap(), dmns));
         else
             Water.terrainData.SetHeights(0, 0, GetHeightMap(TerrainType.Water));
+		
+		RegisterHeightMapUndoRedo(terrain, "Invert HeightMap", before);
     }
 
     /// <summary> Normalises the HeightMap between two heights.</summary>
@@ -2284,12 +2291,14 @@ public static bool[,] UpscaleBitmap(bool[,] source)
     public static void NormaliseHeightMap(float normaliseLow, float normaliseHigh, TerrainType terrain = TerrainType.Land, Area dmns = null)
     {
         normaliseLow /= 1000f; normaliseHigh /= 1000f; // Normalises user input to a value between 0 - 1f.
-        RegisterHeightMapUndo(terrain, "Normalise HeightMap");
+        float [,] before = (float[,])GetHeightMap().Clone();
 
         if (terrain == TerrainType.Land)
             Land.terrainData.SetHeights(0, 0, RustMapEditor.Maths.Array.Normalise(GetHeightMap(), normaliseLow, normaliseHigh, dmns));
         else
             Water.terrainData.SetHeights(0, 0, RustMapEditor.Maths.Array.Normalise(GetHeightMap(TerrainType.Water), normaliseLow, normaliseHigh, dmns));
+		
+		RegisterHeightMapUndoRedo(terrain, "Normalise HeightMap", before);
     }
 	
 [ConsoleCommand("Squeezes the heightmap to range")]
@@ -2358,8 +2367,9 @@ public static void SqueezeHeightMap(float normaliseLow, float normaliseHigh)
     }
 
     // Apply to terrain with undo
-    RegisterHeightMapUndo(TerrainType.Land, $"Squeeze HeightMap {normaliseLow * 1000f}m-{normaliseHigh * 1000f}m");
+    float [,] before = (float[,])GetHeightMap().Clone();
     Land.terrainData.SetHeights(0, 0, heights);
+	RegisterHeightMapUndoRedo(TerrainType.Land, $"Squeeze HeightMap {normaliseLow * 1000f}m-{normaliseHigh * 1000f}m", before);
     Callbacks.InvokeHeightMapUpdated(TerrainType.Land);
 }
 
@@ -2370,12 +2380,14 @@ public static void SqueezeHeightMap(float normaliseLow, float normaliseHigh)
 	public static void OffsetHeightMap(float offset, bool clampOffset, TerrainType terrain = TerrainType.Land, Area dmns = null)
     {
         offset /= 1000f; // Normalises user input to a value between 0 - 1f.
-        RegisterHeightMapUndo(terrain, "Offset HeightMap");
+        float [,] before = (float[,])GetHeightMap().Clone();
 
         if (terrain == TerrainType.Land)
             Land.terrainData.SetHeights(0, 0, RustMapEditor.Maths.Array.Offset(GetHeightMap(), offset, clampOffset, dmns));
         else
             Water.terrainData.SetHeights(0, 0, RustMapEditor.Maths.Array.Offset(GetHeightMap(TerrainType.Water), offset, clampOffset, dmns));
+		
+		RegisterHeightMapUndoRedo(terrain, "Offset HeightMap",before);
     }
 	
 	
@@ -2413,8 +2425,10 @@ public static void NudgeHeightMap(float offset)
     }
 
     // Apply to terrain with undo
-    RegisterHeightMapUndo(TerrainType.Land, $"Nudge HeightMap by {offset * 1000f}m");
+    float [,] before = (float[,])GetHeightMap().Clone();
     Land.terrainData.SetHeights(0, 0, offsetHeights);
+	RegisterHeightMapUndoRedo(TerrainType.Land, $"Nudge HeightMap by {offset * 1000f}m", before);
+	
     Callbacks.InvokeHeightMapUpdated(TerrainType.Land);
 }
 
@@ -2424,7 +2438,7 @@ public static void NudgeHeightMap(float offset)
 	[ConsoleCommand("uniform terracing")]
     public static void TerraceErodeHeightMap(float featureSize, float interiorCornerWeight)
     {
-        RegisterHeightMapUndo(TerrainType.Land, "Erode HeightMap");
+        float [,] before = (float[,])GetHeightMap().Clone();
 
 		#if UNITY_EDITOR
         Material mat = new Material((Shader)AssetDatabase.LoadAssetAtPath("Packages/com.unity.terrain-tools/Shaders/TerraceErosion.shader", typeof(Shader)));
@@ -2440,6 +2454,9 @@ public static void NudgeHeightMap(float offset)
         UnityEngine.TerrainTools.TerrainPaintUtility.SetupTerrainToolMaterialProperties(paintContext, brushXform, mat);
         Graphics.Blit(paintContext.sourceRenderTexture, paintContext.destinationRenderTexture, mat, 0);
         UnityEngine.TerrainTools.TerrainPaintUtility.EndPaintHeightmap(paintContext, "Terrain Filter - TerraceErosion");
+		
+		
+        RegisterHeightMapUndoRedo(TerrainType.Land, "Erode HeightMap", before);
     }
 
     /// <summary>Smooths the HeightMap.</summary>
@@ -2448,7 +2465,7 @@ public static void NudgeHeightMap(float offset)
 	[ConsoleCommand("heightmap smoothing")]
     public static void SmoothHeightMap(float filterStrength, float blurDirection)
     {
-        RegisterHeightMapUndo(TerrainType.Land, "Smooth HeightMap");
+        float [,] before = (float[,])GetHeightMap().Clone();
 
         Material mat = UnityEngine.TerrainTools.TerrainPaintUtility.GetBuiltinPaintMaterial();
         UnityEngine.TerrainTools.BrushTransform brushXform = UnityEngine.TerrainTools.TerrainPaintUtility.CalculateBrushTransform(Land, HeightMapCentre, Land.terrainData.size.x, 0.0f);
@@ -2461,6 +2478,8 @@ public static void NudgeHeightMap(float offset)
         UnityEngine.TerrainTools.TerrainPaintUtility.SetupTerrainToolMaterialProperties(paintContext, brushXform, mat);
         Graphics.Blit(paintContext.sourceRenderTexture, paintContext.destinationRenderTexture, mat, (int)UnityEngine.TerrainTools.TerrainBuiltinPaintMaterialPasses.SmoothHeights);
         UnityEngine.TerrainTools.TerrainPaintUtility.EndPaintHeightmap(paintContext, "Terrain Filter - Smooth Heights");
+		
+		RegisterHeightMapUndoRedo(TerrainType.Land, "Smooth HeightMap", before);
     }
 
     #endregion
@@ -2948,8 +2967,6 @@ public static void SetBiomeRegion(float[,,] biomeData, int x, int y, int width, 
 			}
 		}
 
-		// Apply the region to the terrain
-		RegisterSplatMapUndo("Set Alpha Region");
 		SyncAlphaTexture();
 		AlphaDirty = false;
 		Callbacks.InvokeLayerUpdated(LayerType.Alpha, TopologyLayer);
@@ -3407,24 +3424,25 @@ public static void ChangeLayer(LayerType layer, int topology = -1)
 
     #region Other
 
-	public static void RegisterHeightMapUndo(TerrainType terrain, string name)	{
-		TerrainUndoManager.RegisterHeightMapUndo(name, terrain);
+	public static void RegisterHeightMapUndoRedo(TerrainType terrain, string name, float[,] before)	{
+		TerrainUndoManager.RegisterHeightMapUndoRedo(name, terrain, before);
+	}
+	
+
+	public static void RegisterBiomeMapUndo(string name, float[,,] before)	{
+		TerrainUndoManager.RegisterBiomeMapUndoRedo(name, before);
 	}
 
-	public static void RegisterBiomeMapUndo(string name)	{
-		TerrainUndoManager.RegisterBiomeMapUndo(name);
+	public static void RegisterTopologyMapUndo(string name, int index, float[,,] before)	{
+		TerrainUndoManager.RegisterSplatMapUndoRedo(name, before, LayerType.Topology, index);
 	}
 
-	public static void RegisterTopologyMapUndo(string name, int index)	{
-		TerrainUndoManager.RegisterSplatMapUndo(name, LayerType.Topology, index);
+	public static void RegisterAlphaUndo(string name, bool[,] before)	{
+		TerrainUndoManager.RegisterAlphaMapUndoRedo(name, before);
 	}
 
-	public static void RegisterAlphaUndo(string name)	{
-		TerrainUndoManager.RegisterAlphaMapUndo(name);
-	}
-
-	public static void RegisterSplatMapUndo(string name)	{
-		TerrainUndoManager.RegisterSplatMapUndo(name, LayerType.Ground, -1);
+	public static void RegisterSplatMapUndo(string name, float[,,] before)	{
+		TerrainUndoManager.RegisterSplatMapUndoRedo(name, before, LayerType.Ground, -1);
 	}
 
 	public static void ClearUndo()	{

@@ -270,6 +270,53 @@ public static void SetTopologyRegion(int[,] topologyValues, int x, int y, int wi
     // Convert updated topology back to byte array and update Data
     Data = topologyMap.ToByteArray();
 }
+
+
+public static void OverwriteTopologyRegion(int[,] topologyValues, int x, int y, int width, int height)
+{
+    TerrainMap<int> topologyMap = GetTerrainMap();
+
+    if (topologyMap == null)
+    {
+        Debug.LogError("SetTopologyRegion: TerrainMap is null. Ensure TopologyData is initialized.");
+        return;
+    }
+
+    if (topologyValues == null)
+    {
+        Debug.LogError("SetTopologyRegion: Provided topology values array is null.");
+        return;
+    }
+
+    if (topologyValues.GetLength(0) != height || topologyValues.GetLength(1) != width)
+    {
+        Debug.LogError($"SetTopologyRegion: Invalid array dimensions. Expected [{height}, {width}], got [{topologyValues.GetLength(0)}, {topologyValues.GetLength(1)}]");
+        return;
+    }
+
+    Parallel.For(0, height, i =>
+    {
+        for (int j = 0; j < width; j++)
+        {
+            if (x + j < topologyMap.res && y + i < topologyMap.res)
+            {
+                int newValue = topologyValues[i, j];
+                topologyMap[y + i, x + j] = newValue; // Overwrite the entire bitmask
+                for (int layerIndex = 0; layerIndex < TerrainTopology.COUNT; layerIndex++)
+                {
+                    int layerBit = TerrainTopology.IndexToType(layerIndex);
+                    bool isLayerActive = (newValue & layerBit) != 0;
+                    Topology[layerIndex][y + i, x + j, 0] = isLayerActive ? 1f : 0f;
+                    Topology[layerIndex][y + i, x + j, 1] = isLayerActive ? 0f : 1f;
+                }
+            }
+        }
+    });
+
+    Data = topologyMap.ToByteArray();
+    UpdateTexture();
+}
+
 	
 	public static void SetTopology(int layer, int x, int y, int width, int height, bool[,] bitmap)
 	{

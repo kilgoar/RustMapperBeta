@@ -95,17 +95,7 @@ public static class SettingsManager
 			CopyEditorSettings(AppDataPath());
 			
 			
-	        // Ensure the Custom/Skins folder exists in AppData and copy it if missing
-			string defaultSkinsPath = Path.Combine("Custom", "Skins"); // Source: next to executable
-			string appDataSkinsPath = Path.Combine(AppDataPath(), "Custom", "Skins"); // Target: AppData/RustMapper/Custom/Skins
-			
-			if (!Directory.Exists(appDataSkinsPath))
-			{
-				Directory.CreateDirectory(appDataSkinsPath);
-				CopyDirectory(defaultSkinsPath, appDataSkinsPath);
-				Debug.Log($"Populated {appDataSkinsPath} with default skins from {defaultSkinsPath}");
-				ModManager.LoadSkin(Path.Combine(appDataSkinsPath,"darkmode.png"));
-			}
+
 			
 		}
 		catch(Exception ex){			
@@ -116,8 +106,122 @@ public static class SettingsManager
 		EnsureDefaultBrushes();
 		LoadFragmentLookup();
 		LoadSettings();
-
+		ManageSkins();
     }
+	
+	
+	
+	
+	private static void ManageSkins()
+	{
+		try
+		{
+			// Define paths
+			string defaultSkinsPath = Path.Combine("Custom", "Skins"); // Source: next to executable
+			string appDataSkinsPath = Path.Combine(AppDataPath(), "Custom", "Skins"); // Target: AppData/RustMapper/Custom/Skins
+
+			// Create Skins directory if it doesn't exist
+			if (!Directory.Exists(appDataSkinsPath))
+			{
+				Directory.CreateDirectory(appDataSkinsPath);
+				Debug.Log($"Created Skins directory at {appDataSkinsPath}");
+			}
+
+			// Define the skin files to manage
+			string[] skinFiles = { "classic.png", "cabinet.png", "darkmode.png" };
+
+			// Paths for the source and destination darkmode.png
+			string sourceDarkmodePath = Path.Combine(defaultSkinsPath, "darkmode.png");
+			string appDataDarkmodePath = Path.Combine(appDataSkinsPath, "darkmode.png");
+
+			// Check if darkmode.png exists in source and if it’s newer than the AppData version
+			bool updateSkins = false;
+			if (File.Exists(sourceDarkmodePath))
+			{
+				if (!File.Exists(appDataDarkmodePath))
+				{
+					updateSkins = true; // No darkmode.png in AppData, trigger update
+					Debug.Log("No darkmode.png found in AppData, will copy all default skins");
+				}
+				else
+				{
+					try
+					{
+						// Check if both files exist
+						if (!File.Exists(sourceDarkmodePath))
+						{
+							Debug.LogWarning($"Source file not found: {sourceDarkmodePath}. Cannot compare modification times.");
+							return;
+						}
+
+						// Compare file modification times
+						DateTime sourceDarkmodeTime = File.GetLastWriteTimeUtc(sourceDarkmodePath);
+						DateTime appDataDarkmodeTime = File.GetLastWriteTimeUtc(appDataDarkmodePath);
+
+						// Compare file creation times (optional)
+						DateTime sourceCreationTime = File.GetCreationTimeUtc(sourceDarkmodePath);
+						DateTime appDataCreationTime = File.GetCreationTimeUtc(appDataDarkmodePath);
+
+						if (sourceDarkmodeTime > appDataDarkmodeTime || sourceCreationTime > appDataCreationTime)
+						{
+							updateSkins = true;
+							Debug.Log($"Newer darkmode.png detected in source directory (modification: {sourceDarkmodeTime:yyyy-MM-dd HH:mm:ss} UTC, creation: {sourceCreationTime:yyyy-MM-dd HH:mm:ss} UTC) " +
+									  $"compared to app data (modification: {appDataDarkmodeTime:yyyy-MM-dd HH:mm:ss} UTC, creation: {appDataCreationTime:yyyy-MM-dd HH:mm:ss} UTC). Updating all skins.");
+						}
+						else
+						{
+							Debug.Log($"No update needed. Source file (modification: {sourceDarkmodeTime:yyyy-MM-dd HH:mm:ss} UTC, creation: {sourceCreationTime:yyyy-MM-dd HH:mm:ss} UTC) " +
+									  $"is not newer than app data file (modification: {appDataDarkmodeTime:yyyy-MM-dd HH:mm:ss} UTC, creation: {appDataCreationTime:yyyy-MM-dd HH:mm:ss} UTC).");
+						}
+					}
+					catch (Exception ex)
+					{
+						Debug.LogError($"Error comparing file times for {sourceDarkmodePath} and {appDataDarkmodePath}: {ex.Message}");
+					}
+				}
+			}
+			else
+			{
+				Debug.LogWarning($"Source darkmode.png not found at {sourceDarkmodePath}, skipping skin update");
+			}
+
+			// Update all skins if necessary
+			if (updateSkins)
+			{
+				foreach (string skin in skinFiles)
+				{
+					string sourceSkinPath = Path.Combine(defaultSkinsPath, skin);
+					string destSkinPath = Path.Combine(appDataSkinsPath, skin);
+
+					if (File.Exists(sourceSkinPath))
+					{
+						File.Copy(sourceSkinPath, destSkinPath, true); // Overwrite if exists
+						Debug.Log($"Updated {skin} in {appDataSkinsPath}");
+					}
+					else
+					{
+						Debug.LogWarning($"Source skin {skin} not found at {sourceSkinPath}, skipped");
+					}
+				}
+			}
+
+			// Load the default skin (e.g., darkmode.png) after updating
+			if (File.Exists(application.startupSkin))
+			{
+				ModManager.LoadSkin(application.startupSkin);
+				Debug.Log($"Loaded skin: {application.startupSkin}");
+			}
+			else
+			{
+				Debug.LogWarning($"Failed to load startupSkin");
+			}
+		}
+		catch (Exception ex)
+		{
+			Debug.LogError($"Error managing skins: {ex.Message}\nStackTrace: {ex.StackTrace}");
+		}
+	}
+	
 	
 	private static void EnsureDefaultBrushes()
     {
@@ -310,7 +414,7 @@ public static class SettingsManager
 			}
 			else
 			{
-				Debug.LogWarning($"{fileName} not found at: {sourceFile} or file found at {destFile}");
+				Debug.Log($"{destFile} exists or default has been removed");
 			}
 		}
 	}
@@ -1055,6 +1159,7 @@ public static class SettingsManager
 		try
 		{
 			string settingsPath = SettingsPath;
+			
 			if (string.IsNullOrEmpty(settingsPath))
 			{
 				Debug.LogError("Settings path is null or empty");
@@ -1069,13 +1174,14 @@ public static class SettingsManager
 
 			using (StreamReader reader = new StreamReader(settingsPath))
 			{
+
 				string json = reader.ReadToEnd();
 				if (string.IsNullOrEmpty(json))
 				{
 					Debug.LogError($"Config file is empty at: {settingsPath}");
 					return;
 				}
-
+				Debug.Log("loading settings from " + settingsPath);
 				EditorSettings editorSettings = JsonConvert.DeserializeObject<EditorSettings>(json);
 
 

@@ -3,7 +3,7 @@
   "prefabRenderDistance": 700.0,
   "pathRenderDistance": 250.0,
   "waterTransparency": 0.2,
-  "loadbundleonlaunch": true,
+  "loadbundleonlaunch": false,
   "terrainTextureSet": false,
   "style": true,
   "application": {
@@ -11,7 +11,7 @@
     "prefabRenderDistance": 5000.0,
     "pathRenderDistance": 5000.0,
     "waterTransparency": 0.0,
-    "loadbundleonlaunch": true,
+    "loadbundleonlaunch": false,
     "terrainTextureSet": false,
     "loadBatch": 128,
     "newSize": 712,
@@ -365,7 +365,7 @@
       "scale": {
         "x": 0.6,
         "y": 0.6,
-        "z": 1.0
+        "z": 0.0
       }
     },
     {
@@ -408,7 +408,7 @@
       }
     },
     {
-      "isActive": true,
+      "isActive": false,
       "position": {
         "x": 184.607422,
         "y": 129.019989,
@@ -418,6 +418,19 @@
         "x": 0.6,
         "y": 0.6,
         "z": 0.6
+      }
+    },
+    {
+      "isActive": true,
+      "position": {
+        "x": -264.26,
+        "y": 28.1000061,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6,
+        "z": 0.0
       }
     }
   ],

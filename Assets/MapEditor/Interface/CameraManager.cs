@@ -323,31 +323,36 @@ public void InitializeGizmos()
 			float currentSpeed = movementSpeed * sprint * Time.deltaTime;
 
 			globalMove = Vector3.zero;
+			
+			if(!Keyboard.current.ctrlKey.isPressed){
 
-			if (BindManager.IsPressed("moveForward"))
-			{
-				globalMove += cam.transform.forward * currentSpeed;
+				if (BindManager.IsPressed("moveForward"))
+				{
+					globalMove += cam.transform.forward * currentSpeed;
+				}
+				if (BindManager.IsPressed("moveBackward"))
+				{
+					globalMove -= cam.transform.forward * currentSpeed;
+				}
+				if (BindManager.IsPressed("moveLeft"))
+				{
+					globalMove -= cam.transform.right * currentSpeed;
+				}
+				if (BindManager.IsPressed("moveRight"))
+				{
+					globalMove += cam.transform.right * currentSpeed;
+				}
+				if (BindManager.IsPressed("moveDown"))
+				{
+					globalMove -= cam.transform.up * currentSpeed;
+				}
+				if (BindManager.IsPressed("moveUp"))
+				{
+					globalMove += cam.transform.up * currentSpeed;
+				}
 			}
-			if (BindManager.IsPressed("moveBackward"))
-			{
-				globalMove -= cam.transform.forward * currentSpeed;
-			}
-			if (BindManager.IsPressed("moveLeft"))
-			{
-				globalMove -= cam.transform.right * currentSpeed;
-			}
-			if (BindManager.IsPressed("moveRight"))
-			{
-				globalMove += cam.transform.right * currentSpeed;
-			}
-			if (BindManager.IsPressed("moveDown"))
-			{
-				globalMove -= cam.transform.up * currentSpeed;
-			}
-			if (BindManager.IsPressed("moveUp"))
-			{
-				globalMove += cam.transform.up * currentSpeed;
-			}
+			
+			
 			if (BindManager.WasPressedThisFrame("delete"))
 			{
 				DeleteSelection();

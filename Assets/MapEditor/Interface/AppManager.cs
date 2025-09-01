@@ -60,10 +60,10 @@ public class AppManager : MonoBehaviour
 		
         SceneController.InitializeScene();
         SettingsManager.RuntimeInit();
+		Debug.Log("settings manager loaded");
 		BindManager.RuntimeInit();
 
 		AssetManager.RuntimeInit();
-		//SearchManager.RuntimeInit();
 				
 		Debug.Log("settings loaded");
 		Debug.Log("initializing rustmapper build: " + DebugManager.Instance.buildId);
@@ -78,7 +78,7 @@ public class AppManager : MonoBehaviour
 		Debug.Log("area manager initialized");
 		MapManager.RuntimeInit();
 		Debug.Log("map manager initialized");
-
+		
 		
     }
 
@@ -135,6 +135,72 @@ public class AppManager : MonoBehaviour
 			}
 		Debug.Log("loading startup skin at " + application.startupSkin);
 		ModManager.LoadSkin(application.startupSkin);
+		
+		LoadWindowStates();
+	}
+	
+	
+	public void LoadWindowStates()
+	{
+		if (SettingsManager.windowStates == null || SettingsManager.windowStates.Length == 0)
+		{
+			Debug.Log("No window states found in SettingsManager. Skipping load.");
+			return;
+		}
+
+		if (SettingsManager.windowStates.Length != windowPanels.Count)
+		{
+			Debug.LogWarning($"Mismatch between saved window states ({SettingsManager.windowStates.Length}) and window panels ({windowPanels.Count}). Loading what is available.");
+		}
+
+		for (int i = 0; i < windowPanels.Count && i < SettingsManager.windowStates.Length; i++)
+		{
+			if (windowPanels[i] == null || windowToggles[i] == null)
+			{
+				Debug.LogWarning($"Null window panel or toggle at index {i}. Skipping.");
+				continue;
+			}
+
+			WindowState state = SettingsManager.windowStates[i];
+			RectTransform rect = windowPanels[i].GetComponent<RectTransform>();
+
+			if (rect == null)
+			{
+				Debug.LogWarning($"Window panel at index {i} has no RectTransform. Skipping.");
+				continue;
+			}
+
+			// Set active state
+			windowPanels[i].SetActive(state.isActive);
+			windowToggles[i].SetIsOnWithoutNotify(state.isActive);
+
+			// Set position and scale
+			rect.localPosition = state.position;
+			rect.localScale = state.scale;
+
+			// Handle associated RecycleTree if it exists
+			if (i < RecycleTrees.Count && RecycleTrees[i] != null)
+			{
+				RecycleTrees[i].gameObject.SetActive(state.isActive);
+				RectTransform treeRect = RecycleTrees[i].GetComponent<RectTransform>();
+				if (treeRect != null)
+				{
+					treeRect.localScale = state.scale;
+				}
+				else
+				{
+					Debug.LogWarning($"RecycleTree at index {i} has no RectTransform.");
+				}
+			}
+		}
+
+		// Ensure menuPanel is on top
+		if (menuPanel != null)
+		{
+			menuPanel.transform.SetAsLastSibling();
+		}
+
+		Debug.Log("Window states loaded successfully.");
 	}
 	
 

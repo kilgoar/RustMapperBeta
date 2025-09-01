@@ -834,7 +834,8 @@ public static void UpdateTerrainHeightmap(ERRoad road, PathData pathData)
 
     int width = xEndIndex - xStartIndex;
     int height = zEndIndex - zStartIndex;
-    float[,] heights = terrainData.GetHeights(xStartIndex, zStartIndex, width, height);
+	float[,] before = TerrainManager.GetHeightMap();
+    float[,] heights = TerrainManager.GetHeightMap(xStartIndex, zStartIndex, width, height, TerrainManager.TerrainType.Land);
 
     const int influenceLayer = 30;
     LayerMask layerMask = (1 << influenceLayer);
@@ -912,8 +913,8 @@ public static void UpdateTerrainHeightmap(ERRoad road, PathData pathData)
         }
     }
 
-    TerrainManager.RegisterHeightMapUndo(TerrainManager.TerrainType.Land, $"Update Heightmap for '{road.GetName()}'");
     terrainData.SetHeights(xStartIndex, zStartIndex, heights);
+	TerrainManager.RegisterHeightMapUndoRedo(TerrainManager.TerrainType.Land, $"Update Heightmap for '{road.GetName()}'", before);
     terrain.Flush();
 	
 	influenceMeshObj.SetActive(false);
@@ -1150,25 +1151,26 @@ public static void PaintRoadLayers(ERRoad road, WorldSerialization.PathData path
             }
         }
     }
-    TerrainUndoManager.RegisterSplatMapUndo($"Paint Road Splat '{road.GetName()}'", xStartIndex, zStartIndex, width, height, splatMapBefore);
+    
 
     // Register undo for internal topology map
     int topoStartX = Mathf.FloorToInt(xStartIndex / TerrainManager.SplatRatio);
     int topoStartZ = Mathf.FloorToInt(zStartIndex / TerrainManager.SplatRatio);
     int topoWidth = Mathf.Min(Mathf.CeilToInt((float)width / TerrainManager.SplatRatio), topologyWidth - topoStartX);
     int topoHeight = Mathf.Min(Mathf.CeilToInt((float)height / TerrainManager.SplatRatio), topologyHeight - topoStartZ);
+	bool[,] topologyMapBefore=null;
+	bool[,] outerTopologyMapBefore=null;
     
     if (topoWidth > 0 && topoHeight > 0)
     {
-        bool[,] topologyMapBefore = TopologyData.GetTopology(TerrainTopology.IndexToType(topologyIndex), topoStartX, topoStartZ, topoWidth, topoHeight);
-        TerrainUndoManager.RegisterTopologyMapUndo($"Paint Road Topology '{road.GetName()}'", topologyIndex, topoStartX, topoStartZ, topoWidth, topoHeight, topologyMapBefore);
+        topologyMapBefore = TopologyData.GetTopology(TerrainTopology.IndexToType(topologyIndex), topoStartX, topoStartZ, topoWidth, topoHeight);
+
     }
 
     // Register undo for outer topology map if applicable
     if (outerTopology != -1 && outerTopologyMap != null)
     {
-        bool[,] outerTopologyMapBefore = TopologyData.GetTopology(TerrainTopology.IndexToType(outerTopologyIndex), topoStartX, topoStartZ, topoWidth, topoHeight);
-        TerrainUndoManager.RegisterTopologyMapUndo($"Paint Road Outer Topology '{road.GetName()}'", outerTopologyIndex, topoStartX, topoStartZ, topoWidth, topoHeight, outerTopologyMapBefore);
+        outerTopologyMapBefore = TopologyData.GetTopology(TerrainTopology.IndexToType(outerTopologyIndex), topoStartX, topoStartZ, topoWidth, topoHeight);
     }
 
     const int influenceLayer = 30;
@@ -1263,7 +1265,16 @@ public static void PaintRoadLayers(ERRoad road, WorldSerialization.PathData path
 
     // Apply changes
     TerrainManager.SetSplatMap(groundMap, TerrainManager.LayerType.Ground);
+	TerrainUndoManager.RegisterSplatMapUndoRedo($"Paint Road Splat '{road.GetName()}'", xStartIndex, zStartIndex, width, height, splatMapBefore);	
+	
     TerrainManager.SetSplatMap(topologyMap, TerrainManager.LayerType.Topology, topologyIndex);
+	
+	if(topologyMapBefore!=null){
+		TerrainUndoManager.RegisterTopologyMapUndoRedo($"Paint Road Topology '{road.GetName()}'", topologyIndex, topoStartX, topoStartZ, topoWidth, topoHeight, topologyMapBefore);
+	}	
+	if(outerTopologyMapBefore!=null){
+		TerrainUndoManager.RegisterTopologyMapUndoRedo($"Paint Road Outer Topology '{road.GetName()}'", outerTopologyIndex, topoStartX, topoStartZ, topoWidth, topoHeight, outerTopologyMapBefore);
+	}
 
     bool[,] topologyBitmap = TerrainManager.ConvertSplatToBitmap(topologyMap);
     bool[,] downscaledBitmap = TerrainManager.DownscaleBitmap(topologyBitmap);

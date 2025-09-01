@@ -8,43 +8,33 @@ public class Monument : TerrainPlacement
 	
 protected override void ApplyHeightMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions)
 {
-	if (!HeightMap) {Debug.Log("skip heightmap"); return;}
-	
-	
-    if ( heightmap == null ) {
-		Debug.Log("heightmap not found / inalid");
-		return;}
+    if (!HeightMap) { Debug.Log("skip heightmap"); return; }
+    if (heightmap == null) { Debug.Log("heightmap not found / invalid"); return; }
+
     Texture2D heightTexture = heightmap.GetResource();
     Texture2D blendTexture = blendmap.GetResource();
 
-	if (heightTexture != null && heightTexture.isReadable)
-	{
-		Color pixel = heightTexture.GetPixel(0, 0);
-		Debug.Log($"heightTexture Pixel (0,0): R={pixel.r}, G={pixel.g}, B={pixel.b}, A={pixel.a}");
-	}
-
+    if (heightTexture != null && heightTexture.isReadable)
+    {
+        Color pixel = heightTexture.GetPixel(0, 0);
+        Debug.Log($"heightTexture Pixel (0,0): R={pixel.r}, G={pixel.g}, B={pixel.b}, A={pixel.a}");
+    }
 
     float radius = Radius == 0f ? extents.x : Radius;
     bool useBlendMap = blendTexture != null;
     float radiusX = useBlendMap ? extents.x : radius;
     float radiusZ = useBlendMap ? extents.z : radius;
-	
+
     Vector3 position = localToWorld.MultiplyPoint3x4(Vector3.zero);
-
-    // Extract the rotation from localToWorld
     Quaternion rotation = localToWorld.rotation;
-
-    // Compute the world-space X and Z axes of the rotated rectangle
     Vector3 localXAxis = rotation * Vector3.right;
     Vector3 localZAxis = rotation * Vector3.forward;
 
-    // Project the local extents onto the world axes to find the maximum extent
     float extentX = Mathf.Abs(Vector3.Dot(new Vector3(radiusX, 0f, 0f), localXAxis)) +
                     Mathf.Abs(Vector3.Dot(new Vector3(0f, 0f, radiusZ), localXAxis));
     float extentZ = Mathf.Abs(Vector3.Dot(new Vector3(radiusX, 0f, 0f), localZAxis)) +
                     Mathf.Abs(Vector3.Dot(new Vector3(0f, 0f, radiusZ), localZAxis));
 
-    // Define the world-space AABB using the projected extents
     Vector3[] corners = new Vector3[]
     {
         position + new Vector3(-extentX, 0f, -extentZ),
@@ -53,20 +43,26 @@ protected override void ApplyHeightMap(Matrix4x4 localToWorld, Matrix4x4 worldTo
         position + new Vector3(extentX, 0f, extentZ)
     };
 
-    // Convert the corners to grid bounds
     int[] gridBounds = TerrainManager.WorldCornersToGrid(corners[0], corners[1], corners[2], corners[3]);
     int minX = Mathf.Max(0, gridBounds[0]), minZ = Mathf.Max(0, gridBounds[1]);
     int maxX = Mathf.Min(TerrainManager.HeightMapRes - 1, gridBounds[2]), maxZ = Mathf.Min(TerrainManager.HeightMapRes - 1, gridBounds[3]);
     int width = maxX - minX + 1, height = maxZ - minZ + 1;
 
-    // Log the bounds for debugging
-    //Debug.Log($"Grid Bounds: minX={minX}, minZ={minZ}, maxX={maxX}, maxZ={maxZ}, width={width}, height={height}");
-
     if (width <= 0 || height <= 0) return;
 
+    // Capture current heightmap state for undo
     float[,] heightMap = TerrainManager.GetHeightMap();
-    float[,] regionHeights = new float[height, width];
+    float[,] regionHeightsBefore = new float[height, width];
+    for (int z = 0; z < height; z++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            regionHeightsBefore[z, x] = heightMap[z + minZ, x + minX];
+        }
+    }
 
+
+    float[,] regionHeights = new float[height, width];
     Vector3 terrainPosition = TerrainManager.Land.transform.position;
     Vector3 terrainSize = TerrainManager.TerrainSize;
     Vector3 rcpSize = new Vector3(1f / terrainSize.x, 1f / terrainSize.y, 1f / terrainSize.z);
@@ -98,7 +94,6 @@ protected override void ApplyHeightMap(Matrix4x4 localToWorld, Matrix4x4 worldTo
             }
 
             float combinedHeight = BitUtility.SampleHeightBilinear(heightTexture, u, v);
-
             float worldHeight = position.y + offset.y + combinedHeight * size.y;
             float normalizedHeight = (worldHeight - terrainPosition.y) * rcpSize.y;
 
@@ -108,18 +103,27 @@ protected override void ApplyHeightMap(Matrix4x4 localToWorld, Matrix4x4 worldTo
     }
 
     TerrainManager.SetHeightMapRegion(regionHeights, minX, minZ, width, height);
+	
+
+    // Register undo state
+    TerrainUndoManager.RegisterHeightMapUndoRedo(
+        "Monument HeightMap",
+        TerrainManager.TerrainType.Land,
+        minX,
+        minZ,
+        width,
+        height,
+        regionHeightsBefore
+    );
 }
 
 protected override void ApplyAlphaMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions)
 {
-	
-	if (!AlphaMap) {Debug.Log("skip alpha"); return;}
-	
-	bool user = false;
-	if (string.IsNullOrEmpty(topologymap.Guid))	{ user=true;	}
-	
+    if (!AlphaMap) { Debug.Log("skip alpha"); return; }
+
+    bool user = string.IsNullOrEmpty(topologymap.Guid);
     Texture2D alphaTexture = alphamap.GetResource();
-	Texture2D blendTexture = blendmap.GetResource();
+    Texture2D blendTexture = blendmap.GetResource();
     if (alphaTexture == null)
     {
         Debug.LogWarning($"No alpha texture available for {this}.");
@@ -134,9 +138,20 @@ protected override void ApplyAlphaMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
 
     if (width <= 0 || height <= 0) return;
 
-    float[,] alphaMap = TerrainManager.GetAlphaMapFloat();
+    // Capture current alphamap state for undo
+    bool[,] alphaMap = TerrainManager.GetAlphaMap();
+    bool[,] regionAlphaBefore = new bool[height, width];
+    for (int z = 0; z < height; z++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            regionAlphaBefore[z, x] = alphaMap[z + minZ, x + minX];
+        }
+    }
+
+
     float[,] regionAlpha = new float[height, width];
-	float alphaValue = 0f;
+    float alphaValue = 0f;
 
     for (int x = minX; x <= maxX; x++)
     {
@@ -144,39 +159,33 @@ protected override void ApplyAlphaMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
         {
             Vector3 worldPos = new Vector3(TerrainManager.ToWorldX(x), 0, TerrainManager.ToWorldZ(z));
             Vector3 localPos = worldToLocal.MultiplyPoint3x4(worldPos) - offset;
-			float u = Mathf.Clamp01((localPos.x + extents.x) / size.x);
-			float v = Mathf.Clamp01((localPos.z + extents.z) / size.z);
-			float blendAlpha = blendTexture.GetPixelBilinear(u, v).a;
-			
-			
-			if(!user){
-            alphaValue = alphaTexture.GetPixelBilinear(u, v).a;
-			}
-			else{
-				alphaValue = alphaTexture.GetPixelBilinear(u, v).r; //user monuments are r8
-			}
+            float u = Mathf.Clamp01((localPos.x + extents.x) / size.x);
+            float v = Mathf.Clamp01((localPos.z + extents.z) / size.z);
+            float blendAlpha = blendTexture.GetPixelBilinear(u, v).a;
+
+            alphaValue = user ? alphaTexture.GetPixelBilinear(u, v).r : alphaTexture.GetPixelBilinear(u, v).a;
             regionAlpha[z - minZ, x - minX] = alphaValue;
         }
     }
 
     TerrainManager.SetAlphaMapRegion(regionAlpha, minX, minZ, width, height);
+	    // Register undo state
+    TerrainUndoManager.RegisterAlphaMapUndoRedo(
+        "Monument AlphaMap",
+        minX,
+        minZ,
+        width,
+        height,
+        regionAlphaBefore
+    );
     dimensions.IncludeRect(new RectInt(minX, minZ, width, height));
 }
 	
-	
-protected override void ApplyBiomeMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions)
+	protected override void ApplyBiomeMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions)
 {
-    Texture2D biomeTexture1 = biomemap.GetResource(); // First biome texture
-    //Texture2D biomeTexture2 = biomemap2?.GetResource(); // Second biome texture (assuming biomemap2 is a new field)
+    Texture2D biomeTexture1 = biomemap.GetResource();
     Texture2D blendTexture = blendmap?.cachedInstance ?? blendmap?.GetResource();
 
-	/*
-    if (biomeTexture1 == null || biomeTexture2 == null)
-    {
-        Debug.LogWarning($"Missing biome texture(s) for {this}. BiomeTexture1: {biomeTexture1}, BiomeTexture2: {biomeTexture2}");
-        return;
-    }
-	*/
     bool useBlendMap = blendTexture != null;
 
     Vector3[] corners = GetWorldCorners(localToWorld);
@@ -187,9 +196,25 @@ protected override void ApplyBiomeMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
 
     if (width <= 0 || height <= 0) return;
 
-    float[,,] biomeMap = TerrainManager.GetSplatMap(TerrainManager.LayerType.Ground);
-    float[,,] regionBiomes = new float[height, width, TerrainManager.LayerCount(TerrainManager.LayerType.Biome)];
-    int biomeCount = 5; // Arid, Temperate, Tundra, Arctic, Jungle
+    // Capture current biome map state for undo
+    float[,,] biomeMap = TerrainManager.GetSplatMap(TerrainManager.LayerType.Biome);
+    int biomeCount = TerrainManager.LayerCount(TerrainManager.LayerType.Biome);
+    float[,,] regionBiomesBefore = new float[height, width, biomeCount];
+    for (int z = 0; z < height; z++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            for (int k = 0; k < biomeCount; k++)
+            {
+                regionBiomesBefore[z, x, k] = biomeMap[z + minZ, x + minX, k];
+            }
+        }
+    }
+
+
+
+    float[,,] regionBiomes = new float[height, width, biomeCount];
+    int biomeCountLocal = 5; // Arid, Temperate, Tundra, Arctic, Jungle
 
     for (int x = minX; x <= maxX; x++)
     {
@@ -204,38 +229,31 @@ protected override void ApplyBiomeMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
                 ? BitUtility.SampleAlphaBilinear(blendTexture, u, v)
                 : Mathf.InverseLerp(Radius, Radius - Fade, localPos.Magnitude2D());
 
-            // Sample both biome textures
             Color32 biomeValue1 = biomeTexture1.GetPixelBilinear(u, v);
-            //Color32 biomeValue2 = biomeTexture2.GetPixelBilinear(u, v);
 
-            // Blend biome values from both textures (e.g., weighted average)
-            float[] biomeValues = new float[biomeCount];
+            float[] biomeValues = new float[biomeCountLocal];
             biomeValues[0] = ShouldBiome(1) ? (biomeValue1.r) : 0f; // Arid
-            biomeValues[1] = ShouldBiome(2) ? (biomeValue1.g ) : 0f; // Temperate
-            biomeValues[2] = ShouldBiome(4) ? (biomeValue1.b ) : 0f; // Tundra
-            biomeValues[3] = ShouldBiome(8) ? (biomeValue1.a ) : 0f; // Arctic
-            biomeValues[4] = 0f; // Jungle (example)
+            biomeValues[1] = ShouldBiome(2) ? (biomeValue1.g) : 0f; // Temperate
+            biomeValues[2] = ShouldBiome(4) ? (biomeValue1.b) : 0f; // Tundra
+            biomeValues[3] = ShouldBiome(8) ? (biomeValue1.a) : 0f; // Arctic
+            biomeValues[4] = 0f; // Jungle
 
-            // Compute total biome contribution
             float totalBiomeContribution = 0f;
-            for (int i = 0; i < biomeCount; i++)
+            for (int i = 0; i < biomeCountLocal; i++)
             {
                 totalBiomeContribution += biomeValues[i];
             }
 
-            // Normalize biome values (if non-zero contribution)
             if (totalBiomeContribution > 0f)
             {
-                for (int i = 0; i < biomeCount; i++)
+                for (int i = 0; i < biomeCountLocal; i++)
                 {
                     biomeValues[i] /= totalBiomeContribution;
                 }
             }
 
-            // Adjust fade factor based on total biome contribution
             float effectiveFade = fade * totalBiomeContribution;
 
-            // Blend biome values into the regionBiomes array
             regionBiomes[z - minZ, x - minX, 0] = Mathf.Lerp(biomeMap[z, x, 0], biomeValues[0], effectiveFade); // Arid
             regionBiomes[z - minZ, x - minX, 1] = Mathf.Lerp(biomeMap[z, x, 1], biomeValues[1], effectiveFade); // Temperate
             regionBiomes[z - minZ, x - minX, 2] = Mathf.Lerp(biomeMap[z, x, 2], biomeValues[2], effectiveFade); // Tundra
@@ -244,7 +262,7 @@ protected override void ApplyBiomeMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
         }
     }
 
-    // Final normalization pass to ensure biome values sum to 1
+    // Normalize biome values
     for (int x = 0; x < width; x++)
     {
         for (int z = 0; z < height; z++)
@@ -265,18 +283,24 @@ protected override void ApplyBiomeMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
     }
 
     TerrainManager.SetBiomeMapRegion(regionBiomes, minX, minZ, width, height);
+	// Register undo state
+    TerrainUndoManager.RegisterBiomeMapUndoRedo(
+        "Monument Biome",
+        minX,
+        minZ,
+        width,
+        height,
+        regionBiomesBefore
+    );
     dimensions.IncludeRect(new RectInt(minX, minZ, width, height));
 }
-
 
 protected override void ApplySplatMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions)
 {
     if ((splatmap0 == null) && (splatmap1 == null)) return;
-	
-	bool user = false;
-	if (string.IsNullOrEmpty(topologymap.Guid))	{ user=true;	}
 
-    Texture2D splat0Texture =  splatmap0.GetResource();
+    bool user = string.IsNullOrEmpty(topologymap.Guid);
+    Texture2D splat0Texture = splatmap0.GetResource();
     Texture2D splat1Texture = splatmap1.GetResource();
     Texture2D blendTexture = blendmap.GetResource();
 
@@ -296,9 +320,24 @@ protected override void ApplySplatMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
 
     if (width <= 0 || height <= 0) return;
 
+    // Capture current splatmap state for undo
     float[,,] splatMap = TerrainManager.GetSplatMap(TerrainManager.LayerType.Ground);
-    float[,,] regionSplats = new float[height, width, TerrainManager.LayerCount(TerrainManager.LayerType.Ground)];
     int layerCount = TerrainManager.LayerCount(TerrainManager.LayerType.Ground);
+    float[,,] regionSplatsBefore = new float[height, width, layerCount];
+    for (int z = 0; z < height; z++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            for (int k = 0; k < layerCount; k++)
+            {
+                regionSplatsBefore[z, x, k] = splatMap[z + minZ, x + minX, k];
+            }
+        }
+    }
+
+
+
+    float[,,] regionSplats = new float[height, width, layerCount];
     Debug.Log($"Splat Layer Count: {layerCount}");
 
     for (int x = minX; x <= maxX; x++)
@@ -314,12 +353,10 @@ protected override void ApplySplatMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
                 ? BitUtility.SampleAlphaBilinear(blendTexture, u, v)
                 : Mathf.InverseLerp(Radius, Radius - Fade, localPos.Magnitude2D());
 
-			Vector4 splat0 = splat0Texture != null ? splat0Texture.GetPixelBilinear(u, v) : Vector4.zero;
-			Vector4 splat1 = splat1Texture != null ? splat1Texture.GetPixelBilinear(u, v) : Vector4.zero;
+            Vector4 splat0 = splat0Texture != null ? splat0Texture.GetPixelBilinear(u, v) : Vector4.zero;
+            Vector4 splat1 = splat1Texture != null ? splat1Texture.GetPixelBilinear(u, v) : Vector4.zero;
 
-		
-			float[] splatValues = new float[8];
-
+            float[] splatValues = new float[8];
             splatValues[0] = ShouldSplat(1) ? splat0.x : 0f;   // Dirt
             splatValues[1] = ShouldSplat(2) ? splat0.y : 0f;   // Snow
             splatValues[2] = ShouldSplat(4) ? splat0.z : 0f;   // Sand
@@ -328,20 +365,17 @@ protected override void ApplySplatMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
             splatValues[5] = ShouldSplat(32) ? splat1.y : 0f;  // Forest
             splatValues[6] = ShouldSplat(64) ? splat1.z : 0f;  // Stones
             splatValues[7] = ShouldSplat(128) ? splat1.w : 0f; // Gravel
-			
-            // Compute the total splat contribution
+
             float totalSplatContribution = 0f;
             for (int i = 0; i < 8; i++) totalSplatContribution += splatValues[i];
-			
-			
-			//only normalize when necessary, and in areas within the blend map
-			if (totalSplatContribution > 1f && fade > 0f){
-				for (int i = 0; i < 8; i++) splatValues[i] /= totalSplatContribution;
-			}
-			
+
+            if (totalSplatContribution > 1f && fade > 0f)
+            {
+                for (int i = 0; i < 8; i++) splatValues[i] /= totalSplatContribution;
+            }
+
             float effectiveFade = fade * totalSplatContribution;
 
-            // Blend all layers using the effective fade factor
             for (int k = 0; k < Mathf.Min(layerCount, 8); k++)
             {
                 regionSplats[z - minZ, x - minX, k] = Mathf.Lerp(splatMap[z, x, k], splatValues[k], effectiveFade);
@@ -349,7 +383,7 @@ protected override void ApplySplatMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
         }
     }
 
-    // Final normalization pass to ensure splat values sum to 1
+    // Normalize splat values
     for (int x = 0; x < width; x++)
     {
         for (int z = 0; z < height; z++)
@@ -370,9 +404,17 @@ protected override void ApplySplatMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
     }
 
     TerrainManager.SetSplatMapRegion(regionSplats, TerrainManager.LayerType.Ground, minX, minZ, width, height);
+	    // Register undo state
+    TerrainUndoManager.RegisterSplatMapUndoRedo(
+        "Monument Splat",
+        minX,
+        minZ,
+        width,
+        height,
+        regionSplatsBefore
+    );
     dimensions.IncludeRect(new RectInt(minX, minZ, width, height));
 }
-
 protected override void ApplyTopologyMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions)
 {
     bool user = string.IsNullOrEmpty(topologymap.Guid);
@@ -398,7 +440,6 @@ protected override void ApplyTopologyMap(Matrix4x4 localToWorld, Matrix4x4 world
         return;
     }
 
-    // Get all layers in the TopologyMask
     int mask = (int)TopologyMask;
     if (mask == 0)
     {
@@ -406,7 +447,21 @@ protected override void ApplyTopologyMap(Matrix4x4 localToWorld, Matrix4x4 world
         return;
     }
 
-    // Create a dictionary to store bitmaps for each layer in TopologyMask
+    // Capture undo state (before modification)
+    TerrainMap<int> topologyMap = TopologyData.GetTerrainMap();
+    int[,] undoBitmaskData = new int[height, width];
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            if (minX + j < topologyMap.res && minZ + i < topologyMap.res)
+            {
+                undoBitmaskData[i, j] = topologyMap[minZ + i, minX + j] & mask;
+            }
+        }
+    }
+
+    // Capture topology state for each active layer
     Dictionary<int, bool[,]> layerBitmaps = new Dictionary<int, bool[,]>();
     List<int> activeLayers = new List<int>();
     for (int layerIndex = 0; layerIndex < TerrainTopology.COUNT; layerIndex++)
@@ -425,7 +480,6 @@ protected override void ApplyTopologyMap(Matrix4x4 localToWorld, Matrix4x4 world
         return;
     }
 
-    // Populate bitmaps for each layer based on topology texture
     for (int x = minX; x <= maxX; x++)
     {
         for (int z = minZ; z <= maxZ; z++)
@@ -436,18 +490,15 @@ protected override void ApplyTopologyMap(Matrix4x4 localToWorld, Matrix4x4 world
             float u = Mathf.Clamp01((localPos.x + extents.x) / size.x);
             float v = Mathf.Clamp01((localPos.z + extents.z) / size.z);
 
-            // Calculate fade based on blend map or distance
             float fade = useBlendMap
                 ? BitUtility.SampleAlphaBilinear(blendTexture, u, v)
                 : Mathf.InverseLerp(Radius, Radius - Fade, localPos.Magnitude2D());
 
-            // Skip if fade is too low
             if (fade <= 0.5f)
             {
                 continue;
             }
 
-            // Sample topology texture
             float pixelX = u * (float)(topologyTexture.width - 1);
             float pixelY = v * (float)(topologyTexture.height - 1);
             int px = Mathf.Clamp(Mathf.RoundToInt(pixelX), 1, topologyTexture.width - 2);
@@ -456,7 +507,6 @@ protected override void ApplyTopologyMap(Matrix4x4 localToWorld, Matrix4x4 world
             Color32 topologySample = topologyTexture.GetPixelData<Color32>(0)[py * topologyTexture.width + px];
             int topologyValue = user ? BitUtility.DecodeUserInt(topologySample) : BitUtility.DecodeInt(topologySample);
 
-            // Set bitmap for each layer where it exists in topologyValue and TopologyMask
             foreach (int layer in activeLayers)
             {
                 layerBitmaps[layer][z - minZ, x - minX] = (topologyValue & layer) != 0;
@@ -466,12 +516,23 @@ protected override void ApplyTopologyMap(Matrix4x4 localToWorld, Matrix4x4 world
         }
     }
 
-    // Apply each layer in the TopologyMask using its specific bitmap
+    // Apply topology changes
     foreach (int layer in activeLayers)
     {
         Debug.Log($"Applying topology layer: {(TerrainTopology.Enum)layer} ({layer}) at region ({minX}, {minZ}, {width}, {height})");
         TopologyData.AddTopology(layer, minX, minZ, width, height, layerBitmaps[layer]);
     }
+
+    // Register undo/redo action
+    TerrainUndoManager.RegisterTopologyMaskUndoRedo(
+        "Monument Topology",
+        minX,
+        minZ,
+        width,
+        height,
+        mask,
+		undoBitmaskData
+    );
 
     Debug.Log("Topology region calculated for layers in TopologyMask");
     TopologyData.UpdateTexture();
@@ -479,11 +540,11 @@ protected override void ApplyTopologyMap(Matrix4x4 localToWorld, Matrix4x4 world
 
 protected override void ApplyWaterMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions)
 {
-	if (!WaterMap) {Debug.Log("skip water"); return;}
-	
-	bool user = false;
-	if (string.IsNullOrEmpty(topologymap.Guid))	{ user=true; return; }
-	
+    if (!WaterMap) { Debug.Log("skip water"); return; }
+
+    bool user = string.IsNullOrEmpty(topologymap.Guid);
+    if (user) return;
+
     Texture2D waterTexture = watermap.GetResource();
     if (waterTexture == null)
     {
@@ -491,7 +552,7 @@ protected override void ApplyWaterMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
         return;
     }
 
-    Texture2D blendTexture =blendmap.GetResource();
+    Texture2D blendTexture = blendmap.GetResource();
     bool useBlendMap = blendTexture != null;
 
     float radius = Radius == 0f ? extents.x : Radius;
@@ -525,7 +586,17 @@ protected override void ApplyWaterMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
         return;
     }
 
+    // Capture current water heightmap state for undo
     float[,] waterMapData = TerrainManager.GetWaterHeightMap();
+    float[,] regionWaterBefore = new float[height, width];
+    for (int z = 0; z < height; z++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            regionWaterBefore[z, x] = waterMapData[z + minZ, x + minX];
+        }
+    }
+
     float[,] regionWater = new float[height, width];
     int modifiedPixels = 0;
 
@@ -569,6 +640,17 @@ protected override void ApplyWaterMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
 
     TerrainManager.SetHeightMapRegion(regionWater, minX, minZ, width, height, TerrainManager.TerrainType.Water);
     dimensions.IncludeRect(new RectInt(minX, minZ, width, height));
+	
+	    // Register undo state
+    TerrainUndoManager.RegisterHeightMapUndoRedo(
+        "Apply WaterMap",
+        TerrainManager.TerrainType.Water,
+        minX,
+        minZ,
+        width,
+        height,
+		regionWaterBefore
+    );
 
     Debug.Log($"ApplyWaterMap: Applied {modifiedPixels} non-zero height pixels for water map in region ({minX}, {minZ}, {width}, {height}).");
 }

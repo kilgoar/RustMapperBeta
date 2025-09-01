@@ -408,7 +408,7 @@ public static void LoadSkin(string path)
             if (tree.nodeStyles[i] != null)
             {
                 clonedNodeStyles[i] = UnityEngine.Object.Instantiate(tree.nodeStyles[i]);
-                Debug.Log($"Cloned NodeStyle '{tree.nodeStyles[i].name}' for UIRecycleTree '{tree.name}'");
+                //Debug.Log($"Cloned NodeStyle '{tree.nodeStyles[i].name}' for UIRecycleTree '{tree.name}'");
             }
             else
             {
@@ -434,7 +434,7 @@ public static void LoadSkin(string path)
             if (nodeStylesArrayField != null)
             {
                 nodeStylesArrayField.SetValue(tree, clonedNodeStyles);
-                Debug.Log($"Updated nodeStylesArray for UIRecycleTree '{tree.name}' with {clonedNodeStyles.Length} cloned NodeStyles");
+                //Debug.Log($"Updated nodeStylesArray for UIRecycleTree '{tree.name}' with {clonedNodeStyles.Length} cloned NodeStyles");
             }
             else
             {
@@ -450,7 +450,7 @@ public static void LoadSkin(string path)
         try
         {
             tree.Rebuild();
-            Debug.Log($"Rebuilt UIRecycleTree: {tree.name}");
+            //Debug.Log($"Rebuilt UIRecycleTree: {tree.name}");
         }
         catch (System.Exception e)
         {
@@ -491,25 +491,25 @@ public static void UpdateNodeTextStyleColors()
             if (tree.nodeStyles[i] != null)
             {
                 clonedNodeStyles[i] = UnityEngine.Object.Instantiate(tree.nodeStyles[i]);
-                Debug.Log($"Cloned NodeStyle '{tree.nodeStyles[i].name}' for UIRecycleTree '{tree.name}'");
+                //Debug.Log($"Cloned NodeStyle '{tree.nodeStyles[i].name}' for UIRecycleTree '{tree.name}'");
                 
                 // Update the NodeTextStyle color based on NodeStyle name
                 if (clonedNodeStyles[i].textStyle != null)
                 {
-                    if (clonedNodeStyles[i].name.Contains("HierarchyNodes 2"))
+                    if (clonedNodeStyles[i].name.Contains("HierarchyNodes 2") || clonedNodeStyles[i].name.Contains("HistoryNodePrefab"))
                     {
                         clonedNodeStyles[i].textStyle.color = AppManager.Instance.color2;
-                        Debug.Log($"Updated NodeTextStyle color to {AppManager.Instance.color2} for NodeStyle '{clonedNodeStyles[i].name}' in UIRecycleTree '{tree.name}'");
+                        //Debug.Log($"Updated NodeTextStyle color to {AppManager.Instance.color2} for NodeStyle '{clonedNodeStyles[i].name}' in UIRecycleTree '{tree.name}'");
                     }
-                    else if (clonedNodeStyles[i].name.Contains("HierarchyNodes 3"))
+                    else if (clonedNodeStyles[i].name.Contains("HierarchyNodes 3") || clonedNodeStyles[i].name.Contains("HistoryNodeTerrain"))
                     {
                         clonedNodeStyles[i].textStyle.color = AppManager.Instance.color3;
-                        Debug.Log($"Updated NodeTextStyle color to {AppManager.Instance.color3} for NodeStyle '{clonedNodeStyles[i].name}' in UIRecycleTree '{tree.name}'");
+                        //Debug.Log($"Updated NodeTextStyle color to {AppManager.Instance.color3} for NodeStyle '{clonedNodeStyles[i].name}' in UIRecycleTree '{tree.name}'");
                     }
                     else
                     {
                         clonedNodeStyles[i].textStyle.color = AppManager.Instance.color1;
-                        Debug.Log($"Updated NodeTextStyle color to {AppManager.Instance.color1} for NodeStyle '{clonedNodeStyles[i].name}' in UIRecycleTree '{tree.name}'");
+                        //Debug.Log($"Updated NodeTextStyle color to {AppManager.Instance.color1} for NodeStyle '{clonedNodeStyles[i].name}' in UIRecycleTree '{tree.name}'");
                     }
                     updatedStyles++;
                 }
@@ -532,7 +532,7 @@ public static void UpdateNodeTextStyleColors()
             if (nodeStylesArrayField != null)
             {
                 nodeStylesArrayField.SetValue(tree, clonedNodeStyles);
-                Debug.Log($"Updated nodeStylesArray for UIRecycleTree '{tree.name}' with {clonedNodeStyles.Length} cloned NodeStyles");
+                //Debug.Log($"Updated nodeStylesArray for UIRecycleTree '{tree.name}' with {clonedNodeStyles.Length} cloned NodeStyles");
             }
             else
             {
@@ -596,12 +596,12 @@ private static int UpdateNodeStyleSprites(object obj, List<Sprite> originalSprit
                 }
                 else
                 {
-                    Debug.Log($"Icon.sprite is null in {type.Name}.{field.Name}");
+                    //Debug.Log($"Icon.sprite is null in {type.Name}.{field.Name}");
                 }
             }
             else
             {
-                Debug.Log($"Icon is null in {type.Name}.{field.Name}");
+                //Debug.Log($"Icon is null in {type.Name}.{field.Name}");
             }
         }
 

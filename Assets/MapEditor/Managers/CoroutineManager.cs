@@ -168,7 +168,9 @@ public class CoroutineManager : MonoBehaviour
     public void Update()
     {
 		DisableBrushFromUI();
-	
+		
+		HandleUndoRedo();
+		
         if (!OverUI()){
 				
 				switch (currentStyle)
@@ -188,6 +190,47 @@ public class CoroutineManager : MonoBehaviour
 
 			}
 
+    }
+	
+	
+	private void HandleUndoRedo()
+    {
+    
+        // Update undo/redo timers when keys are held down
+        if (BindManager.IsPressed("undo"))
+        {
+            undoTimer += Time.deltaTime;
+        }
+        else
+        {
+            undoTimer = 0f;
+        }
+
+        if (BindManager.IsPressed("redo"))
+        {
+            redoTimer += Time.deltaTime;
+        }
+        else
+        {
+            redoTimer = 0f;
+        }
+
+        // Check for undo/redo
+        bool shouldUndo = BindManager.WasPressedThisFrame("undo") ||
+                         (BindManager.IsPressed("undo") && undoTimer >= MainScript.Instance.delay);
+        bool shouldRedo = BindManager.WasPressedThisFrame("redo") ||
+                         (BindManager.IsPressed("redo") && redoTimer >= MainScript.Instance.delay);
+
+        if (shouldUndo)
+        {
+            UndoManager.Undo();
+            undoTimer = 0f; // Reset timer after undo
+        }
+        else if (shouldRedo)
+        {
+            UndoManager.Redo();
+            redoTimer = 0f; // Reset timer after redo
+        }
     }
 
 public void PathStylusMode()
@@ -280,49 +323,12 @@ public void PaintBrushMode()
         paintBrushTimer = 0f; // Reset timer when mouse button is released
     }
 
-    // Update undo/redo timers when keys are held down
-    if (BindManager.IsPressed("undo"))
-    {
-        undoTimer += Time.deltaTime;
-    }
-    else
-    {
-        undoTimer = 0f;
-    }
-
-    if (BindManager.IsPressed("redo"))
-    {
-        redoTimer += Time.deltaTime;
-    }
-    else
-    {
-        redoTimer = 0f;
-    }
-
+ 
     // Check for quick tap or continuous painting
     bool shouldPaint = BindManager.WasPressedThisFrame("paintBrush") || // Quick tap
                       (BindManager.IsPressed("paintBrush") && paintBrushTimer >= MainScript.Instance.delay);
 
-    // Check for undo/redo
-    bool shouldUndo = BindManager.WasPressedThisFrame("undo") ||
-                     (BindManager.IsPressed("undo") && undoTimer >= MainScript.Instance.delay);
-    bool shouldRedo = BindManager.WasPressedThisFrame("redo") ||
-                     (BindManager.IsPressed("redo") && redoTimer >= MainScript.Instance.delay);
-
-    if (shouldUndo)
-    {
-        TerrainUndoManager.Undo();
-        undoTimer = 0f; // Reset timer after undo
-        return; // Prioritize undo over painting
-    }
-    else if (shouldRedo)
-    {
-        TerrainUndoManager.Redo();
-        redoTimer = 0f; // Reset timer after redo
-        return; // Prioritize redo over painting
-    }
-
-    if (MainScript.Instance.paintMode == -5)
+   if (MainScript.Instance.paintMode == -5)
     {
         if (Physics.Raycast(ray, out hit, Mathf.Infinity, waterMask) && shouldPaint)
         {

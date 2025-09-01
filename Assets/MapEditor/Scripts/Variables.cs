@@ -63,6 +63,135 @@ namespace RustMapEditor.Variables
 		}
 	}
 	
+	public interface IUndoAction
+    {
+        string OperationName { get; }
+        void Undo();
+        void Redo();
+        void OnRemoved();
+        long EstimateMemoryUsage();
+    }
+	
+	public class TransformUndoAction : IUndoAction
+    {
+        private readonly RTG.IUndoRedoAction _action;
+        public string OperationName { get; }
+
+        public TransformUndoAction(string name, RTG.IUndoRedoAction action)
+        {
+            OperationName = name;
+            _action = action;
+        }
+
+        public void Undo()
+        {
+            _action.Undo();
+        }
+
+        public void Redo()
+        {
+            _action.Redo();
+        }
+
+        public void OnRemoved()
+        {
+            _action.OnRemovedFromUndoRedoStack();
+        }
+
+        public long EstimateMemoryUsage()
+        {
+            // Placeholder: Estimate based on transform data (e.g., position, rotation, scale)
+            return 1024; // Assume 1KB per transform action
+        }
+    }
+	
+	public class TerrainUndoAction : IUndoAction
+	{
+		private readonly TerrainUndoState _undoState;
+		private readonly TerrainUndoState _redoState;
+		public string OperationName { get => _undoState.OperationName; }
+
+		public TerrainUndoAction(TerrainUndoState undoState, TerrainUndoState redoState)
+		{
+			_undoState = undoState;
+			_redoState = redoState;
+		}
+
+		public void Undo()
+		{
+			TerrainUndoManager.ApplyState(_undoState);
+		}
+
+		public void Redo()
+		{
+			TerrainUndoManager.ApplyState(_redoState);
+		}
+
+		public void OnRemoved()
+		{
+			// No cleanup needed
+		}
+
+		public long EstimateMemoryUsage()
+		{
+			return _undoState.EstimateMemoryUsage() + _redoState.EstimateMemoryUsage();
+		}
+	}
+	
+	public class TerrainUndoState
+    {
+        public string OperationName { get; }
+        public TerrainUndoManager.TerrainOperationType OperationType { get; }
+        public object Data { get; }
+        public int StartX { get; }
+        public int StartY { get; }
+        public int Width { get; }
+        public int Height { get; }
+        public TerrainManager.TerrainType TerrainType { get; }
+        public TerrainManager.LayerType LayerType { get; }
+        public int TopologyLayer { get; }
+
+        public TerrainUndoState(
+            string name,
+            TerrainUndoManager.TerrainOperationType operationType,
+            object data,
+            int startX,
+            int startY,
+            int width,
+            int height,
+            TerrainManager.TerrainType terrainType = TerrainManager.TerrainType.Land,
+            TerrainManager.LayerType layerType = TerrainManager.LayerType.Ground,
+            int topologyLayer = -1)
+        {
+            OperationName = name;
+            OperationType = operationType;
+            Data = data;
+            StartX = startX;
+            StartY = startY;
+            Width = width;
+            Height = height;
+            TerrainType = terrainType;
+            LayerType = layerType;
+            TopologyLayer = topologyLayer;
+        }
+
+        public long EstimateMemoryUsage()
+        {
+            long size = 0;
+            if (Data is float[,] float2D) size = float2D.Length * sizeof(float);
+            else if (Data is float[,,] float3D) size = float3D.Length * sizeof(float);
+            else if (Data is bool[,] bool2D) size = bool2D.Length * sizeof(bool);
+            else if (Data is int[,] int2D) size = int2D.Length * sizeof(int);
+            else if (Data is Color[] colors) size = colors.Length * sizeof(float) * 4;
+            return size;
+        }
+
+        public void LogMemoryUsage()
+        {
+            Debug.Log($"State '{OperationName}' memory usage: {(EstimateMemoryUsage() / (1024f * 1024f)):F2} MB");
+        }
+    }
+	
     public struct Conditions
     {
         public GroundConditions GroundConditions;
@@ -906,14 +1035,8 @@ namespace RustMapEditor.Variables
 			public List<string> recentFiles;
 	}
 	
-	public enum TerrainOperationType
-	{
-		HeightMap,
-		SplatMap,
-		BiomeMap,
-		AlphaMap
-	}
-	
+/*
+	//this is our original terrain undo state 
 	public struct TerrainUndoState
 {
     public string OperationName { get; private set; }
@@ -962,6 +1085,7 @@ namespace RustMapEditor.Variables
     }
 }
 
+	*/
 	
     public class PrefabExport
     {

@@ -313,11 +313,11 @@ public static void PaintBorder(Layers layerData, int radius)
 
     // Get the current layer data
     float[,,] layerMap = TerrainManager.GetLayerData(layerType, layerIndex);
+	float[,,] before = (float[,,])layerMap.Clone();
     int res = layerMap.GetLength(0);
     int layerCount = TerrainManager.LayerCount(layerType); // 8 for Ground, 4 for Biome, 2 for Topology
 
-    // Register undo before modifying
-    TerrainManager.RegisterSplatMapUndo($"Paint Border Layer {layerType} Index {layerIndex}, Radius {radius}");
+    
 
     // Paint the borders with blending over the radius
     for (int x = 0; x < res; x++)
@@ -366,6 +366,7 @@ public static void PaintBorder(Layers layerData, int radius)
 
     // Apply the updated layer back to TerrainManager
     TerrainManager.SetSplatMap(layerMap, layerType, layerIndex);
+	TerrainManager.RegisterSplatMapUndo($"Paint Border Layer {layerType} Index {layerIndex}, Radius {radius}", before);
 
     // Notify listeners of the update
     TerrainManager.Callbacks.InvokeLayerUpdated(layerType, layerIndex);
@@ -519,6 +520,7 @@ public static void PaintRange(Layers layerData, float minBlend = 20f, float min 
 
     // Get the current layer data
     float[,,] layerMap = TerrainManager.GetLayerData(layerType, layerIndex);
+	float[,,] before = (float[,,])layerMap.Clone();
     int splatRes = layerMap.GetLength(0); // Splatmap resolution
     int layerCount = TerrainManager.LayerCount(layerType); // 8 for Ground, 4 for Biome, 2 for Topology
 
@@ -541,7 +543,7 @@ public static void PaintRange(Layers layerData, float minBlend = 20f, float min 
     float splatRatio = TerrainManager.SplatRatio; // e.g., 2 if 2049 heightmap vs. 1024 splatmap
 	float slope;
     // Register undo before modifying
-    TerrainManager.RegisterSplatMapUndo($"Paint Slope Blend {layerType} Index {layerIndex}, {minBlend}-{min}-{max}-{maxBlend}");
+    TerrainManager.RegisterSplatMapUndo($"Paint Slope Blend {layerType} Index {layerIndex}, {minBlend}-{min}-{max}-{maxBlend}", before);
 
     for (int i = 0; i < splatRes; i++)
     {

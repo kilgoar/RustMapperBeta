@@ -1,14 +1,11 @@
 using UnityEngine;
-using System.Collections.Generic;
 using RustMapEditor.Variables;
 
 public static class TerrainUndoManager
 {
-    private static List<TerrainUndoState> undoStack = new List<TerrainUndoState>();
-    private static List<TerrainUndoState> redoStack = new List<TerrainUndoState>();
-    private static int maxStates = 512;
-    private static long totalMemoryUsage = 0;
-
+	
+	private static TerrainUndoState pendingUndoState; // Store undo state temporarily
+	
     public enum TerrainOperationType
     {
         HeightMap,
@@ -16,18 +13,18 @@ public static class TerrainUndoManager
         BiomeMap,
         AlphaMap,
         TopologyMap,
-        BlendMap
+        BlendMap,
+        TopologyMask
     }
 
-    // HeightMap Undo
-    public static void RegisterHeightMapUndo(string name, TerrainManager.TerrainType terrainType)
+    #region HeightMap
+    public static void RegisterHeightMapUndoRedo(string name, TerrainManager.TerrainType terrainType, float[,] heightMapUndoState)
     {
-        float[,] heightMapData = TerrainManager.GetHeightMap(terrainType);
         int resolution = TerrainManager.HeightMapRes;
-        RegisterHeightMapUndo(name, terrainType, 0, 0, resolution, resolution, heightMapData);
+        RegisterHeightMapUndoRedo(name, terrainType, 0, 0, resolution, resolution, heightMapUndoState);
     }
 
-    public static void RegisterHeightMapUndo(
+    public static void RegisterHeightMapUndoRedo(
         string name,
         TerrainManager.TerrainType terrainType,
         int startX,
@@ -35,56 +32,77 @@ public static class TerrainUndoManager
         int width,
         int height,
         float[,] heightMapData)
-		{
-
-			float[,] heightMapClone = new float[height, width];
-			for (int i = 0; i < height; i++)
-			{
-				for (int j = 0; j < width; j++)
-				{
-					heightMapClone[i, j] = heightMapData[i, j];
-				}
-			}
-			
-			var state = new TerrainUndoState(
-				name,
-				TerrainOperationType.HeightMap,
-				heightMapClone,
-				startX,
-				startY,
-				width,
-				height,
-				terrainType: terrainType
-			);
-			
-			RegisterState(state);
-		}
-
-    // SplatMap Undo
-    public static void RegisterSplatMapUndo(string name, TerrainManager.LayerType layerType = TerrainManager.LayerType.Ground, int topologyLayer = -1)
     {
-        float[,,] splatMapData = TerrainManager.GetSplatMap(layerType, topologyLayer);
-        int resolution = TerrainManager.SplatMapRes;
-        RegisterSplatMapUndo(name, 0, 0, resolution, resolution, splatMapData);
+        // Capture undo state (before modification)
+        float[,] heightMapClone = new float[height, width];
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                heightMapClone[i, j] = heightMapData[i, j];
+            }
+        }
+        var undoState = new TerrainUndoState(
+            name,
+            TerrainOperationType.HeightMap,
+            heightMapClone,
+            startX,
+            startY,
+            width,
+            height,
+            terrainType: terrainType
+        );
+
+        // Capture redo state (after modification)
+        float[,] modifiedHeightMap = TerrainManager.GetHeightMap(terrainType);
+        float[,] redoClone = new float[height, width];
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                redoClone[i, j] = modifiedHeightMap[startY + i, startX + j];
+            }
+        }
+        var redoState = new TerrainUndoState(
+            name,
+            TerrainOperationType.HeightMap,
+            redoClone,
+            startX,
+            startY,
+            width,
+            height,
+            terrainType: terrainType
+        );
+
+        // Register the undo/redo action
+        RegisterState(new TerrainUndoAction(undoState, redoState));
     }
+    #endregion
 
-public static void RegisterSplatMapUndo(
-    string name,
-    int startX,
-    int startY,
-    int width,
-    int height,
-    float[,,] splatMapData)
+	public static void RegisterSplatMapUndoRedo(string name, float [,,] before, TerrainManager.LayerType layerType = TerrainManager.LayerType.Ground, int topologyLayer = -1)
 	{
+		int resolution = TerrainManager.SplatMapRes;
+		RegisterSplatMapUndoRedo(name, 0, 0, resolution, resolution, before, layerType, topologyLayer);
+	}
 
+	public static void RegisterSplatMapUndoRedo(
+		string name,
+		int startX,
+		int startY,
+		int width,
+		int height,
+		float[,,] splatMapData,
+		TerrainManager.LayerType layerType = TerrainManager.LayerType.Ground,
+		int topologyLayer = -1)
+	{
 		int numLayers = splatMapData.GetLength(2);
 		if (numLayers == 0)
 		{
-			Debug.LogWarning($"RegisterSplatMapUndo: Splatmap data has zero layers");
+			Debug.LogWarning($"RegisterSplatMapUndoRedo: Splatmap data has zero layers");
 			return;
 		}
 
-		// Clone the splatmap array
+		// Capture undo state (before modification)
 		float[,,] splatMapClone = new float[height, width, numLayers];
 		for (int i = 0; i < height; i++)
 		{
@@ -96,28 +114,54 @@ public static void RegisterSplatMapUndo(
 				}
 			}
 		}
-
-		var state = new TerrainUndoState(
+		var undoState = new TerrainUndoState(
 			name,
 			TerrainOperationType.SplatMap,
 			splatMapClone,
 			startX,
 			startY,
 			width,
-			height
+			height,
+			layerType: layerType,
+			topologyLayer: topologyLayer
 		);
-		RegisterState(state);
+
+		// Capture redo state (after modification)
+		float[,,] modifiedSplatMap = TerrainManager.GetSplatMap(layerType, topologyLayer);
+		float[,,] redoClone = new float[height, width, numLayers];
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				for (int k = 0; k < numLayers; k++)
+				{
+					redoClone[i, j, k] = modifiedSplatMap[startY + i, startX + j, k];
+				}
+			}
+		}
+		var redoState = new TerrainUndoState(
+			name,
+			TerrainOperationType.SplatMap,
+			redoClone,
+			startX,
+			startY,
+			width,
+			height,
+			layerType: layerType,
+			topologyLayer: topologyLayer
+		);
+
+		// Register the undo/redo action
+		RegisterState(new TerrainUndoAction(undoState, redoState));
 	}
 
-    // BiomeMap Undo
-    public static void RegisterBiomeMapUndo(string name)
-    {
-        float[,,] biomeMapData = TerrainManager.GetSplatMap(TerrainManager.LayerType.Biome);
-        int resolution = TerrainManager.SplatMapRes;
-        RegisterBiomeMapUndo(name, 0, 0, resolution, resolution, biomeMapData);
-    }
+	public static void RegisterBiomeMapUndoRedo(string name, float[,,] before)
+	{
+		int resolution = TerrainManager.SplatMapRes;
+		RegisterBiomeMapUndoRedo(name, 0, 0, resolution, resolution, before);
+	}
 
-	public static void RegisterBiomeMapUndo(
+	public static void RegisterBiomeMapUndoRedo(
 		string name,
 		int startX,
 		int startY,
@@ -125,16 +169,14 @@ public static void RegisterSplatMapUndo(
 		int height,
 		float[,,] biomeMapData)
 	{
-		int resolution = TerrainManager.SplatMapRes;
-
 		int numLayers = biomeMapData.GetLength(2);
 		if (numLayers == 0)
 		{
-			Debug.LogWarning($"RegisterBiomeMapUndo: Biome map data has zero layers");
+			Debug.LogWarning($"RegisterBiomeMapUndoRedo: Biome map data has zero layers");
 			return;
 		}
 
-		// Clone the biome map array
+		// Capture undo state (before modification)
 		float[,,] biomeMapClone = new float[height, width, numLayers];
 		for (int i = 0; i < height; i++)
 		{
@@ -146,8 +188,7 @@ public static void RegisterSplatMapUndo(
 				}
 			}
 		}
-
-		var state = new TerrainUndoState(
+		var undoState = new TerrainUndoState(
 			name,
 			TerrainOperationType.BiomeMap,
 			biomeMapClone,
@@ -158,142 +199,281 @@ public static void RegisterSplatMapUndo(
 			terrainType: TerrainManager.TerrainType.Land,
 			layerType: TerrainManager.LayerType.Biome
 		);
-		RegisterState(state);
+
+		// Capture redo state (after modification)
+		float[,,] modifiedBiomeMap = TerrainManager.GetSplatMap(TerrainManager.LayerType.Biome);
+		float[,,] redoClone = new float[height, width, numLayers];
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				for (int k = 0; k < numLayers; k++)
+				{
+					redoClone[i, j, k] = modifiedBiomeMap[startY + i, startX + j, k];
+				}
+			}
+		}
+		var redoState = new TerrainUndoState(
+			name,
+			TerrainOperationType.BiomeMap,
+			redoClone,
+			startX,
+			startY,
+			width,
+			height,
+			terrainType: TerrainManager.TerrainType.Land,
+			layerType: TerrainManager.LayerType.Biome
+		);
+
+		// Register the undo/redo action
+		RegisterState(new TerrainUndoAction(undoState, redoState));
 	}
-	
-    // AlphaMap Undo
-    public static void RegisterAlphaMapUndo(string name)
-    {
-        bool[,] alphaMapData = TerrainManager.GetAlphaMap();
-        int resolution = TerrainManager.AlphaMapRes;
-        RegisterAlphaMapUndo(name, 0, 0, resolution, resolution, alphaMapData);
-    }
 
-    public static void RegisterAlphaMapUndo(
-        string name,
-        int startX,
-        int startY,
-        int width,
-        int height,
-        bool[,] alphaMapData)
-    {
-        var state = new TerrainUndoState(
-            name,
-            TerrainOperationType.AlphaMap,
-            alphaMapData,
-            startX,
-            startY,
-            width,
-            height,
-            terrainType: TerrainManager.TerrainType.Land,
-            layerType: TerrainManager.LayerType.Alpha
-        );
-        RegisterState(state);
-    }
+	public static void RegisterAlphaMapUndoRedo(string name, bool[,] before)
+	{
+		int resolution = TerrainManager.AlphaMapRes;
+		RegisterAlphaMapUndoRedo(name, 0, 0, resolution, resolution, before);
+	}
 
-    // TopologyMap Undo
-    public static void RegisterTopologyMapUndo(string name, int topologyLayer)
-    {
-        bool[,] topologyMapData = TopologyData.GetTopologyBitmap(TerrainTopology.IndexToType(topologyLayer));
-        int resolution = TerrainManager.AlphaMapRes;
-        RegisterTopologyMapUndo(name, topologyLayer, 0, 0, resolution, resolution, topologyMapData);
-    }
+	public static void RegisterAlphaMapUndoRedo(
+		string name,
+		int startX,
+		int startY,
+		int width,
+		int height,
+		bool[,] alphaMapData)
+	{
+		// Capture undo state (before modification)
+		bool[,] alphaMapClone = new bool[height, width];
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				alphaMapClone[i, j] = alphaMapData[i, j];
+			}
+		}
+		var undoState = new TerrainUndoState(
+			name,
+			TerrainOperationType.AlphaMap,
+			alphaMapClone,
+			startX,
+			startY,
+			width,
+			height,
+			terrainType: TerrainManager.TerrainType.Land,
+			layerType: TerrainManager.LayerType.Alpha
+		);
 
-    public static void RegisterTopologyMapUndo(
-        string name,
-        int topologyLayer,
-        int startX,
-        int startY,
-        int width,
-        int height,
-        bool[,] topologyMapData)
-    {
-        var state = new TerrainUndoState(
-            name,
-            TerrainOperationType.TopologyMap,
-            topologyMapData,
-            startX,
-            startY,
-            width,
-            height,
-            terrainType: TerrainManager.TerrainType.Land,
-            layerType: TerrainManager.LayerType.Topology,
-            topologyLayer: topologyLayer
-        );
-        RegisterState(state);
-    }
+		// Capture redo state (after modification)
+		bool[,] modifiedAlphaMap = TerrainManager.GetAlphaMap();
+		bool[,] redoClone = new bool[height, width];
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				redoClone[i, j] = modifiedAlphaMap[startY + i, startX + j];
+			}
+		}
+		var redoState = new TerrainUndoState(
+			name,
+			TerrainOperationType.AlphaMap,
+			redoClone,
+			startX,
+			startY,
+			width,
+			height,
+			terrainType: TerrainManager.TerrainType.Land,
+			layerType: TerrainManager.LayerType.Alpha
+		);
 
-    // BlendMap Undo
-    public static void RegisterBlendMapUndo(string name, int startX, int startY, int width, int height, Color[] blendMapData)
-    {
-        var state = new TerrainUndoState(
-            name,
-            TerrainOperationType.BlendMap,
-            blendMapData,
-            startX,
-            startY,
-            width,
-            height,
-            terrainType: TerrainManager.TerrainType.Land
-        );
-        RegisterState(state);
-    }
+		// Register the undo/redo action
+		RegisterState(new TerrainUndoAction(undoState, redoState));
+	}
 
-    private static void RegisterState(TerrainUndoState state)
-    {
-        state.LogMemoryUsage();
-        totalMemoryUsage += state.EstimateMemoryUsage();
-        //Debug.Log($"Total undo/redo memory usage: {(totalMemoryUsage / (1024f * 1024f)):F2} MB");
+	public static void RegisterTopologyMaskUndoRedo(
+		string name,
+		int startX,
+		int startY,
+		int width,
+		int height,
+		int topologyMask,
+		int[,] before)
+	{
+		// Validate input dimensions
+		if (width <= 0 || height <= 0 || startX < 0 || startY < 0 ||
+			startX + width > TerrainManager.AlphaMapRes || startY + height > TerrainManager.AlphaMapRes)
+		{
+			Debug.LogWarning($"RegisterTopologyMaskUndoRedo: Invalid region dimensions. startX={startX}, startY={startY}, width={width}, height={height}");
+			return;
+		}
 
-        undoStack.Add(state);
-        redoStack.Clear();
+		if (before == null || before.GetLength(0) != height || before.GetLength(1) != width)
+		{
+			Debug.LogWarning($"RegisterTopologyMaskUndoRedo: Invalid before data dimensions. Expected [{height}, {width}], got [{before?.GetLength(0)}, {before?.GetLength(1)}]");
+			return;
+		}
 
-        while (undoStack.Count > maxStates)
-        {
-            var oldestState = undoStack[0];
-            totalMemoryUsage -= oldestState.EstimateMemoryUsage();
-            undoStack.RemoveAt(0);
-            //Debug.Log($"Removed oldest state '{oldestState.OperationName}' to enforce maxStates={maxStates}. New total: {(totalMemoryUsage / (1024f * 1024f)):F2} MB");
-        }
-    }
+		// Use provided 'before' as undo state
+		var undoState = new TerrainUndoState(
+			name,
+			TerrainOperationType.TopologyMask,
+			before,
+			startX,
+			startY,
+			width,
+			height,
+			terrainType: TerrainManager.TerrainType.Land,
+			layerType: TerrainManager.LayerType.Topology,
+			topologyLayer: -1
+		);
 
-    [ConsoleCommand("Undo terrain change")]
-    public static void Undo()
-    {
-        if (undoStack.Count == 0)
-        {
-            Debug.Log("No actions to undo.");
-            return;
-        }
+		// Capture redo state (after modification)
+		TerrainMap<int> modifiedTopologyMap = TopologyData.GetTerrainMap();
+		int[,] redoBitmaskData = new int[height, width];
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				if (startX + j < modifiedTopologyMap.res && startY + i < modifiedTopologyMap.res)
+				{
+					redoBitmaskData[i, j] = modifiedTopologyMap[startY + i, startX + j] & topologyMask;
+				}
+			}
+		}
+		var redoState = new TerrainUndoState(
+			name,
+			TerrainOperationType.TopologyMask,
+			redoBitmaskData,
+			startX,
+			startY,
+			width,
+			height,
+			terrainType: TerrainManager.TerrainType.Land,
+			layerType: TerrainManager.LayerType.Topology,
+			topologyLayer: -1
+		);
 
-        var state = undoStack[undoStack.Count - 1];
-        undoStack.RemoveAt(undoStack.Count - 1);
-        redoStack.Add(state);
+		// Register the undo/redo action
+		RegisterState(new TerrainUndoAction(undoState, redoState));
+	}
 
-        ApplyState(state);
-        totalMemoryUsage -= state.EstimateMemoryUsage();
-        Debug.Log($"Undid action: '{state.OperationName}' (Type: {state.OperationType}). Total memory: {(totalMemoryUsage / (1024f * 1024f)):F2} MB");
-    }
+	public static void RegisterTopologyMapUndoRedo(string name, int topologyLayer, bool[,] before)
+	{
+		int resolution = TerrainManager.AlphaMapRes;
+		RegisterTopologyMapUndoRedo(name, topologyLayer, 0, 0, resolution, resolution, before);
+	}
 
-    [ConsoleCommand("Redo terrain change")]
-    public static void Redo()
-    {
-        if (redoStack.Count == 0)
-        {
-            Debug.Log("No actions to redo.");
-            return;
-        }
+	public static void RegisterTopologyMapUndoRedo(
+		string name,
+		int topologyLayer,
+		int startX,
+		int startY,
+		int width,
+		int height,
+		bool[,] topologyMapData)
+	{
+		// Capture undo state (before modification)
+		bool[,] topologyMapClone = new bool[height, width];
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				topologyMapClone[i, j] = topologyMapData[i, j];
+			}
+		}
+		var undoState = new TerrainUndoState(
+			name,
+			TerrainOperationType.TopologyMap,
+			topologyMapClone,
+			startX,
+			startY,
+			width,
+			height,
+			terrainType: TerrainManager.TerrainType.Land,
+			layerType: TerrainManager.LayerType.Topology,
+			topologyLayer: topologyLayer
+		);
 
-        var state = redoStack[redoStack.Count - 1];
-        redoStack.RemoveAt(redoStack.Count - 1);
-        undoStack.Add(state);
+		// Capture redo state (after modification)
+		bool[,] modifiedTopologyMap = TopologyData.GetTopologyBitmap(TerrainTopology.IndexToType(topologyLayer));
+		bool[,] redoClone = new bool[height, width];
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				redoClone[i, j] = modifiedTopologyMap[startY + i, startX + j];
+			}
+		}
+		var redoState = new TerrainUndoState(
+			name,
+			TerrainOperationType.TopologyMap,
+			redoClone,
+			startX,
+			startY,
+			width,
+			height,
+			terrainType: TerrainManager.TerrainType.Land,
+			layerType: TerrainManager.LayerType.Topology,
+			topologyLayer: topologyLayer
+		);
 
-        ApplyState(state);
-        totalMemoryUsage += state.EstimateMemoryUsage();
-        Debug.Log($"Redid action: '{state.OperationName}' (Type: {state.OperationType}). Total memory: {(totalMemoryUsage / (1024f * 1024f)):F2} MB");
-    }
+		// Register the undo/redo action
+		RegisterState(new TerrainUndoAction(undoState, redoState));
+	}
 
-    private static void ApplyState(TerrainUndoState state)
+	public static void RegisterBlendMapUndoRedo(string name, int startX, int startY, int width, int height, Color[] blendMapData)
+	{
+		// Capture undo state (before modification)
+		Color[] blendMapClone = new Color[width * height];
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				blendMapClone[i * width + j] = blendMapData[i * width + j];
+			}
+		}
+		var undoState = new TerrainUndoState(
+			name,
+			TerrainOperationType.BlendMap,
+			blendMapClone,
+			startX,
+			startY,
+			width,
+			height,
+			terrainType: TerrainManager.TerrainType.Land
+		);
+
+		// Capture redo state (after modification)
+		Color[] modifiedBlendMap = TerrainManager.BlendMapTexture.GetPixels(startX, startY, width, height);
+		Color[] redoClone = new Color[width * height];
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				redoClone[i * width + j] = modifiedBlendMap[i * width + j];
+			}
+		}
+		var redoState = new TerrainUndoState(
+			name,
+			TerrainOperationType.BlendMap,
+			redoClone,
+			startX,
+			startY,
+			width,
+			height,
+			terrainType: TerrainManager.TerrainType.Land
+		);
+
+		// Register the undo/redo action
+		RegisterState(new TerrainUndoAction(undoState, redoState));
+	}
+
+	private static void RegisterState(TerrainUndoAction action)
+	{
+		UndoManager.RegisterAction(action);
+	}
+
+    public static void ApplyState(TerrainUndoState state)
     {
         switch (state.OperationType)
         {
@@ -320,7 +500,6 @@ public static void RegisterSplatMapUndo(
                     state.Height,
                     state.TopologyLayer
                 );
-                //TerrainManager.SyncSplatTexture();
                 TerrainManager.Callbacks.InvokeLayerUpdated(state.LayerType, state.TopologyLayer);
                 break;
 
@@ -332,8 +511,6 @@ public static void RegisterSplatMapUndo(
                     state.Width,
                     state.Height
                 );
-                //TerrainManager.SyncBiomeTexture();
-                //TerrainManager.Callbacks.InvokeLayerUpdated(TerrainManager.LayerType.Biome, -1);
                 break;
 
             case TerrainOperationType.AlphaMap:
@@ -344,7 +521,6 @@ public static void RegisterSplatMapUndo(
                     state.Width,
                     state.Height
                 );
-                //TerrainManager.SyncAlphaTexture();
                 TerrainManager.Callbacks.InvokeLayerUpdated(TerrainManager.LayerType.Alpha, -1);
                 break;
 
@@ -357,8 +533,20 @@ public static void RegisterSplatMapUndo(
                     state.Height,
                     (bool[,])state.Data
                 );
-                TopologyData.UpdateTexture();
                 TerrainManager.Callbacks.InvokeLayerUpdated(TerrainManager.LayerType.Topology, state.TopologyLayer);
+                TopologyData.UpdateTexture();
+                break;
+
+            case TerrainOperationType.TopologyMask:
+                int[,] bitmaskData = (int[,])state.Data;
+                if (bitmaskData.GetLength(0) != state.Height || bitmaskData.GetLength(1) != state.Width)
+                {
+                    Debug.LogError($"ApplyState: TopologyMask data dimensions mismatch. Expected [{state.Height}, {state.Width}], got [{bitmaskData.GetLength(0)}, {bitmaskData.GetLength(1)}]");
+                    return;
+                }
+                TopologyData.OverwriteTopologyRegion(bitmaskData, state.StartX, state.StartY, state.Width, state.Height);
+                TopologyData.UpdateTexture();
+                TerrainManager.Callbacks.InvokeLayerUpdated(TerrainManager.LayerType.Topology, -1);
                 break;
 
             case TerrainOperationType.BlendMap:
@@ -376,12 +564,21 @@ public static void RegisterSplatMapUndo(
         }
     }
 
+    [ConsoleCommand("Undo terrain change")]
+    public static void Undo()
+    {
+        UndoManager.Undo();
+    }
+
+    [ConsoleCommand("Redo terrain change")]
+    public static void Redo()
+    {
+        UndoManager.Redo();
+    }
+
     [ConsoleCommand("Clear terrain undo history")]
     public static void ClearHistory()
     {
-        undoStack.Clear();
-        redoStack.Clear();
-        totalMemoryUsage = 0;
-        Debug.Log("Cleared undo/redo history.");
+        UndoManager.ClearHistory();
     }
 }
