@@ -18,7 +18,7 @@
     "newHeight": 0.5,
     "newBiome": 2,
     "newSplat": 16,
-    "startupSkin": "D:\\Users\\kilgoar\\Desktop\\rustmapper2023\\Custom\\Skins\\darkmode.png",
+    "startupSkin": "D:\\Users\\kilgoar\\Desktop\\rustmapper2023\\Custom\\Skins\\cabinet.png",
     "recentFiles": [
       "E:\\pathstest.map",
       "E:\\marstest.map",
@@ -287,20 +287,20 @@
       "scale": {
         "x": 0.6,
         "y": 0.6,
-        "z": 1.0
+        "z": 0.0
       }
     },
     {
-      "isActive": false,
+      "isActive": true,
       "position": {
-        "x": 0.0,
-        "y": -5.399994,
+        "x": -257.299,
+        "y": -2.02996826,
         "z": 0.0
       },
       "scale": {
         "x": 0.6,
         "y": 0.6,
-        "z": 1.0
+        "z": 0.0
       }
     },
     {
@@ -319,8 +319,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -285.79657,
-        "y": 5.63999939,
+        "x": -293.79657,
+        "y": -61.3733826,
         "z": 0.0
       },
       "scale": {
@@ -410,8 +410,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 184.607422,
-        "y": 129.019989,
+        "x": 185.852173,
+        "y": -193.099609,
         "z": 0.0
       },
       "scale": {
@@ -421,7 +421,7 @@
       }
     },
     {
-      "isActive": true,
+      "isActive": false,
       "position": {
         "x": -264.26,
         "y": 28.1000061,

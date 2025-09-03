@@ -47,6 +47,10 @@ Shader "Custom/Rust/StandardDecal"
         _ApplyVertexColorStrength("Vertex Color Strength", Range(0.0, 1.0)) = 1.0
         _MainTexScroll("Main Tex Scroll", Vector) = (0,0,0,0)
         _UVSec("Secondary UV Set", Float) = 0.0
+
+        // Outline Properties
+        [Toggle(_SELECTION_ON)] _SelectionOn("Selection Outline", Float) = 0.0
+        _SelectionColor("Selection Color", Color) = (1,1,0,1)
     }
 
     SubShader
@@ -60,6 +64,7 @@ Shader "Custom/Rust/StandardDecal"
         CGPROGRAM
         #pragma target 3.0
         #pragma surface surf Standard fullforwardshadows alphatest:_Cutoff
+        #pragma shader_feature_local _SELECTION_ON
         #include "UnityCG.cginc"
         #include "Lighting.cginc"
         #include "AutoLight.cginc"
@@ -109,6 +114,8 @@ Shader "Custom/Rust/StandardDecal"
         float _WetnessLayer_WetAlbedoScale;
         float _WetnessLayer_WetSmoothness;
         float _WetnessLayer_Wetness;
+        float _SelectionOn;
+        fixed4 _SelectionColor;
 
         struct Input
         {
@@ -118,23 +125,35 @@ Shader "Custom/Rust/StandardDecal"
             fixed4 color : COLOR;
         };
 
+        // Outline function
+        void ApplyOutline(inout fixed3 albedo, float3 normal, float2 uv, float selectionOn, fixed4 selectionColor)
+        {
+            if (selectionOn > 0.5)
+            {
+                // Edge detection using normal variation
+                float3 normalDir = normalize(normal);
+                float3 viewDir = normalize(_WorldSpaceCameraPos - mul(unity_ObjectToWorld, float4(0, 0, 0, 1)).xyz); // Approximate view direction
+                float edge = abs(dot(normalDir, viewDir)); // Compare normal to view direction
+                float outlineFactor = pow(1.0 - edge, 1.0); // Sharpen the edge transition
+                albedo = lerp(albedo, selectionColor.rgb, outlineFactor);
+            }
+        }
+
         void surf(Input IN, inout SurfaceOutputStandard o)
         {
             // UV handling
             float2 uv = (_UVSec == 0) ? IN.uv_MainTex : IN.uv2_BumpMap;
             //uv += _MainTexScroll.xy * _Time.y;
 
-			
             // Base albedo and vertex color/alpha
             fixed4 albedo = tex2D(_MainTex, uv) * _Color;
-			
-			/*
+
+            /*
             if (_ApplyVertexColor > 0.0)
                 albedo.rgb *= lerp(fixed3(1,1,1), IN.color.rgb, _ApplyVertexColorStrength);
             if (_ApplyVertexAlpha > 0.0)
                 albedo.a *= lerp(1.0, IN.color.a, _ApplyVertexAlphaStrength);
-			
-		
+
             // Detail layer
             if (_DetailLayer > 0.0)
             {
@@ -156,7 +175,6 @@ Shader "Custom/Rust/StandardDecal"
                 //o.Occlusion = lerp(1.0, tex2D(_OcclusionMap, uv).r, _OcclusionStrength);
             }
 
-			
             // Biome tint
             if (_BiomeLayer > 0.0)
             {
@@ -164,7 +182,6 @@ Shader "Custom/Rust/StandardDecal"
                 albedo.rgb *= lerp(fixed3(1,1,1), biomeMask, _BiomeLayer);
             }
 
-			
             // Wetness
             fixed wetness = 0.0;
             if (_WetnessLayer > 0.0)
@@ -181,16 +198,22 @@ Shader "Custom/Rust/StandardDecal"
                 o.Smoothness = lerp(o.Smoothness, _ShoreWetnessLayer_WetSmoothness, shoreWetness);
                 wetness = max(wetness, shoreWetness);
             }
-			*/
-			
+            */
+
             // Metallic and smoothness
             //fixed4 metallicGloss = tex2D(_MetallicGlossMap, uv);
             //o.Metallic = metallicGloss.r * _Metallic;
             //o.Smoothness = metallicGloss.a * _Glossiness;
 
+            // Normal for outline
+            float3 normal = UnpackScaleNormal(tex2D(_BumpMap, uv), _BumpScale);
+
+            // Apply Outline
+            ApplyOutline(albedo.rgb, normal, uv, _SelectionOn, _SelectionColor);
+
             // Emission
             o.Emission = tex2D(_EmissionMap, uv).rgb * _EmissionColor.rgb;
-			
+
             // Final output
             o.Albedo = albedo.rgb;
             //o.Alpha = albedo.a;

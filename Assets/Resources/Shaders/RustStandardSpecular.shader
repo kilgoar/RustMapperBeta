@@ -77,6 +77,8 @@ Shader "Custom/Rust/StandardSpecular"
         _SrcBlend("Source Blend", Float) = 1.0
         _UVSec("UV Secondary", Float) = 0.0
         _ZWrite("ZWrite", Float) = 1.0
+        _SelectionColor("Selection Color", Color) = (1,0,0,1) // Added for outline
+        _SelectionOn("Selection On", Float) = 0.0 // Added for outline
     }
 
     SubShader
@@ -91,10 +93,12 @@ Shader "Custom/Rust/StandardSpecular"
         #pragma surface surf StandardSpecular fullforwardshadows alpha:fade
         #pragma shader_feature_local _TANGENTMAP
         #pragma shader_feature_local _ANISOTROPYMAP
+        #pragma shader_feature_local _SELECTION_ON // Added for outline
 
         #include "UnityCG.cginc"
         #include "Lighting.cginc"
         #include "AutoLight.cginc"
+        #include "Outline.cginc" // Include the outline method
 
         // Core samplers
         sampler2D _MainTex;
@@ -170,7 +174,7 @@ Shader "Custom/Rust/StandardSpecular"
         float emissionUVSec;
         float envReflHorizonFade;
         float envReflOcclusionStrength;
-        float4 mainTexScroll;
+        float mainTexScroll;
         float mode;
         float occlusionUVSet;
         float offsetEmissionOnly;
@@ -178,6 +182,8 @@ Shader "Custom/Rust/StandardSpecular"
         float srcBlend;
         float uvSec;
         float zWrite;
+        fixed4 _SelectionColor; // Added for outline
+        float _SelectionOn; // Added for outline
 
         struct Input
         {
@@ -241,6 +247,11 @@ Shader "Custom/Rust/StandardSpecular"
             {
                 // Note: Requires fixed4 color : COLOR in Input struct
             }
+
+            // Apply outline effect
+            ApplyOutline(albedo.rgb, o.Normal, uv, _SelectionOn, _SelectionColor);
+
+
 
             o.Albedo = albedo.rgb;
             o.Specular = tex2D(_SpecGlossMap, uv).rgb * specularColor.rgb;

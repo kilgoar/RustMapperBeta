@@ -22,7 +22,7 @@ public class AppManager : MonoBehaviour
 	
 	private Dictionary<Text, string> textColorMapping = new Dictionary<Text, string>();
 	
-	public Color color1, color2, color3;
+	public Color color1, color2, color3, color4;
 	
 	public GameObject menuPanel;
 	public GameObject loadScreen, quitScreen, compassScreen, confirmationTemplate, tooltipTemplate;

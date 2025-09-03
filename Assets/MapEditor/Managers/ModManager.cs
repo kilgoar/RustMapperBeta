@@ -268,7 +268,7 @@ public static void LoadSkin(string path)
         newSprites.Add(newSprite);
 		
 		    // Check if sprite name is color1, color2, or color3 and extract first-pixel color
-			if (newSprite.name == "color1" || newSprite.name == "color2" || newSprite.name == "color3")
+			if (newSprite.name == "color1" || newSprite.name == "color2" || newSprite.name == "color3" || newSprite.name == "color4")
 			{
 				// Get the first pixel color (bottom-left corner of the sprite's rect)
 				Rect spriteRect = newSprite.rect;
@@ -289,6 +289,11 @@ public static void LoadSkin(string path)
 				{
 					AppManager.Instance.color3 = pixelColor;
 					Debug.Log($"Set AppManager.color3 to {pixelColor} for sprite '{newSprite.name}'");
+				}
+				else if (newSprite.name == "color4")
+				{
+					AppManager.Instance.color4 = pixelColor;
+					Debug.Log($"Set AppManager.color4 to {pixelColor} for sprite '{newSprite.name}'");
 				}
 			}
 		
@@ -892,6 +897,8 @@ public static TemplateWindow CreateSampleWindow()
 					AppManager.Instance.color2 = pixelColor;
 				else if (newSprite.name == "color3")
 					AppManager.Instance.color3 = pixelColor;
+				else if (newSprite.name == "color4")
+					AppManager.Instance.color4 = pixelColor;
 			}
 		}
 

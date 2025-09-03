@@ -986,7 +986,8 @@ public void SelectPrefab()
             {
                 ItemsWindow.Instance.FocusList(node);
             }
-
+			
+			/*
             List<LODMasterMesh> lodMasterMeshes = new List<LODMasterMesh>(hitObject.GetComponentsInChildren<LODMasterMesh>());
             if (lodMasterMeshes.Count > 0)
             {
@@ -997,10 +998,13 @@ public void SelectPrefab()
                 }
                 EmissionHighlight(renderers, true);
             }
+			
             else
             {
                 EmissionHighlight(GetRenderers(hitObject), true);
             }
+			*/
+			EmissionHighlight(GetRenderers(hitObject), true);
             UpdateItemsWindow();
             UpdateGizmoState();
             return;
@@ -1240,19 +1244,20 @@ public void DragNodes()
 	public List<Renderer> GetRenderers(GameObject gameObject)
 	{
 		List<Renderer> renderers = new List<Renderer>();
-		List<LODMasterMesh> lodMasterMeshes = new List<LODMasterMesh>(gameObject.GetComponentsInChildren<LODMasterMesh>());
-				
+		
+		//List<LODMasterMesh> lodMasterMeshes = new List<LODMasterMesh>(gameObject.GetComponentsInChildren<LODMasterMesh>());
+		/*		
 		//add renderers from hlod
 		if (lodMasterMeshes.Count > 0)
 			{
 				foreach (var lodMasterMesh in lodMasterMeshes)
 					{
 						renderers.AddRange(lodMasterMesh.FetchRenderers());
-						return renderers;
-					}
+					}					
+				return renderers;
 			}
 		
-		
+		*/
 		//add renderers by recursive traversal (too expensive for large objects)
 		AddRenderersFromChildren(ref renderers, gameObject);
 
@@ -1263,10 +1268,8 @@ public void DragNodes()
 	{
 		// Check if the GameObject itself has a Renderer component
 		Renderer renderer = obj.GetComponent<Renderer>();
-		if (renderer != null)
-		{
-			renderers.Add(renderer);
-		}
+
+		renderers.Add(renderer);
 
 		// Recursively check all children
 		foreach (Transform child in obj.transform)
@@ -1345,30 +1348,34 @@ private void EmissionHighlight(List<Renderer> selection, bool enable)
 {
     foreach (Renderer renderer in selection)
     {
-        Material[] materials = renderer.materials;
-        foreach (Material material in materials)
+        if (renderer == null) { continue; }
+
+        MaterialPropertyBlock propertyBlock = new MaterialPropertyBlock();
+        renderer.GetPropertyBlock(propertyBlock);
+
+        if (renderer.sharedMaterial != null && renderer.sharedMaterial.HasProperty("_SelectionOn"))
         {
             if (enable)
-            {
-                // Subtle yellow for emission
-                Color subtleYellow = new Color(.8f, .7f, 0f, 1f);
-
-                if (material.HasProperty("_EmissionColor"))
-                {
-                    material.EnableKeyword("_EMISSION");
-                    material.SetColor("_EmissionColor", subtleYellow);
-                }
-            }
+                renderer.sharedMaterial.EnableKeyword("_SELECTION_ON");
             else
-            {
-                if (material.HasProperty("_EmissionColor"))
-                {
-                    material.SetColor("_EmissionColor", Color.black);
-                    material.DisableKeyword("_EMISSION");
-                }
-            }
+                renderer.sharedMaterial.DisableKeyword("_SELECTION_ON");
+			
+			Color selectColor = AppManager.Instance.color4;
+            propertyBlock.SetColor("_SelectionColor", selectColor);
+            propertyBlock.SetFloat("_SelectionOn", enable ? 1.0f : 0.0f);
+            renderer.SetPropertyBlock(propertyBlock);
+
+            // Sync with material and toggle keyword
+            renderer.sharedMaterial.SetFloat("_SelectionOn", enable ? 1.0f : 0.0f);
+            renderer.sharedMaterial.SetColor("_SelectionColor", selectColor);
+            
+
+            //Debug.Log($"EmissionHighlight: Set _SelectionOn={enable ? 1.0f : 0.0f}, _SelectionColor={subtleYellow}, Keyword _SELECTION_ON={(enable ? "enabled" : "disabled")} on {renderer.gameObject.name}");
         }
-        renderer.materials = materials; // Apply changes
+        else
+        {
+            //Debug.LogWarning($"Material on {renderer.gameObject.name} lacks '_SelectionOn'. Shader: {renderer.sharedMaterial?.shader.name}");
+        }
     }
 }
 

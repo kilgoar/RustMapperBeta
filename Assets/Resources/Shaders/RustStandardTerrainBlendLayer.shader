@@ -52,6 +52,10 @@ Shader "Custom/Rust/StandardTerrainBlendLayer"
         _ApplyVertexColor("Apply Vertex Color", Range(0.0, 1.0)) = 0.0
         _ApplyVertexColorStrength("Vertex Color Strength", Range(0.0, 1.0)) = 0.0
 
+        // Outline Properties
+        [Toggle(_SELECTION_ON)] _SelectionOn("Selection Outline", Float) = 0.0
+        _SelectionColor("Selection Color", Color) = (1,1,0,1)
+
         // Advanced Properties
         _UVSec("Secondary UV Set", Float) = 0.0
         [Enum(Opaque,0,Cutout,1)] _Mode("Rendering Mode", Float) = 0.0
@@ -77,6 +81,7 @@ Shader "Custom/Rust/StandardTerrainBlendLayer"
         #pragma target 3.0
         #pragma surface surf Standard fullforwardshadows
         #pragma multi_compile _ ALPHA_TEST
+        #pragma shader_feature_local _SELECTION_ON
         #include "UnityCG.cginc"
         #include "Lighting.cginc"
         #include "AutoLight.cginc"
@@ -135,6 +140,8 @@ Shader "Custom/Rust/StandardTerrainBlendLayer"
         float _DecalLayerMask;
         float _EnvReflHorizonFade;
         float _EnvReflOcclusionStrength;
+        float _SelectionOn;
+        fixed4 _SelectionColor;
 
         struct Input
         {
@@ -143,6 +150,20 @@ Shader "Custom/Rust/StandardTerrainBlendLayer"
             float3 worldPos;
             fixed4 color : COLOR;
         };
+
+        // Outline function
+        void ApplyOutline(inout fixed3 albedo, float3 normal, float2 uv, float selectionOn, fixed4 selectionColor)
+        {
+            if (selectionOn > 0.5)
+            {
+                // Edge detection using normal variation
+                float3 normalDir = normalize(normal);
+                float3 viewDir = normalize(_WorldSpaceCameraPos - mul(unity_ObjectToWorld, float4(0, 0, 0, 1)).xyz); // Approximate view direction
+                float edge = abs(dot(normalDir, viewDir)); // Compare normal to view direction
+                float outlineFactor = pow(1.0 - edge, 1.0); // Sharpen the edge transition
+                albedo = lerp(albedo, selectionColor.rgb, outlineFactor);
+            }
+        }
 
         void surf(Input IN, inout SurfaceOutputStandard o)
         {
@@ -155,7 +176,6 @@ Shader "Custom/Rust/StandardTerrainBlendLayer"
             float2 detailMaskUV = (_DetailBlendMaskUVSet > 0.0) ? secondaryUV : mainUV;
             //detailMaskUV += _DetailBlendMaskMapScroll.xy * _Time.y;
 
-			
             // Main Textures
             fixed4 albedo = tex2D(_MainTex, mainUV) * _Color;
             fixed4 metallicGloss = tex2D(_MetallicGlossMap, mainUV);
@@ -177,44 +197,38 @@ Shader "Custom/Rust/StandardTerrainBlendLayer"
                 albedo.a *= lerp(1.0, IN.color.a, _ApplyVertexAlphaStrength);
             }
 
-			if(_EnvReflHorizonFade == 0.0){
-				_DetailBlendLayer = 0;			
-			}
+            if (_EnvReflHorizonFade == 0.0)
+            {
+                _DetailBlendLayer = 0;
+            }
 
             // Detail Layer
             if (_DetailBlendLayer > 0.0)
             {
                 fixed4 detailAlbedo = tex2D(_DetailAlbedoMap, detailUV);
-                // Skip default grey texture (RGB ≈ 0.5)
+                float detailMask = 0.0; // Default to full blending
+                detailMask = tex2D(_DetailBlendMaskMap, detailMaskUV).r;
+                detailMask = saturate(detailMask / _DetailBlendFactor);
 
-                    float detailMask = 0.0; // Default to full blending
-                    detailMask = tex2D(_DetailBlendMaskMap, detailMaskUV).r;
-					detailMask = saturate(detailMask / _DetailBlendFactor);
-					
-					
-					if(_DetailBlendMaskMapInvert)
-					{
-						//detailMask = 1.0 - detailMask;
-					}
+                if (_DetailBlendMaskMapInvert)
+                {
+                    //detailMask = 1.0 - detailMask;
+                }
 
+                // Detail properties
+                fixed4 detailMetallicGloss = tex2D(_DetailMetallicGlossMap, detailUV);
+                float detailMetallic = detailMetallicGloss.r * _DetailMetallic;
+                float detailSmoothness = detailMetallicGloss.a * _DetailGlossiness;
+                //float3 detailNormal = UnpackScaleNormal(tex2D(_DetailNormalMap, detailUV), _DetailNormalMapScale);
 
-                    // Detail properties
-                    fixed4 detailMetallicGloss = tex2D(_DetailMetallicGlossMap, detailUV);
-                    float detailMetallic = detailMetallicGloss.r * _DetailMetallic;
-                    float detailSmoothness = detailMetallicGloss.a * _DetailGlossiness;
-                    //float3 detailNormal = UnpackScaleNormal(tex2D(_DetailNormalMap, detailUV), _DetailNormalMapScale);
-                    // Apply low-frequency mask (placeholder, as implementation is unclear)
-					
-
-
-					
-                    albedo.rgb = lerp(albedo.rgb, detailAlbedo.rgb, detailMask);
-                    metallic = lerp(metallic, detailMetallic, detailMask);
-                    smoothness = lerp(smoothness, detailSmoothness, detailMask);
-                    //normal = lerp(normal, detailNormal, detailMask);
-                
+                albedo.rgb = lerp(albedo.rgb, detailAlbedo.rgb, detailMask);
+                metallic = lerp(metallic, detailMetallic, detailMask);
+                smoothness = lerp(smoothness, detailSmoothness, detailMask);
+                //normal = lerp(normal, detailNormal, detailMask);
             }
 
+            // Apply Outline
+            ApplyOutline(albedo.rgb, normal, mainUV, _SelectionOn, _SelectionColor);
 
             // Output
             o.Albedo = albedo.rgb;
@@ -230,5 +244,5 @@ Shader "Custom/Rust/StandardTerrainBlendLayer"
         ENDCG
     }
 
-    CustomEditor "RustStandardBlendLayerShaderGUI"
+    //CustomEditor "RustStandardBlendLayerShaderGUI"
 }

@@ -135,6 +135,10 @@ Shader "Custom/Rust/StandardBlend4Way"
         _DetailBlendType("Detail Blend Type", Float) = 0.0
         _DetailBlendFlags("Detail Blend Flags", Float) = 0.0
         _DetailMaskSeparateTilingOffset("Detail Mask Separate Tiling Offset", Float) = 0.0
+
+        // Outline Properties
+        [Toggle] _SelectionOn ("Selection Outline", Float) = 0
+        _SelectionColor ("Selection Color", Color) = (1,1,0,1)
     }
 
     SubShader
@@ -144,10 +148,11 @@ Shader "Custom/Rust/StandardBlend4Way"
 
         CGPROGRAM
         #pragma target 3.0
-        #pragma surface surf Standard fullforwardshadows
+        #pragma surface surf Standard fullforwardshadows vertex:vert
         #include "UnityCG.cginc"
         #include "Lighting.cginc"
         #include "AutoLight.cginc"
+        #include "Outline.cginc"
 
         // Core samplers
         sampler2D _MainTex;
@@ -281,12 +286,24 @@ Shader "Custom/Rust/StandardBlend4Way"
         float _BlendLayer4_UVSet;
         float _BlendLayer4_BlendMaskUVSet;
 
+        // Outline Properties
+        float _SelectionOn;
+        fixed4 _SelectionColor;
+
         struct Input
         {
             float2 uv_MainTex;
             float2 uv2_MainTex;
             fixed4 color : COLOR;
+            float3 worldNormal;
+            INTERNAL_DATA
         };
+
+        void vert(inout appdata_full v, out Input o)
+        {
+            UNITY_INITIALIZE_OUTPUT(Input, o);
+            o.worldNormal = UnityObjectToWorldNormal(v.normal);
+        }
 
         void surf(Input IN, inout SurfaceOutputStandard o)
         {
@@ -294,14 +311,14 @@ Shader "Custom/Rust/StandardBlend4Way"
             float2 uv2 = IN.uv2_MainTex;
             fixed4 albedo = tex2D(_MainTex, uv) * _Color;
 
-			/*
+            /*
             // Apply vertex alpha
             if (_ApplyVertexAlpha > 0.0)
             {
                 albedo.a *= lerp(1.0, IN.color.a, _ApplyVertexAlphaStrength);
             }
-			*/
-			
+            */
+            
             // Blend Layer 1
             if (_BlendLayer1 > 0.0)
             {
@@ -312,11 +329,11 @@ Shader "Custom/Rust/StandardBlend4Way"
                 //blendMask1 = pow(blendMask1, max(0.1, _BlendLayer1_BlendFalloff)); // Apply falloff
                 //blendMask1 = blendMask1 * _BlendLayer1_BlendFactor; // Apply intensity and factor
                 fixed4 blendAlbedo1 = tex2D(_BlendLayer1_AlbedoMap, blend1UV);
-				
+                
                 albedo.rgb = lerp(albedo.rgb, blendAlbedo1.rgb, blendMask1);
             }
 
-			/*
+            /*
             // Blend Layer 2  gives oil rig herpes
             if (_BlendLayer2 > 0.0)  
             {
@@ -338,7 +355,7 @@ Shader "Custom/Rust/StandardBlend4Way"
                 }
                 albedo.rgb = lerp(albedo.rgb, blendAlbedo2.rgb, blendMask2);
             }
-			*/
+            */
 
             // Blend Layer 3
             if (_BlendLayer3 > 0.0)
@@ -384,9 +401,12 @@ Shader "Custom/Rust/StandardBlend4Way"
                 albedo.rgb = lerp(albedo.rgb, blendAlbedo4.rgb, blendMask4);
             }
 
+            // Apply outline effect
+            ApplyOutline(albedo.rgb, IN.worldNormal, IN.uv_MainTex, _SelectionOn, _SelectionColor);
+
             // Base material properties
             o.Albedo = albedo.rgb;
-			//o.Emission = tex2D(_EmissionMap, uv).rgb * _EmissionColor.rgb;
+            //o.Emission = tex2D(_EmissionMap, uv).rgb * _EmissionColor.rgb;
             //o.Metallic = _Metallic;
             //o.Smoothness = _Glossiness;
             //o.Alpha = albedo.a;
@@ -394,5 +414,5 @@ Shader "Custom/Rust/StandardBlend4Way"
         }
         ENDCG
     }
-    CustomEditor "RustStandardBlend4WayShaderGUI"
+    //CustomEditor "RustStandardBlend4WayShaderGUI"
 }

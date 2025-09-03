@@ -57,9 +57,11 @@ Shader "Custom/Rust/Standard"
         _ShoreWetnessLayer_Range("Shore Range", Float) = 0.0
         _ShoreWetnessLayer_WetAlbedoScale("Shore Wet Albedo Scale", Float) = 0.5
         _ShoreWetnessLayer_WetSmoothness("Shore Wet Smoothness", Float) = 0.5
-        // ... other properties unchanged
+
+        // Selection Indicator Properties
+        [Toggle(_SELECTION_ON)] _SelectionOn("Selection Indicator", Float) = 0
+        _SelectionColor("Selection Color", Color) = (1,0,0,1)
     }
-	
 
     SubShader
     {
@@ -71,10 +73,12 @@ Shader "Custom/Rust/Standard"
         #pragma surface surf Standard fullforwardshadows
         #pragma shader_feature_local _TANGENTMAP
         #pragma shader_feature_local _ANISOTROPYMAP
+        #pragma shader_feature_local _SELECTION_ON
 
         #include "UnityCG.cginc"
         #include "Lighting.cginc"
         #include "AutoLight.cginc"
+        #include "Outline.cginc"
 
         // Core samplers
         sampler2D _MainTex;
@@ -139,9 +143,16 @@ Shader "Custom/Rust/Standard"
         float _ShoreWetnessLayer_WetAlbedoScale;
         float _ShoreWetnessLayer_WetSmoothness;
 
+        // Selection Properties
+        float _SelectionOn;
+        fixed4 _SelectionColor;
+
         struct Input
         {
             float2 uv_MainTex;
+            float3 worldNormal;
+            float3 worldPos; // Added for view direction calculation
+            INTERNAL_DATA // Required for WorldNormalVector
         };
 
         void surf(Input IN, inout SurfaceOutputStandard o)
@@ -149,58 +160,34 @@ Shader "Custom/Rust/Standard"
             float2 uv = IN.uv_MainTex;
             fixed4 albedo = tex2D(_MainTex, uv) * _Color;
 
-
-            // Detail pass (controlled by _DetailLayer)
-		if (_DetailLayer > 0.0)
-		{
-			fixed detailMask = tex2D(_DetailMask, uv).rgb;
-			fixed4 detailAlbedo = tex2D(_DetailAlbedoMap, uv);
-			
-			// Check if detailMask is effectively uniform (close to 0 or 1)
-			// We'll use a threshold to decide if the mask is "flat"
-			if (detailMask == 0) // If detailMask is nearly 0 or 1
-			{
-			
-			}
-			else
-			{
-				albedo.rgb = lerp(albedo.rgb, detailAlbedo.rgb * _DetailColor, detailMask);
-			}
-			
-			o.Normal = UnpackScaleNormal(tex2D(_DetailNormalMap, uv), _DetailNormalMapScale);
-			//o.Occlusion = lerp(1.0, tex2D(_DetailOcclusionMap, uv).r, _DetailOcclusionStrength);
-		}
-			
-
-			/*
-            // Wetness
-            if (_WetnessLayer > 0.0)
+            // Detail pass
+            if (_DetailLayer > 0.0)
             {
-                fixed wetness = tex2D(_WetnessLayer_Mask, uv).r * _WetnessLayer_Wetness;
-                wetness = wetness > 0 ? wetness : 0.0;
-                albedo.rgb *= lerp(1.0, _WetnessLayer_WetAlbedoScale, wetness);
-                o.Smoothness = lerp(o.Smoothness, _WetnessLayer_WetSmoothness, wetness);
+                fixed detailMask = tex2D(_DetailMask, uv).r;
+                fixed4 detailAlbedo = tex2D(_DetailAlbedoMap, uv);
+                albedo.rgb = lerp(albedo.rgb, detailAlbedo.rgb * _DetailColor, detailMask);
+                o.Normal = UnpackScaleNormal(tex2D(_DetailNormalMap, uv), _DetailNormalMapScale);
+                o.Occlusion = lerp(1.0, tex2D(_DetailOcclusionMap, uv).r, _DetailOcclusionStrength);
             }
-            if (_ShoreWetnessLayer > 0.0)
+            else
             {
-                fixed shoreWetness = tex2D(_WetnessLayer_Mask, uv).r * _ShoreWetnessLayer * _ShoreWetnessLayer_BlendFactor;
-                shoreWetness = shoreWetness > 0 ? shoreWetness : 0.0;
-                albedo.rgb *= lerp(1.0, _ShoreWetnessLayer_WetAlbedoScale, shoreWetness);
-                o.Smoothness = lerp(o.Smoothness, _ShoreWetnessLayer_WetSmoothness, shoreWetness);
+                o.Normal = UnpackScaleNormal(tex2D(_BumpMap, uv), _BumpScale);
+                o.Occlusion = lerp(1.0, tex2D(_OcclusionMap, uv).r, _OcclusionStrength);
             }
-			*/
-			o.Normal = UnpackScaleNormal(tex2D(_BumpMap, uv), _BumpScale);
-            o.Occlusion = lerp(1.0, tex2D(_DetailOcclusionMap, uv).r, _DetailOcclusionStrength);
+
             // Use SpecGlossMap for Metallic and Smoothness
             fixed4 specGloss = tex2D(_SpecGlossMap, uv);
-            //o.Metallic = specGloss.rgb; // Fully control Metallic with red channel
-            //o.Smoothness = specGloss.rgb; // Use alpha channel for Smoothness
+            //o.Metallic = _Metallic;
+            //o.Smoothness = _Glossiness * specGloss.a;
 
+            // Apply outline
+            ApplyOutline(albedo.rgb, WorldNormalVector(IN, o.Normal), uv, _SelectionOn, _SelectionColor);
 
             o.Albedo = albedo.rgb;
             o.Emission = tex2D(_EmissionMap, uv).rgb * _EmissionColor.rgb;
-            o.Alpha = albedo.a; // Use alpha for blending
-			clip(albedo.a - _Cutoff);
+            o.Alpha = albedo.a;
+            
+            clip(albedo.a - _Cutoff);
         }
         ENDCG
     }

@@ -3,28 +3,32 @@ Shader "Custom/CoreFoliageBillboard"
     Properties
     {
         // Textures
-        _BaseColorMap ("Base Color Map", 2D) = "white" {}
-        _TranslucencyMap ("Translucency Map", 2D) = "white" {}
-        _NormalMap ("Normal Map", 2D) = "bump" {}
-        _TintMask ("Tint Mask", 2D) = "white" {}
+        _BaseColorMap("Base Color Map", 2D) = "white" {}
+        _TranslucencyMap("Translucency Map", 2D) = "white" {}
+        _NormalMap("Normal Map", 2D) = "bump" {}
+        _TintMask("Tint Mask", 2D) = "white" {}
 
         // Colors
-        _BaseColor ("Base Color", Color) = (1,1,1,1)
-        _TintBase1 ("Tint Base 1", Color) = (1,1,1,1)
-        _TintBase2 ("Tint Base 2", Color) = (1,1,1,1)
-        _TintColor1 ("Tint Color 1", Color) = (1,1,1,1)
-        _TintColor2 ("Tint Color 2", Color) = (1,1,1,1)
-        _Translucency ("Translucency Color", Color) = (1,1,1,1)
+        _BaseColor("Base Color", Color) = (1,1,1,1)
+        _TintBase1("Tint Base 1", Color) = (1,1,1,1)
+        _TintBase2("Tint Base 2", Color) = (1,1,1,1)
+        _TintColor1("Tint Color 1", Color) = (1,1,1,1)
+        _TintColor2("Tint Color 2", Color) = (1,1,1,1)
+        _Translucency("Translucency Color", Color) = (1,1,1,1)
 
         // Tinting
-        _TintEnabled ("Enable Tinting", Float) = 0
-        _TintBiome ("Biome Tint Blend", Range(0,1)) = 0
-        _TintMaskSource ("Tint Mask Source", Float) = 0
+        _TintEnabled("Enable Tinting", Float) = 0
+        _TintBiome("Biome Tint Blend", Range(0,1)) = 0
+        _TintMaskSource("Tint Mask Source", Float) = 0
 
         // Material Properties
-        _OpacityMaskClip ("Opacity Mask Clip", Range(0,1)) = 0.3
-        _Roughness ("Roughness", Float) = 0.5
-        _Specular ("Specular", Float) = 0
+        _OpacityMaskClip("Opacity Mask Clip", Range(0,1)) = 0.3
+        _Roughness("Roughness", Float) = 0.5
+        _Specular("Specular", Float) = 0
+
+        // Selection Indicator Properties
+        [Toggle(_SELECTION_ON)] _SelectionOn("Selection Indicator", Float) = 0
+        _SelectionColor("Selection Color", Color) = (1,0,0,1)
     }
 
     SubShader
@@ -38,8 +42,10 @@ Shader "Custom/CoreFoliageBillboard"
             #pragma target 3.0
             #pragma vertex vert
             #pragma fragment frag
+            #pragma shader_feature_local _SELECTION_ON
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
+            #include "Outline.cginc"
 
             // Properties
             sampler2D _BaseColorMap;
@@ -58,6 +64,8 @@ Shader "Custom/CoreFoliageBillboard"
             float _TintEnabled;
             float _TintMaskSource;
             fixed4 _Translucency;
+            float _SelectionOn;
+            fixed4 _SelectionColor;
 
             struct appdata
             {
@@ -106,16 +114,27 @@ Shader "Custom/CoreFoliageBillboard"
                 return o;
             }
 
-			fixed4 frag(v2f i) : SV_Target
-			{
-				// Sample textures
-				fixed4 baseColor = tex2D(_BaseColorMap, i.uv) * _BaseColor;
+            fixed4 frag(v2f i) : SV_Target
+            {
+                // Sample textures
+                fixed4 baseColor = tex2D(_BaseColorMap, i.uv) * _BaseColor;
 
-				// Alpha test
-				clip(baseColor.a - _OpacityMaskClip);
+                // Apply tinting (if enabled)
+                if (_TintEnabled > 0.5)
+                {
+                    float tintMask = tex2D(_TintMask, i.uv).r;
+                    fixed4 tint = lerp(_TintColor1, _TintColor2, tintMask);
+                    baseColor.rgb *= lerp(fixed3(1,1,1), tint.rgb, _TintBiome);
+                }
 
-				return fixed4(baseColor.rgb, baseColor.a);
-			}
+                // Apply outline effect
+                ApplyOutline(baseColor.rgb, i.normal, i.uv, _SelectionOn, _SelectionColor);
+
+                // Alpha test
+                clip(baseColor.a - _OpacityMaskClip);
+
+                return fixed4(baseColor.rgb, baseColor.a);
+            }
             ENDCG
         }
     }

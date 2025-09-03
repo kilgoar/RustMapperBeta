@@ -68,8 +68,7 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
         _BlendLayer3_UVSet("Blend Layer 3 UV Set", Float) = 0.0 // Added
         _BlendLayer3_BlendMaskUVSet("Blend Layer 3 Blend Mask UV Set", Float) = 0.0 // Added
 
-		
-		[HDR] _EmissionColor("Emission Color", Color) = (0,0,0,0)
+        [HDR] _EmissionColor("Emission Color", Color) = (0,0,0,0)
         _EmissionMap("Emission", 2D) = "black" {}
         // Detail Layer
         _DetailLayer("Detail Layer", Float) = 0.0 // Added
@@ -87,6 +86,10 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
         _ApplyVertexAlphaStrength("Vertex Alpha Strength", Range(0.0, 1.0)) = 1.0
         _ApplyVertexColor("Apply Vertex Color", Range(0.0, 1.0)) = 0.0
         _ApplyVertexColorStrength("Vertex Color Strength", Range(0.0, 1.0)) = 1.0
+
+        // Outline Properties
+        [Toggle(_SELECTION_ON)] _SelectionOn("Selection Outline", Float) = 0.0
+        _SelectionColor("Selection Outline Color", Color) = (1,0,0,1)
 
         // Rendering Properties
         [Enum(Opaque,0,Cutout,1)] _Mode("Rendering Mode", Float) = 1
@@ -110,9 +113,11 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
         #pragma target 3.0
         #pragma surface surf StandardSpecular fullforwardshadows
         #pragma multi_compile _ ALPHA_TEST
+        #pragma shader_feature_local _SELECTION_ON
         #include "UnityCG.cginc"
         #include "Lighting.cginc"
         #include "AutoLight.cginc"
+        #include "Outline.cginc"
 
         // Core samplers
         sampler2D _MainTex;
@@ -134,7 +139,7 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
         sampler2D _BlendLayer3_NormalMap; // Added
         sampler2D _BlendLayer3_BlendMaskMap; // Added
         
-		sampler2D _EmissionMap;
+        sampler2D _EmissionMap;
         // Detail Layer samplers
         sampler2D _DetailMask; // Added
         sampler2D _DetailAlbedoMap; // Added
@@ -157,10 +162,9 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
         float4 _MainTexScroll; // Added
         float _UVSec; // Added
         float _Cull; // Added
-
-		
-		fixed4 _EmissionColor;
-		
+        
+        fixed4 _EmissionColor;
+        
         // Blend Layer 1
         float _BlendLayer1;
         fixed4 _BlendLayer1_Color;
@@ -211,20 +215,25 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
         float _DetailLayer_BlendFalloff; // Added
         float4 _DetailAlbedoMapScroll; // Added
 
+        // Outline Properties
+        float _SelectionOn;
+        fixed4 _SelectionColor;
+
         struct Input
         {
             float2 uv_MainTex;
             float2 uv2_MainTex; // Added for secondary UV set
             fixed4 color : COLOR;
+            float3 worldNormal; // Added for outline
         };
 
         void surf(Input IN, inout SurfaceOutputStandardSpecular o)
         {
             // Main texture UVs with scroll
             float2 mainUV = IN.uv_MainTex ;
-			
-			o.Emission = tex2D(_EmissionMap, mainUV).rgb * _EmissionColor.rgb;
-			
+            
+            o.Emission = tex2D(_EmissionMap, mainUV).rgb * _EmissionColor.rgb;
+            
             fixed4 albedo = tex2D(_MainTex, mainUV) * _Color;
             fixed3 normal = UnpackScaleNormal(tex2D(_BumpMap, mainUV), _BumpScale);
             fixed4 specGloss = tex2D(_SpecGlossMap, mainUV);
@@ -269,7 +278,7 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
                 smoothness = lerp(smoothness, blendSmoothness1, blendMask1);
                 normal = lerp(normal, blendNormal1, blendMask1);
             }
-			/*
+            /*
             // Blend Layer 2
             if (_BlendLayer2 > 0.0)
             {
@@ -295,8 +304,8 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
                 smoothness = lerp(smoothness, blendSmoothness2, blendMask2);
                 normal = lerp(normal, blendNormal2, blendMask2);
             }
-			
-			
+            
+            
             // Blend Layer 3
             if (_BlendLayer3 > 0.0)
             {
@@ -322,9 +331,9 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
                 smoothness = lerp(smoothness, blendSmoothness3, blendMask3);
                 normal = lerp(normal, blendNormal3, blendMask3);
             }
-			*/
+            */
 
-			
+            
             // Detail Layer
             if (_DetailLayer > 0.0)
             {
@@ -341,7 +350,10 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
                 albedo.rgb = lerp(albedo.rgb, detailAlbedo.rgb, detailMask);
                 normal = lerp(normal, detailNormal, detailMask);
             }
-			
+            
+            // Apply Outline
+                ApplyOutline(albedo.rgb, normal, mainUV, _SelectionOn, _SelectionColor);
+
 
             // Output
             o.Albedo = albedo.rgb;
@@ -355,5 +367,5 @@ Shader "Custom/Rust/StandardBlend4WaySpecular"
         }
         ENDCG
     }
-    CustomEditor "StandardBlend4WaySpecularShaderGUI"
+    //CustomEditor "StandardBlend4WaySpecularShaderGUI"
 }

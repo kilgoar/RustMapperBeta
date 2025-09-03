@@ -18,8 +18,9 @@ Shader "Developer/LocalCoordDiffuse"
         [Toggle] _EmissionFresnel ("Emission Fresnel", Float) = 0
         _EmissionFresnelPower ("Power", Range(0, 16)) = 1
         [Toggle] _EmissionFresnelInvert ("Invert", Float) = 0
-        
         [Toggle] _BlendLayer1 ("Blend Layer 1 Enabled", Float) = 0
+        [Toggle(_SELECTION_ON)] _SelectionOn ("Selection Outline", Float) = 0
+        _SelectionColor ("Selection Color", Color) = (1,1,0,1)
 
         [Enum(Off,0,Front,1,Back,2)] _Cull ("Cull", Float) = 0
         [Enum(Opaque,0,Cutout,1,Fade,2,Transparent,3)] _Mode ("Blend Mode", Float) = 1
@@ -43,10 +44,12 @@ Shader "Developer/LocalCoordDiffuse"
         #pragma multi_compile_local _ _BLENDLAYER2
         #pragma multi_compile_local _ _BLENDLAYER3
         #pragma multi_compile_local _ _EMISSIONFRESNEL
+        #pragma multi_compile_local _ _SELECTION_ON
 
         #include "UnityCG.cginc"
         #include "Lighting.cginc"
         #include "AutoLight.cginc"
+        #include "Outline.cginc"
 
         sampler2D _MainTex;
         sampler2D _SpecGlossMap;
@@ -62,6 +65,8 @@ Shader "Developer/LocalCoordDiffuse"
         float _EmissionFresnelInvert;
         float4 _BaseOffset;
         float _Tiling;
+        float _SelectionOn;
+        fixed4 _SelectionColor;
 
         struct Input
         {
@@ -69,6 +74,7 @@ Shader "Developer/LocalCoordDiffuse"
             float3 worldPos;
             float3 localPos;
             float3 localNormal;
+            float3 worldNormal;
             INTERNAL_DATA
         };
 
@@ -79,6 +85,7 @@ Shader "Developer/LocalCoordDiffuse"
             o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
             o.localPos = v.vertex.xyz;
             o.localNormal = v.normal;
+            o.worldNormal = UnityObjectToWorldNormal(v.normal);
         }
 
         void surf(Input IN, inout SurfaceOutputStandardSpecular o)
@@ -101,7 +108,6 @@ Shader "Developer/LocalCoordDiffuse"
                 localPosForOrientation.y * objectScale.y,
                 localPosForOrientation.z * objectScale.z
             );
-            // Corrected line: Removed the erroneous fragment and fixed the assignment
             scaleNormalizedLocalPos = mul(unity_WorldToObject, float4(scaledWorldPos, 1.0)).xyz / objectScale;
 
             // Apply the global tiling scale to the normalized local position
@@ -128,6 +134,9 @@ Shader "Developer/LocalCoordDiffuse"
 
             // Sample albedo
             fixed4 albedo = tex2D(_MainTex, uv) * _Color;
+
+                ApplyOutline(albedo.rgb, IN.worldNormal, uv, _SelectionOn, _SelectionColor);
+
 
             // Output
             o.Albedo = albedo.rgb;

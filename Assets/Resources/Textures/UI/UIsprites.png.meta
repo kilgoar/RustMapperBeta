@@ -1934,6 +1934,27 @@ TextureImporter:
       indices: 
       edges: []
       weights: []
+    - serializedVersion: 2
+      name: color4
+      rect:
+        serializedVersion: 2
+        x: 188
+        y: 759
+        width: 34
+        height: 37
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c0adbabbb4e5ad449889b59d7ed3448f
+      internalID: 1282516125
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     physicsShape: []
     bones: []
@@ -1983,6 +2004,7 @@ TextureImporter:
       color1: 295999035
       color2: -204680525
       color3: -1269379925
+      color4: 1282516125
       colorcube: 113845868
       cornerButton: 93494374
       doorIcon: -1871782716

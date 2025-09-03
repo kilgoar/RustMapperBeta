@@ -63,6 +63,10 @@ Shader "Custom/CoreFoliage" {
         _VertexOcclusionStrength ("Vertex Occlusion Strength", Float) = 0
         _AmbientBoost ("Ambient Boost", Range(0,5)) = 2.0
         _MinBrightness ("Minimum Brightness", Range(0,1)) = 0.2
+		
+		
+		[Toggle(_SELECTION_ON)] _SelectionOn("Selection Indicator", Float) = 0
+        _SelectionColor("Selection Color", Color) = (1,0,0,1)
     }
     SubShader {
         Tags { "RenderType"="TransparentCutout" "Queue"="AlphaTest" }
@@ -76,6 +80,7 @@ Shader "Custom/CoreFoliage" {
             #include "UnityCG.cginc"
             #include "AutoLight.cginc"
             #include "Lighting.cginc"
+			#include "Outline.cginc"
 
             // Properties 
             sampler2D _BaseColorMap;
@@ -128,6 +133,8 @@ Shader "Custom/CoreFoliage" {
             float _WindHeightBendFrequency;
             float _AmbientBoost;
             float _MinBrightness;
+			float _SelectionOn;
+            fixed4 _SelectionColor;
 
             // Vertex input structure
             struct appdata {
@@ -186,8 +193,8 @@ Shader "Custom/CoreFoliage" {
                 );
                 float3 normal = normalize(mul(normalMap * _NormalScale, TBN));
                 
-               
-                
+                // Apply outline effect
+                ApplyOutline(baseColor.rgb, normal, i.uv, _SelectionOn, _SelectionColor);
                 // Alpha test
                 clip(baseColor.a - _OpacityMaskClip);
                 
@@ -227,5 +234,5 @@ Shader "Custom/CoreFoliage" {
             ENDCG
         }
     }
-    CustomEditor "CoreFoliageGUI"
+    //CustomEditor "CoreFoliageGUI"
 }
