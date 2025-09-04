@@ -231,7 +231,7 @@ public static class PrefabManager
 	public static GameObject SetupVolume(GameObject go, string filePath){
 		NetworkManager.Register(go);
 		// gameobject's selection criteria for prefab
-		//go.SetLayerRecursively(3);
+		go.SetLayerRecursively(11);
 		//go.SetTagRecursively("Untagged");
 		//go.tag = "Prefab";
 		
@@ -437,9 +437,57 @@ public static class PrefabManager
 					if (hierarchyInfo != default((string, string, string)))
 					{
 						var (firstName, parentName, monumentName) = hierarchyInfo;
+
+						// Derive a prefab path from hierarchy info using triangulating lookups
+						uint id = AssetManager.fragmentToID(firstName, parentName, monumentName);
+					
+						if (AssetManager.IDLookup.TryGetValue(id, out string prefabPath))
+						{
+							if (AssetManager.VolumesCache.TryGetValue(prefabPath, out GameObject cachedGameObject))
+							{
+								
+								// Instantiate the cached GameObject as a sibling
+								GameObject sibling = UnityEngine.Object.Instantiate(cachedGameObject, collider.gameObject.transform.parent);
+								// Set the sibling GameObject to layer 12
+								sibling.SetLayerRecursively(12);
+								sibling.transform.localScale = ExtractColliderScale(collider);
+								sibling.transform.localPosition = collider.gameObject.transform.localPosition;
+								sibling.transform.localRotation = collider.gameObject.transform.localRotation;
+								// Remove any collider components
+									// Remove all collider components from the sibling and its children
+									var siblingColliders = sibling.GetComponentsInChildren<Collider>(true);
+									if (siblingColliders.Length == 0)
+									{
+										//Debug.LogWarning($"No colliders found on sibling GameObject {sibling.name} or its children.");
+									}
+									foreach (var siblingCollider in siblingColliders)
+									{
+										if (siblingCollider != null)
+										{
+											UnityEngine.Object.DestroyImmediate(siblingCollider);
+										}
+									}
+
+									// Remove all PrefabDataHolder components from the sibling and its children
+									var prefabDataHolders = sibling.GetComponentsInChildren<PrefabDataHolder>(true);
+									if (prefabDataHolders.Length == 0)
+									{
+										//Debug.LogWarning($"No PrefabDataHolder components found on sibling GameObject {sibling.name} or its children.");
+									}
+									foreach (var prefabDataHolder in prefabDataHolders)
+									{
+										if (prefabDataHolder != null)
+										{
+											UnityEngine.Object.DestroyImmediate(prefabDataHolder);
+										}
+									}
+							}
+						}
 						
 							if (BlockedColliderNames.Contains(firstName)  && !string.IsNullOrEmpty(monumentName))
 							{
+								
+								
 								//Debug.LogError($"Interfering collider found: {firstName} at {monumentName}");
 								collider.gameObject.layer = 0; // Set to a layer that won't interact with ray casts at all
 							}
@@ -458,6 +506,57 @@ public static class PrefabManager
 		}
 		// Clear the cache after activation
 		unprocessedColliders.Clear();
+	}
+	
+	public static Vector3 ExtractColliderScale(Collider collider)
+	{
+		Vector3 scale = Vector3.zero;
+
+		try
+		{
+			if (collider == null)
+			{
+				Debug.LogWarning("Input collider is null.");
+				return scale;
+			}
+
+			if (collider is SphereCollider sphereCollider)
+			{
+				// Scale sphere uniformly based on radius
+				float radiusScale = sphereCollider.radius * 2f; // Diameter
+				scale = new Vector3(radiusScale, radiusScale, radiusScale) * sphereCollider.transform.lossyScale.x;
+				//Debug.Log($"Extracted SphereCollider scale {scale} from {collider.gameObject.name}.");
+			}
+			else if (collider is BoxCollider boxCollider)
+			{
+				// Use size directly, adjusted by transform scale
+				scale = boxCollider.size;
+				scale.x *= boxCollider.transform.lossyScale.x;
+				scale.y *= boxCollider.transform.lossyScale.y;
+				scale.z *= boxCollider.transform.lossyScale.z;
+				//Debug.Log($"Extracted BoxCollider scale {scale} from {collider.gameObject.name}.");
+			}
+			else if (collider is CapsuleCollider capsuleCollider)
+			{
+				// Scale capsule based on radius (x, z) and height (y)
+				scale = new Vector3(
+					capsuleCollider.radius * 2f * capsuleCollider.transform.lossyScale.x, // Diameter for x
+					capsuleCollider.height * capsuleCollider.transform.lossyScale.y,       // Height for y
+					capsuleCollider.radius * 2f * capsuleCollider.transform.lossyScale.z  // Diameter for z
+				);
+				//Debug.Log($"Extracted CapsuleCollider scale {scale} from {collider.gameObject.name}.");
+			}
+			else
+			{
+				Debug.LogWarning($"Unsupported collider type {collider.GetType().Name} on {collider.gameObject.name}.");
+			}
+		}
+		catch (Exception e)
+		{
+			Debug.LogError($"Error extracting scale from collider on {collider?.gameObject.name}: {e.Message}");
+		}
+
+		return scale;
 	}
 
 	public static void SaveBlacklist()

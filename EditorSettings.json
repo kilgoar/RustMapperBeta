@@ -18,7 +18,7 @@
     "newHeight": 0.5,
     "newBiome": 2,
     "newSplat": 16,
-    "startupSkin": "D:\\Users\\kilgoar\\Desktop\\rustmapper2023\\Custom\\Skins\\cabinet.png",
+    "startupSkin": "D:\\Users\\kilgoar\\Desktop\\rustmapper2023\\Custom\\Skins\\darkmode.png",
     "recentFiles": [
       "E:\\pathstest.map",
       "E:\\marstest.map",
@@ -280,8 +280,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 6.46,
-        "y": -8.86,
+        "x": 53.46,
+        "y": -66.86,
         "z": 0.0
       },
       "scale": {
@@ -291,10 +291,10 @@
       }
     },
     {
-      "isActive": true,
+      "isActive": false,
       "position": {
-        "x": -257.299,
-        "y": -2.02996826,
+        "x": -49.29901,
+        "y": -20.0299683,
         "z": 0.0
       },
       "scale": {
@@ -313,7 +313,7 @@
       "scale": {
         "x": 0.6,
         "y": 0.6,
-        "z": 1.0
+        "z": 0.0
       }
     },
     {
@@ -339,7 +339,7 @@
       "scale": {
         "x": 0.6,
         "y": 0.6,
-        "z": 1.0
+        "z": 0.0
       }
     },
     {
@@ -352,7 +352,7 @@
       "scale": {
         "x": 0.6,
         "y": 0.6,
-        "z": 1.0
+        "z": 0.0
       }
     },
     {
@@ -371,14 +371,14 @@
     {
       "isActive": false,
       "position": {
-        "x": -18.0,
-        "y": -15.0000305,
+        "x": -8.536011,
+        "y": -104.109985,
         "z": 0.0
       },
       "scale": {
         "x": 0.6,
         "y": 0.6,
-        "z": 1.0
+        "z": 0.0
       }
     },
     {
@@ -397,21 +397,21 @@
     {
       "isActive": false,
       "position": {
-        "x": 10.0,
-        "y": 11.9999695,
+        "x": 261.0,
+        "y": 6.99996948,
         "z": 0.0
       },
       "scale": {
         "x": 0.6,
         "y": 0.6,
-        "z": 1.0
+        "z": 0.0
       }
     },
     {
-      "isActive": false,
+      "isActive": true,
       "position": {
-        "x": 185.852173,
-        "y": -193.099609,
+        "x": 236.852173,
+        "y": -180.099609,
         "z": 0.0
       },
       "scale": {
@@ -436,8 +436,8 @@
   ],
   "menuState": {
     "scale": {
-      "x": 1.5,
-      "y": 1.5,
+      "x": 1.57199979,
+      "y": 1.57199979,
       "z": 1.0
     },
     "position": {

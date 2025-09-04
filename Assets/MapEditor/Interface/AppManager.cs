@@ -3,6 +3,7 @@ using System.Reflection;
 using System.IO;
 using System.Text; 
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 using RustMapEditor.Variables;
 using UIRecycleTreeNamespace;
@@ -199,7 +200,9 @@ public class AppManager : MonoBehaviour
 		{
 			menuPanel.transform.SetAsLastSibling();
 		}
-
+		DeactivateWindow(6);
+		DeactivateWindow(9);
+		
 		Debug.Log("Window states loaded successfully.");
 	}
 	
@@ -230,6 +233,7 @@ public void CollectImages()
 	CollectFromGameObject(quitScreen);
     CollectFromGameObject(menuPanel);
     CollectFromGameObject(Compass.Instance?.gameObject);
+	CollectFromGameObject(VisibilityPanel.Instance?.gameObject);
 
     // Collect sprites from UIRecycleTree's nodeStylesArray
     foreach (var tree in RecycleTrees)
@@ -511,6 +515,63 @@ public void ActivateWindow(int index)
         UpdateTextColors();
     }
 	
+	public void SetColors(GameObject target)
+	{
+		if (target == null)
+		{
+			Debug.LogWarning("Target GameObject is null. Cannot set colors.");
+			return;
+		}
+
+		// Define the default color mappings based on provided RGBA values
+		Dictionary<string, string> defaultColorToAppColor = new Dictionary<string, string>
+		{
+			{ "A4A4A4FF", "color1" }, // Maps to color1
+			{ "DED3C8FF", "color1" }, // Maps to color1
+			{ "323232FF", "color2" }, // Maps to color2
+			{ "DD5640FF", "color2" }, // Maps to color2
+			{ "814134FF", "color2" }, // Maps to color2 (loadscreen)
+			{ "07AAD1FF", "color2" }, // Maps to color3
+			{ "738E44FF", "color3" }, // Maps to color3
+			{ "65B4DDFF", "color3" }, // Maps to color3
+			{ "81AD35FF", "color3" }, // Maps to color3
+			{ "80AB36FF", "color3" }, // Maps to color3
+			{ "88C421FF", "color3" }, // Maps to color3
+			{ "738E45FF", "color3" }, // Maps to color3
+			{ "335666FF", "color2" }  // Maps to color3 (loadscreen)
+			// Note: "000000FF" is not mapped yet as per instructions
+		};
+
+		// Collect Text components from the target GameObject
+		Text[] texts = target.GetComponentsInChildren<Text>(true); // Include inactive
+
+		// Map each Text component to its corresponding color identifier without clearing existing mappings
+		foreach (Text text in texts)
+		{
+			if (text != null)
+			{
+				string colorString = ColorUtility.ToHtmlStringRGBA(text.color);
+				if (defaultColorToAppColor.TryGetValue(colorString, out string colorId))
+				{
+					// Only add or update the mapping if the Text component is not already mapped
+					if (!textColorMapping.ContainsKey(text))
+					{
+						textColorMapping.Add(text, colorId);
+					}
+					else
+					{
+						textColorMapping[text] = colorId; // Update existing mapping
+					}
+				}
+				else
+				{
+					//Debug.LogWarning($"Text '{text.gameObject.name}' with color #{colorString} has no mapping. Skipping.");
+				}
+			}
+		}
+
+	}
+	
     public void UpdateTextColors()
     {
         foreach (var entry in textColorMapping)
@@ -541,6 +602,7 @@ public void ActivateWindow(int index)
             }
         }
     }
+	
 	
 	
 	public void CollectInputFields()    {
@@ -590,6 +652,47 @@ public void ActivateWindow(int index)
         
         //AnalyzeTextColors();
     }
+	
+	// Overload of CollectImages to collect images and sprites from a specific GameObject
+	public void CollectImages(GameObject target)
+	{
+		if (target == null)		{
+			Debug.LogWarning("Target GameObject is null. Cannot collect images.");
+			return;
+		}
+		// Collect images from the target GameObject
+		Image[] images = target.GetComponentsInChildren<Image>(true); // Include inactive
+		allImages.AddRange(images);
+		
+		Debug.Log($"Collected {images.Length} Image components and {allSprites.Count} Sprite components from {target.name}");
+	}
+
+	// Overload of CollectLabels to collect Text components from a specific GameObject
+	public void CollectLabels(GameObject target)
+	{
+		if (target == null)		{
+			Debug.LogWarning("Target GameObject is null. Cannot collect labels.");
+			return;
+		}
+
+		Text[] texts = target.GetComponentsInChildren<Text>(true); // Include inactive
+		allLabels.AddRange(texts);
+		Debug.Log($"Collected {texts.Length} Text components from {target.name}");
+	}
+
+	// Overload of CollectInputFields to collect InputField components from a specific GameObject
+	public void CollectInputFields(GameObject target)
+	{
+		if (target == null)
+		{
+			Debug.LogWarning("Target GameObject is null. Cannot collect input fields.");
+			return;
+		}
+
+		InputField[] inputFields = target.GetComponentsInChildren<InputField>(true); // Include inactive
+		allInputFields.AddRange(inputFields);
+		Debug.Log($"Collected {inputFields.Length} InputField components from {target.name}");
+	}
 
     private void AnalyzeTextColors()
     {
@@ -1000,7 +1103,7 @@ public void OnWindowToggle(Toggle windowToggle, GameObject windowPanel)
 		}
 
 		// Define the green color used in the toggle's active state
-		Color greenColor = new Color32(0x72, 0x8D, 0x44, 0xFF); // #728d44
+		Color greenColor = AppManager.Instance.color1;
 
 		if (string.IsNullOrEmpty(iconPath))
 		{
@@ -1056,31 +1159,35 @@ public void OnWindowToggle(Toggle windowToggle, GameObject windowPanel)
         return newToggle;
     }
 
-    public Button CreateButton(Transform parent, Rect rect, string text = "")
-    {
-        if (templateWindowPrefab == null || templateWindowPrefab.button == null)
-        {
-            Debug.LogError("TemplateWindow prefab or its default Button is not available.");
-            return null;
-        }
-        Button newButton = Instantiate(templateWindowPrefab.button, parent);
-        RectTransform buttonRect = newButton.GetComponent<RectTransform>();
-        buttonRect.anchoredPosition = new Vector2(rect.x, rect.y);
-        buttonRect.sizeDelta = new Vector2(rect.width, rect.height);
+	public Button CreateButton(Transform parent, Rect rect, string text = "", UnityAction onClick = null)
+	{
+		if (templateWindowPrefab == null || templateWindowPrefab.button == null)
+		{
+			Debug.LogError("TemplateWindow prefab or its default Button is not available.");
+			return null;
+		}
+		Button newButton = Instantiate(templateWindowPrefab.button, parent);
+		RectTransform buttonRect = newButton.GetComponent<RectTransform>();
+		buttonRect.anchoredPosition = new Vector2(rect.x, rect.y);
+		buttonRect.sizeDelta = new Vector2(rect.width, rect.height);
 
-        // Set the label if it exists as a child
-        Text label = newButton.GetComponentInChildren<Text>();
-        if (label != null)
-        {
-            label.text = text;
-        }
-        else if (!string.IsNullOrEmpty(text))
-        {
-            Debug.LogWarning("Button prefab has no child Text component to set label.");
-        }
+		Text label = newButton.GetComponentInChildren<Text>();
+		if (label != null)
+		{
+			label.text = text;
+		}
+		else if (!string.IsNullOrEmpty(text))
+		{
+			Debug.LogWarning("Button prefab has no child Text component to set label.");
+		}
 
-        return newButton;
-    }
+		// Subscribe the onClick method if provided
+		if (onClick != null)
+		{
+			newButton.onClick.AddListener(onClick);
+		}
+		return newButton;
+	}
 
     public Button CreateBrightButton(Transform parent, Rect rect, string text = "")
     {

@@ -75,67 +75,86 @@ public class NodeCollection : MonoBehaviour
     }
 
     public void PopulateNodes()
+{
+    populating = true;
+    try
     {
-        populating = true;
-        try
+        if (pathData == null || pathData.nodes == null || pathData.nodes.Length == 0)
         {
-            if (pathData == null || pathData.nodes == null || pathData.nodes.Length == 0)
-            {
-                Debug.LogError("Invalid PathData for spawning nodes.");
-                return;
-            }
+            Debug.LogError("Invalid PathData for spawning nodes.");
+            return;
+        }
 
-            if (road == null)
-            {
-                Debug.LogError($"NodeCollection on {gameObject.name} has no valid ERRoad during PopulateNodes.");
-                return;
-            }
+        if (road == null)
+        {
+            Debug.LogError($"NodeCollection on {gameObject.name} has no valid ERRoad during PopulateNodes.");
+            return;
+        }
 
-            Vector3 offset = PathManager.PathParent.transform.position;
-            Vector3[] markers = pathData.nodes.Select(v => new Vector3(v.x, v.y, v.z) + offset).ToArray();
-
-            // Clear existing renderers and transforms
-            nodeRenderers.Clear();
-            foreach (Transform node in nodeTransforms)
-            {
-                if (node != null && node.TryGetComponent<PathNode>(out PathNode pathNode))
-                {
-                    pathNode.OnTransformChanged -= HandleNodeTransformChanged;
-                    pathNode.OnNodeDestroyed -= HandleNodeDestroyed;
-                }
-            }
-            nodeTransforms.Clear();
-
-            // Populate nodes and store their renderers
-            for (int i = 0; i < markers.Length; i++)
-            {
-                Transform sphereTransform = ConfigureNode(PathManager.NodePrefab, i, markers[i], false);
-                nodeTransforms.Add(sphereTransform);
-                if (sphereTransform.TryGetComponent<Renderer>(out Renderer renderer))
-                {
-                    nodeRenderers.Add(renderer);
-                }
-            }
-
-            foreach (Transform node in nodeTransforms)
+        // Step 1: Clean up existing nodes
+        foreach (Transform node in nodeTransforms)
+        {
+            if (node != null)
             {
                 if (node.TryGetComponent<PathNode>(out PathNode pathNode))
                 {
                     pathNode.OnTransformChanged -= HandleNodeTransformChanged;
-                    pathNode.OnTransformChanged += HandleNodeTransformChanged;
                     pathNode.OnNodeDestroyed -= HandleNodeDestroyed;
-                    pathNode.OnNodeDestroyed += HandleNodeDestroyed;
                 }
+                Object.Destroy(node.gameObject);
             }
+        }
 
-            needsUpdate = true;
-            //SetRoadMaterialToGold();
-        }
-        finally
+        Vector3 offset = PathManager.PathParent.transform.position;
+        Vector3[] markers = pathData.nodes.Select(v => new Vector3(v.x, v.y, v.z) + offset).ToArray();
+
+        // Clear existing renderers and transforms
+        nodeRenderers.Clear();
+        foreach (Transform node in nodeTransforms)
         {
-            populating = false;
+            if (node != null && node.TryGetComponent<PathNode>(out PathNode pathNode))
+            {
+                pathNode.OnTransformChanged -= HandleNodeTransformChanged;
+                pathNode.OnNodeDestroyed -= HandleNodeDestroyed;
+            }
         }
+        nodeTransforms.Clear();
+
+        // Populate nodes and store their renderers
+        for (int i = 0; i < markers.Length; i++)
+        {
+            Transform sphereTransform = ConfigureNode(PathManager.NodePrefab, i, markers[i], false);
+            nodeTransforms.Add(sphereTransform);
+            if (sphereTransform.TryGetComponent<Renderer>(out Renderer renderer))
+            {
+                nodeRenderers.Add(renderer);
+                // Material is already set in ConfigureNode, but confirm for consistency
+                Material newMaterial = new Material(Shader.Find("Custom/Rust/Standard"));
+                newMaterial.color = AppManager.Instance.color2;
+                renderer.material = newMaterial;
+            }
+        }
+
+        foreach (Transform node in nodeTransforms)
+        {
+            if (node.TryGetComponent<PathNode>(out PathNode pathNode))
+            {
+                pathNode.OnTransformChanged -= HandleNodeTransformChanged;
+                pathNode.OnTransformChanged += HandleNodeTransformChanged;
+                pathNode.OnNodeDestroyed -= HandleNodeDestroyed;
+                pathNode.OnNodeDestroyed += HandleNodeDestroyed;
+            }
+        }
+
+        needsUpdate = true;
+        // Optionally call ShowNodes to ensure visibility
+        ShowNodes();
     }
+    finally
+    {
+        populating = false;
+    }
+}
 
     private void SetRoadMaterialToGold()
     {
@@ -162,37 +181,45 @@ public class NodeCollection : MonoBehaviour
         road.SetMaterial(goldMaterial);
     }
 
-    private Transform ConfigureNode(GameObject spherePrefab, int index, Vector3 position, bool subscribeEvents = true)
+private Transform ConfigureNode(GameObject spherePrefab, int index, Vector3 position, bool subscribeEvents = true)
+{
+    if (spherePrefab == null)
     {
-        if (spherePrefab == null)
-        {
-            Debug.LogError("Sphere prefab is null in ConfigureNode.");
-            return null;
-        }
-
-        GameObject sphere = Object.Instantiate(spherePrefab, position, Quaternion.identity, transform);
-        sphere.name = $"PathNode_{index}";
-        sphere.tag = "Node";
-        Transform sphereTransform = sphere.transform;
-        sphereTransform.localScale = Vector3.one * 16f;
-        sphere.layer = 9;
-
-        if (!sphere.TryGetComponent<SphereCollider>(out _))
-        {
-            SphereCollider collider = sphere.AddComponent<SphereCollider>();
-            collider.radius = 8f;
-        }
-
-        PathNode pathNode = sphere.AddComponent<PathNode>();
-        pathNode.Initialize(this);
-        if (subscribeEvents)
-        {
-            pathNode.OnTransformChanged += HandleNodeTransformChanged;
-            pathNode.OnNodeDestroyed += HandleNodeDestroyed;
-        }
-
-        return sphereTransform;
+        Debug.LogError("Sphere prefab is null in ConfigureNode.");
+        return null;
     }
+
+    GameObject sphere = Object.Instantiate(spherePrefab, position, Quaternion.identity, transform);
+    sphere.name = $"PathNode_{index}";
+    sphere.tag = "Node";
+    Transform sphereTransform = sphere.transform;
+    sphereTransform.localScale = Vector3.one * 16f;
+    sphere.layer = 9;
+
+    // Create a new material instance with Custom/Rust/Standard shader
+    Renderer renderer = sphere.GetComponent<Renderer>();
+    if (renderer != null)
+    {
+        Material newMaterial = new Material(Shader.Find("Custom/Rust/Standard"));
+        newMaterial.color = AppManager.Instance.color2;
+        renderer.material = newMaterial; // Use .material to create a new instance
+        Debug.Log($"Set material for node {sphere.name} to Custom/Rust/Standard with color {AppManager.Instance.color2}");
+    }
+    else
+    {
+        Debug.LogWarning($"No Renderer found on sphere {sphere.name}. Cannot set material.");
+    }
+
+    PathNode pathNode = sphere.AddComponent<PathNode>();
+    pathNode.Initialize(this);
+    if (subscribeEvents)
+    {
+        pathNode.OnTransformChanged += HandleNodeTransformChanged;
+        pathNode.OnNodeDestroyed += HandleNodeDestroyed;
+    }
+
+    return sphereTransform;
+}
 
     public Transform GetFirstNode()
     {
@@ -618,26 +645,25 @@ private void OnTransformChildrenChanged()
         }
     }
 
-    // Method to show all nodes by setting their material to gold
-    public void ShowNodes()
-    {
-        //SetRoadMaterialToGold();
-		
-        if (greenMaterial == null)
-        {
-            Debug.LogWarning("Cannot show nodes: Gold material is null.");
-            return;
-        }
-
-        Debug.Log($"Showing {nodeRenderers.Count} nodes");
-        foreach (Renderer renderer in nodeRenderers)
-        {
-            if (renderer != null)
-            {
-                renderer.sharedMaterial = greenMaterial;
-            }
-        }
-    }
+	public void ShowNodes()
+	{
+		Debug.Log($"Showing {nodeRenderers.Count} nodes");
+		foreach (Renderer renderer in nodeRenderers)
+		{
+			if (renderer != null)
+			{
+				// Ensure the renderer is enabled
+				renderer.enabled = true;
+				// Ensure the material uses Custom/Rust/Standard shader and correct color
+				if (renderer.material.shader.name != "Custom/Rust/Standard")
+				{
+					renderer.material = new Material(Shader.Find("Custom/Rust/Standard"));
+				}
+				renderer.material.color = AppManager.Instance.color2;
+				Debug.Log($"Set node {renderer.gameObject.name} material to Custom/Rust/Standard with color {AppManager.Instance.color2}");
+			}
+		}
+	}
 
     private void Update()
     {

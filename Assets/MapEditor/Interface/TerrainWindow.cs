@@ -43,7 +43,7 @@ public class TerrainWindow : MonoBehaviour
     public List<GameObject> brushRows = new List<GameObject>();
     public const int BRUSHES_PER_ROW = 8;
 	
-	public Button TemplateButton;
+	public Button TemplateButton, BrushesFolder;
 	
 	public int topo, lastIndex, carveIndex;	
 	
@@ -66,7 +66,24 @@ public class TerrainWindow : MonoBehaviour
 	*/
 	public static TerrainWindow Instance { get; private set; }
 	
+	private void OpenBrushesFolder()
+    {
+        // Construct the full folder path
+        string folderPath = System.IO.Path.Combine(SettingsManager.AppDataPath(), "Custom", "Brushes");
+        // Replace forward slashes with backslashes for Windows compatibility
+        string normalizedPath = folderPath.Replace("/", "\\");
 
+        try
+        {
+            // Open the folder in Windows File Explorer
+            System.Diagnostics.Process.Start("explorer.exe", normalizedPath);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Failed to open folder {normalizedPath}: {e.Message}");
+        }
+    }
+	
     private void Awake()
     {
         if (Instance == null)
@@ -90,7 +107,7 @@ public class TerrainWindow : MonoBehaviour
 			Debug.LogError("MainScript.Instance is null during TerrainWindow setup!");
 			return;
 		}
-
+		BrushesFolder.onClick.AddListener(OpenBrushesFolder);
 		// Populate brush buttons first
 		PopulateBrushButtons();
 
@@ -647,7 +664,7 @@ public void LoadMonumentToggles()
 		if (brushFiles.Length == 0)
 		{
 			Debug.Log("No brush images found in Custom/Brushes directory");
-			footer.text = "No brushes found"; // Update footer even if no brushes are loaded
+			//footer.text = "No brushes found"; // Update footer even if no brushes are loaded
 			return;
 		}
 
@@ -721,7 +738,7 @@ public void LoadMonumentToggles()
 		}
 
 		// Update footer text with the number of brushes loaded
-		footer.text = $"{brushPath}";
+		//footer.text = $"{brushPath}";
 
 		// Force layout rebuild
 		LayoutRebuilder.ForceRebuildLayoutImmediate(brushRowParent.GetComponent<RectTransform>());

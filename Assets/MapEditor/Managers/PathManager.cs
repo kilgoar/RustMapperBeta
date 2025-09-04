@@ -295,6 +295,216 @@ public static void OnBundlesLoaded()
  
     }
 	
+public static void GenerateMultiPoint(PathData pathData, NodeCollection nodeCollection, float contour = 1f, float nodeDensity = 1f)
+{
+    if (_roadNetwork == null)
+    {
+        Debug.LogError("RoadNetwork not initialized.");
+        return;
+    }
+
+    Terrain terrain = TerrainManager.Land;
+    if (terrain == null)
+    {
+        Debug.LogError("No active terrain found.");
+        return;
+    }
+
+    // Validate PathData and NodeCollection
+    if (pathData == null || pathData.nodes == null || pathData.nodes.Length < 2)
+    {
+        Debug.LogError("PathData must contain at least two nodes.");
+        return;
+    }
+
+    if (nodeCollection == null)
+    {
+        Debug.LogError("NodeCollection reference is null.");
+        return;
+    }
+
+    float terrainSize = terrain.terrainData.size.x;
+    int heightMapRes = TerrainManager.HeightMapRes;
+
+    // Generate costmap for pathfinding
+    uint seed = (uint)UnityEngine.Random.Range(0, 100000);
+    int resolution = heightMapRes;
+    int[,] costmap = CreateRoadCostmap(seed);
+    List<Vector3> waypoints = pathData.nodes
+        .Select(node => new Vector3(node.x, node.y, node.z) + PathManager.PathParent.position)
+        .ToList();
+
+    // If costmap fails, use direct waypoint connections
+    if (costmap.Length == 0)
+    {
+        Debug.LogWarning("Failed to create costmap. Using direct waypoint connections.");
+        pathData.nodes = waypoints.Select(pos => new VectorData { x = pos.x, y = pos.y, z = pos.z }).ToArray();
+        nodeCollection.pathData = pathData;
+        nodeCollection.PopulateNodes();
+        nodeCollection.HideNodes();
+        Debug.Log($"Generated road '{pathData.name}' with direct waypoint connections ({waypoints.Count} nodes).");
+        return;
+    }
+
+    // List to store the complete world-space path
+    List<Vector3> fullWorldPath = new List<Vector3>();
+    List<int> waypointIndices = new List<int>(); // Track indices of waypoints in fullWorldPath
+    int failedSegments = 0;
+
+    // Iterate through consecutive pairs of waypoints
+    for (int i = 0; i < waypoints.Count - 1; i++)
+    {
+        Vector3 startPos = waypoints[i];
+        Vector3 endPos = waypoints[i + 1];
+
+        // Convert to grid points for A* pathfinding
+        Point start = GetPoint(startPos, resolution);
+        Point end = GetPoint(endPos, resolution);
+        List<Point> gridPath = FindPathReversed(start, end, costmap, resolution, 20000000, contour);
+
+        List<Vector3> segmentWorldPath = new List<Vector3>();
+        if (gridPath == null || gridPath.Count == 0)
+        {
+            Debug.LogWarning($"No valid path found from {startPos} to {endPos}. Using direct connection.");
+            failedSegments++;
+            // Use direct connection between waypoints
+            segmentWorldPath.Add(startPos - PathManager.PathParent.position);
+            segmentWorldPath.Add(endPos - PathManager.PathParent.position);
+        }
+        else
+        {
+            // Convert grid path to world-space path
+            foreach (Point point in gridPath)
+            {
+                float uvX = (float)point.x / resolution;
+                float uvZ = (float)point.y / resolution;
+                Vector3 worldPos = new Vector3(
+                    uvX * terrainSize,
+                    0f,
+                    uvZ * terrainSize
+                );
+                worldPos = SnapToTerrain(worldPos);
+                worldPos -= PathManager.PathParent.position;
+                segmentWorldPath.Add(worldPos);
+            }
+            segmentWorldPath.Reverse(); // Ensure path goes from start to end
+        }
+
+        // Add segment to full path, avoiding duplicate points at segment boundaries
+        if (i == 0)
+        {
+            fullWorldPath.AddRange(segmentWorldPath);
+            waypointIndices.Add(0); // Start of first segment
+        }
+        else
+        {
+            // Skip the first point of the segment to avoid duplicating the last point of the previous segment
+            fullWorldPath.AddRange(segmentWorldPath.Skip(1));
+        }
+        // Record the index of the end waypoint in fullWorldPath
+        waypointIndices.Add(fullWorldPath.Count - 1);
+    }
+
+    // If all segments failed, use waypoints directly
+    if (failedSegments == waypoints.Count - 1)
+    {
+        Debug.LogWarning("All pathfinding segments failed. Using direct waypoint connections.");
+        fullWorldPath = waypoints.Select(pos => pos - PathManager.PathParent.position).ToList();
+        waypointIndices = Enumerable.Range(0, waypoints.Count).ToList();
+    }
+
+    // Apply node density reduction with minimum distance to waypoints
+    List<Vector3> reducedPath = new List<Vector3>();
+    if (fullWorldPath.Count < 3 || nodeDensity >= 1f)
+    {
+        // Keep all nodes if path is too short or nodeDensity >= 1
+        reducedPath = fullWorldPath;
+    }
+    else if (nodeDensity <= 0f)
+    {
+        // Keep only waypoints if nodeDensity <= 0
+        reducedPath = waypoints.Select(pos => pos - PathManager.PathParent.position).ToList();
+    }
+    else
+    {
+        // Calculate number of nodes to keep based on nodeDensity
+        int nodesToKeep = Mathf.Max(waypoints.Count, Mathf.RoundToInt(nodeDensity * fullWorldPath.Count));
+        float step = (float)(fullWorldPath.Count - 1) / (nodesToKeep - 1);
+
+        // Derive minimum distance threshold based on node density
+        // Estimate average segment length to contextualize the step size
+        float totalPathLength = 0f;
+        for (int i = 1; i < fullWorldPath.Count; i++)
+        {
+            totalPathLength += Vector3.Distance(fullWorldPath[i - 1], fullWorldPath[i]);
+        }
+        float avgNodeSpacing = totalPathLength / (nodesToKeep - 1);
+        float minDistanceToWaypoint = avgNodeSpacing; // Use half the average spacing as the threshold
+
+        // Convert waypoints to world-space for distance checks
+        List<Vector3> worldWaypoints = waypoints.Select(pos => pos - PathManager.PathParent.position).ToList();
+
+        // Add waypoints explicitly to maintain order
+        int currentWaypointIndex = 0;
+        int nextWaypointFullPathIndex = waypointIndices[currentWaypointIndex];
+        for (float i = 0; i < fullWorldPath.Count; i += step)
+        {
+            int index = Mathf.RoundToInt(i);
+            // Check if we need to insert a waypoint
+            while (currentWaypointIndex < waypointIndices.Count && index >= nextWaypointFullPathIndex)
+            {
+                reducedPath.Add(fullWorldPath[nextWaypointFullPathIndex]);
+                currentWaypointIndex++;
+                nextWaypointFullPathIndex = currentWaypointIndex < waypointIndices.Count ? waypointIndices[currentWaypointIndex] : int.MaxValue;
+            }
+            // Add interpolated node if not at a waypoint and not too close to any waypoint
+            if (index != nextWaypointFullPathIndex && index < fullWorldPath.Count)
+            {
+                Vector3 candidateNode = fullWorldPath[index];
+                bool tooClose = false;
+                foreach (Vector3 waypoint in worldWaypoints)
+                {
+                    if (Vector3.Distance(candidateNode, waypoint) < minDistanceToWaypoint)
+                    {
+                        tooClose = true;
+                        break;
+                    }
+                }
+                if (!tooClose)
+                {
+                    reducedPath.Add(candidateNode);
+                }
+            }
+        }
+        // Ensure the last waypoint is included
+        if (currentWaypointIndex < waypointIndices.Count)
+        {
+            reducedPath.Add(fullWorldPath[fullWorldPath.Count - 1]);
+        }
+    }
+
+    // Update PathData with reduced path
+    pathData.nodes = reducedPath.Select(pos => new VectorData { x = pos.x, y = pos.y, z = pos.z }).ToArray();
+
+    // Update NodeCollection
+    nodeCollection.pathData = pathData;
+    nodeCollection.PopulateNodes();
+    nodeCollection.HideNodes();
+
+    // Reconfigure the road with updated PathData
+    ERRoad road = _roadNetwork.GetRoadByName(pathData.name);
+    if (road != null)
+    {
+        PathManager.ReconfigureRoad(road, pathData);
+    }
+    else
+    {
+        Debug.LogWarning($"Road '{pathData.name}' not found in road network. Skipping reconfiguration.");
+    }
+
+    Debug.Log($"Generated multi-point road '{pathData.name}' through {waypoints.Count} waypoints with {reducedPath.Count} nodes (reduced from {fullWorldPath.Count} nodes).");
+}
+	
 	public static GameObject GenerateRoadWithNodes(Vector3 startPos, Vector3 endPos, string roadName, int nodeReductionFactor = 1)
 	{
 		if (_roadNetwork == null)

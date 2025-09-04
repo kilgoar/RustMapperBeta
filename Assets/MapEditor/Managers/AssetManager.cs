@@ -450,7 +450,7 @@ public static void SetVolumesCache()
                             MeshRenderer transCubeRenderer = instantiatedTransCube.GetComponentInChildren<MeshRenderer>();
                             if (transCubeRenderer != null && ColorUtility.TryParseHtmlString($"#{lineSplit[2]}", out Color transCubeColor))
                             {
-                                transCubeColor.a = 0.5f;
+                                transCubeColor.a = 0.216f;
                                 transCubeRenderer.material.SetColor("_Color", transCubeColor);
                             }
                             else

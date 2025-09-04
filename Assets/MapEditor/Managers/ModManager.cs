@@ -688,6 +688,10 @@ private static int UpdateNodeStyleSprites(object obj, List<Sprite> originalSprit
         return sb.ToString();
     }
 
+public static void ButtonClickMethod(){
+	Debug.Log("button click log entry");
+}
+
 [ConsoleCommand("Sample code for programmatic window creation")]
 public static TemplateWindow CreateSampleWindow()
 {
@@ -722,9 +726,9 @@ public static TemplateWindow CreateSampleWindow()
         Button sampleButton = AppManager.Instance.CreateButton(
             sampleWindow.transform,
             new Rect(20, -50, 100, 22), 
-            "Buttons?"
+            "Buttons?",
+			ButtonClickMethod
         );
-        sampleButton.onClick.AddListener(() => Debug.Log("Default Button clicked!"));
 
         Button sampleBrightButton = AppManager.Instance.CreateBrightButton(
             sampleWindow.transform,
@@ -770,7 +774,7 @@ public static TemplateWindow CreateSampleWindow()
         );
         sampleInput.onValueChanged.AddListener((value) => Debug.Log($"Input field value changed to: {value}"));
     }
-
+	SkinGameObject(sampleWindow.gameObject);
     return sampleWindow;
 }
 	
@@ -781,212 +785,11 @@ public static TemplateWindow CreateSampleWindow()
 
 	public static void SkinGameObject(GameObject target)
 	{
-		if (target == null)
-		{
-			Debug.LogError("Target GameObject is null. Cannot apply skin.");
-			return;
-		}
-
-		if (string.IsNullOrEmpty(currentSkin))
-		{
-			Debug.LogError("currentSkin is not set. Cannot apply skin.");
-			return;
-		}
-
-		// Load the skin texture
-		Texture2D skinTexture = LoadTexture(currentSkin);
-		if (skinTexture == null)
-		{
-			Debug.LogError($"Failed to load skin texture from {currentSkin}. Aborting skin application.");
-			return;
-		}
-
-		// Load the sprite sheet from Resources
-		string spriteSheetPath = "textures/UI/UIsprites";
-		Texture2D spriteSheet = Resources.Load<Texture2D>(spriteSheetPath);
-		if (spriteSheet == null)
-		{
-			Debug.LogError($"Sprite sheet not found at: Resources/{spriteSheetPath}");
-			UnityEngine.Object.Destroy(skinTexture);
-			return;
-		}
-
-		// Preprocess skinTexture for transparent pixels
-		Color[] pixels = skinTexture.GetPixels();
-		for (int i = 0; i < pixels.Length; i++)
-		{
-			if (pixels[i].a <= 0f)
-			{
-				pixels[i] = Color.clear;
-			}
-		}
-		skinTexture.SetPixels(pixels);
-		skinTexture.Apply(false, false);
-
-		skinTexture.filterMode = FilterMode.Bilinear;
-		skinTexture.wrapMode = TextureWrapMode.Clamp;
-		skinTexture.Apply(true, false);
-
-		// Load all sprites from the sprite sheet
-		UnityEngine.Object[] assets = Resources.LoadAll(spriteSheetPath, typeof(Sprite));
-		List<Sprite> originalSprites = new List<Sprite>();
-		foreach (UnityEngine.Object asset in assets)
-		{
-			if (asset is Sprite sprite)
-			{
-				originalSprites.Add(sprite);
-			}
-		}
-
-		if (originalSprites.Count == 0)
-		{
-			Debug.LogError($"No sprites found in the sprite sheet: {spriteSheetPath}");
-			UnityEngine.Object.Destroy(skinTexture);
-			return;
-		}
-
-		// Create new sprites with standalone textures
-		List<Sprite> newSprites = new List<Sprite>();
-		foreach (Sprite originalSprite in originalSprites)
-		{
-			if (originalSprite.rect.xMax > skinTexture.width || originalSprite.rect.yMax > skinTexture.height)
-			{
-				Debug.LogWarning($"Sprite '{originalSprite.name}' rect ({originalSprite.rect}) exceeds skin texture bounds ({skinTexture.width}x{skinTexture.height}). Skipping.");
-				continue;
-			}
-
-			// Create a new texture for this sprite to make it standalone
-			Rect spriteRect = originalSprite.rect;
-			int x = (int)spriteRect.x;
-			int y = (int)spriteRect.y;
-			int width = (int)spriteRect.width;
-			int height = (int)spriteRect.height;
-
-			Texture2D spriteTexture = new Texture2D(width, height, TextureFormat.RGBA32, false, false);
-			Color[] spritePixels = skinTexture.GetPixels(x, y, width, height);
-			spriteTexture.SetPixels(spritePixels);
-			spriteTexture.filterMode = FilterMode.Bilinear;
-			spriteTexture.wrapMode = TextureWrapMode.Clamp;
-			spriteTexture.Apply(true, false);
-
-			Vector2 normalizedPivot = new Vector2(
-				originalSprite.pivot.x / spriteRect.width,
-				originalSprite.pivot.y / spriteRect.height
-			);
-
-			Sprite newSprite = Sprite.Create(
-				spriteTexture,
-				new Rect(0, 0, width, height),
-				normalizedPivot,
-				originalSprite.pixelsPerUnit,
-				0,
-				SpriteMeshType.FullRect,
-				originalSprite.border,
-				false
-			);
-			newSprite.name = originalSprite.name;
-			newSprites.Add(newSprite);
-
-			// Update color1, color2, color3 if applicable
-			if (newSprite.name == "color1" || newSprite.name == "color2" || newSprite.name == "color3")
-			{
-				Color pixelColor = spriteTexture.GetPixel(0, 0);
-				if (newSprite.name == "color1")
-					AppManager.Instance.color1 = pixelColor;
-				else if (newSprite.name == "color2")
-					AppManager.Instance.color2 = pixelColor;
-				else if (newSprite.name == "color3")
-					AppManager.Instance.color3 = pixelColor;
-				else if (newSprite.name == "color4")
-					AppManager.Instance.color4 = pixelColor;
-			}
-		}
-
-		// Destroy skinTexture immediately after creating sprites
-		UnityEngine.Object.Destroy(skinTexture);
-
-		if (newSprites.Count == 0)
-		{
-			Debug.LogError("No valid sprites created from skin texture. Aborting.");
-			return;
-		}
-
-		// Update Images in the target GameObject
-		int updatedImages = 0;
-		Image[] images = target.GetComponentsInChildren<Image>(true);
-		foreach (Image uiImage in images)
-		{
-			if (uiImage != null && uiImage.sprite != null && originalSprites.Exists(s => s.name == uiImage.sprite.name))
-			{
-				Sprite matchingSprite = newSprites.Find(s => s.name == uiImage.sprite.name);
-				if (matchingSprite != null)
-				{
-					uiImage.sprite = matchingSprite;
-					uiImage.color = new Color(uiImage.color.r, uiImage.color.g, uiImage.color.b, 1f); // Ensure alpha is 1
-					uiImage.material = null; // Use default UI material
-					updatedImages++;
-				}
-			}
-		}
-
-		// Update Button SpriteStates in the target GameObject
-		int updatedButtons = 0;
-		Button[] buttons = target.GetComponentsInChildren<Button>(true);
-		foreach (var button in buttons)
-		{
-			SpriteState spriteState = button.spriteState;
-			bool modified = false;
-			SpriteState newSpriteState = spriteState;
-
-			if (spriteState.highlightedSprite != null && newSprites.Exists(s => s.name == spriteState.highlightedSprite.name))
-			{
-				newSpriteState.highlightedSprite = newSprites.Find(s => s.name == spriteState.highlightedSprite.name);
-				modified = true;
-			}
-			if (spriteState.pressedSprite != null && newSprites.Exists(s => s.name == spriteState.pressedSprite.name))
-			{
-				newSpriteState.pressedSprite = newSprites.Find(s => s.name == spriteState.pressedSprite.name);
-				modified = true;
-			}
-			if (spriteState.selectedSprite != null && newSprites.Exists(s => s.name == spriteState.selectedSprite.name))
-			{
-				newSpriteState.selectedSprite = newSprites.Find(s => s.name == spriteState.selectedSprite.name);
-				modified = true;
-			}
-			if (spriteState.disabledSprite != null && newSprites.Exists(s => s.name == spriteState.disabledSprite.name))
-			{
-				newSpriteState.disabledSprite = newSprites.Find(s => s.name == spriteState.disabledSprite.name);
-				modified = true;
-			}
-
-			if (modified)
-			{
-				button.spriteState = newSpriteState;
-				Image buttonImage = button.GetComponent<Image>();
-				if (buttonImage != null)
-				{
-					buttonImage.color = new Color(buttonImage.color.r, buttonImage.color.g, buttonImage.color.b, 1f);
-					buttonImage.material = null;
-				}
-				updatedButtons++;
-			}
-		}
-
-		// Update Text colors
-		List<Text> texts = new List<Text>(target.GetComponentsInChildren<Text>(true));
-		if (texts.Count > 0)
-		{
-			AppManager.Instance.allLabels.AddRange(texts);
-			AppManager.Instance.SetColors();
-			AppManager.Instance.UpdateTextColors();
-			foreach (var text in texts)
-			{
-				AppManager.Instance.allLabels.Remove(text);
-			}
-		}
-
-		// Force UI refresh
-		Canvas.ForceUpdateCanvases();
+		AppManager.Instance.CollectImages(target);
+		AppManager.Instance.CollectLabels(target);
+		AppManager.Instance.CollectInputFields(target);
+		AppManager.Instance.SetColors(target);
+		LoadSkin(SettingsManager.application.startupSkin);
 	}
 
 

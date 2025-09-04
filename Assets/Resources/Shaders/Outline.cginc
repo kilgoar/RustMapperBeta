@@ -5,6 +5,7 @@
 
 void ApplyOutline(inout fixed3 albedo, float3 normal, float2 uv, float selectionOn, fixed4 selectionColor)
 {
+	
     if (selectionOn > 0.5)
     {
         // Normalize inputs

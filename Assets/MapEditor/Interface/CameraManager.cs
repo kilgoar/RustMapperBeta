@@ -758,7 +758,7 @@ public void SelectPath()
                     Debug.Log("no road to unselect");
 					return;
                 }
-				
+		EmissionHighlight(GetRenderers(nodeCollection.gameObject),false);		
 		nodeCollection.HideNodes();
 		Unselect();
 		UpdateItemsWindow();
@@ -899,6 +899,7 @@ public void DepopulateNodesForRoad(GameObject roadObject)
 	
 public void SelectPrefab()
 {
+	int volumeLayerMask = 1 << 11; // volume layer
     int prefabLayerMask = 1 << 3; // prefab layer
     int landLayerMask = 1 << 10; // land layer
     int allLayersMask = ~0; // all layers
@@ -921,7 +922,8 @@ public void SelectPrefab()
     List<RaycastHit> prioritizedHits = new List<RaycastHit>();
     foreach (var hit in hits)
     {
-        if ((1 << hit.transform.gameObject.layer & prefabLayerMask) != 0 && hit.distance < landDistance)
+        if ((1 << hit.transform.gameObject.layer & prefabLayerMask) != 0 || 
+             (1 << hit.transform.gameObject.layer & volumeLayerMask) != 0 && hit.distance < landDistance)
         {
             prioritizedHits.Add(hit);
         }
@@ -1085,10 +1087,7 @@ public void PaintNodes()
             // Clear current selection and add the new node
             _selectedObjects.Clear();
             nodeCollection.AddNodeAtPosition(hitPoint, _selectedObjects, 25f);
-            if (_selectedObjects.Count > 0)
-            {
-                EmissionHighlight(GetRenderers(_selectedObjects[0]), true);
-            }
+
 
             // Sync with UI
             UpdateItemsWindow();
@@ -1165,10 +1164,7 @@ public void DragNodes()
             // Clear current selection and add the new node
             _selectedObjects.Clear();
             nodeCollection.AddNodeAtPosition(hitPoint, _selectedObjects, 25f);
-            if (_selectedObjects.Count > 0)
-            {
-                EmissionHighlight(GetRenderers(_selectedObjects[0]), true);
-            }
+
 
             // Sync with UI
             UpdateItemsWindow();
@@ -1213,6 +1209,7 @@ public void DragNodes()
 		if(_selectedRoad != null){			
 			NodeCollection nodeCollection = _selectedRoad.GetComponent<NodeCollection>();
 			if (nodeCollection!=null){
+				EmissionHighlight(GetRenderers(nodeCollection.gameObject),false);
 				nodeCollection.HideNodes();
 			}
 			else{

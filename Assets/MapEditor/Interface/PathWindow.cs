@@ -103,14 +103,18 @@ private void Start()
 			return;
 		}
 
-		if (currentPathHolder.pathData.nodes.Length != 2)
+		if (currentPathHolder.pathData.nodes.Length < 2)
 		{
-			Debug.LogWarning("Selected road must have exactly two nodes to generate.");
+			Debug.LogWarning("Selected road must have at least two nodes to generate.");
 			return;
 		}
 
-		PathManager.GenerateFromNodes(currentPathHolder.pathData, currentPathHolder, potentialContour, potentialDensity);
-		Debug.Log($"Generated road '{currentPathHolder.pathData.name}' using contour={potentialContour} and density={potentialDensity}.");
+		// Update PathData from UI to ensure current settings are applied
+		UpdatePathDataFromUI();
+
+		// Generate new multi-point road
+		PathManager.GenerateMultiPoint(currentPathHolder.pathData, currentPathHolder, potentialContour, potentialDensity);
+		Debug.Log($"Generated multi-point road '{currentPathHolder.pathData.name}' with {currentPathHolder.pathData.nodes.Length} waypoints using contour={potentialContour} and density={potentialDensity}.");
 	}
 
 	private void OnDestroy()
@@ -469,7 +473,7 @@ public void UpdatePathDataFromUI()
 			bool isInteractable = currentPathHolder != null && 
 								 currentRoad != null && 
 								 currentPathHolder.pathData != null && 
-								 currentPathHolder.pathData.nodes.Length == 2;
+								 currentPathHolder.pathData.nodes.Length > 1;
 			Generate.interactable = isInteractable;
 			Debug.Log($"Generate button interactable: {isInteractable}");
 		}

@@ -484,13 +484,20 @@ public static void PaintBorder(Layers layerData, int radius)
 
 
 [ConsoleCommand("Paint slopes, heights, or curves range")]
-public static void PaintRange(Layers layerData, float minBlend = 20f, float min = 30f, float max = 60f, float maxBlend = 70f, string topography ="slopes")
+public static void PaintRange(Layers layerData, float minBlend = 20f, float min = 30f, float max = 60f, float maxBlend = 70f, string topography = "slopes", float strength = 1.0f)
 {
-	SyncTerrainResolutions();
+    SyncTerrainResolutions();
     // Validate slope range
     if (!(minBlend <= min && min < max && max <= maxBlend))
     {
         Debug.LogError($"Invalid slope range: minBlend ({minBlend}) must be < min ({min}) < max ({max}) < maxBlend ({maxBlend}).");
+        return;
+    }
+
+    // Validate strength parameter
+    if (strength < 0f || strength > 1f)
+    {
+        Debug.LogError($"Invalid strength value: strength ({strength}) must be between 0 and 1.");
         return;
     }
 
@@ -520,30 +527,32 @@ public static void PaintRange(Layers layerData, float minBlend = 20f, float min 
 
     // Get the current layer data
     float[,,] layerMap = TerrainManager.GetLayerData(layerType, layerIndex);
-	float[,,] before = (float[,,])layerMap.Clone();
+    float[,,] before = (float[,,])layerMap.Clone();
     int splatRes = layerMap.GetLength(0); // Splatmap resolution
     int layerCount = TerrainManager.LayerCount(layerType); // 8 for Ground, 4 for Biome, 2 for Topology
 
     TerrainManager.UpdateHeightCache();
-	int heightRes = TerrainManager.HeightMapRes;
-	
-	float[,] slopes = new float[heightRes,heightRes];
-	if(topography.Equals("slopes")|| topography.Equals("slope")){
-		slopes = TerrainManager.Slope;}
-	
-	else if(topography.Equals("heights") || topography.Equals("height")){
-		slopes = TerrainManager.Land.terrainData.GetHeights(0, 0, heightRes, heightRes);
-		Debug.LogError("polling heightmap " + slopes[0,0]);}
-		
-		
-	else if(topography.Equals("curves")|| topography.Equals("curve")){
-		slopes = TerrainManager.Curvature;}
-	
+    int heightRes = TerrainManager.HeightMapRes;
+    
+    float[,] slopes = new float[heightRes, heightRes];
+    if (topography.Equals("slopes") || topography.Equals("slope"))
+    {
+        slopes = TerrainManager.Slope;
+    }
+    else if (topography.Equals("heights") || topography.Equals("height"))
+    {
+        slopes = TerrainManager.Land.terrainData.GetHeights(0, 0, heightRes, heightRes);
+        Debug.LogError("polling heightmap " + slopes[0, 0]);
+    }
+    else if (topography.Equals("curves") || topography.Equals("curve"))
+    {
+        slopes = TerrainManager.Curvature;
+    }
 
     float splatRatio = TerrainManager.SplatRatio; // e.g., 2 if 2049 heightmap vs. 1024 splatmap
-	float slope;
+    float slope;
     // Register undo before modifying
-    TerrainManager.RegisterSplatMapUndo($"Paint Slope Blend {layerType} Index {layerIndex}, {minBlend}-{min}-{max}-{maxBlend}", before);
+    TerrainManager.RegisterSplatMapUndo($"Paint Slope Blend {layerType} Index {layerIndex}, {minBlend}-{min}-{max}-{maxBlend}, Strength {strength}", before);
 
     for (int i = 0; i < splatRes; i++)
     {
@@ -557,45 +566,48 @@ public static void PaintRange(Layers layerData, float minBlend = 20f, float min 
 
             slope = slopes[heightX, heightY];
 
-            float strength;
+            float blendStrength;
 
             // Calculate blending strength based on slope
+            if (slope < minBlend)
+            {
+                blendStrength = 0f; // Below minBlend: fully inactive
+            }
+            else if (slope < min)
+            {
+                // Gradient from minBlend to min
+                blendStrength = Mathf.InverseLerp(minBlend, min, slope);
+            }
+            else if (slope <= max)
+            {
+                blendStrength = 1f; // Between min and max: fully active
+            }
+            else if (slope < maxBlend)
+            {
+                // Gradient from max to maxBlend
+                blendStrength = Mathf.InverseLerp(maxBlend, max, slope);
+            }
+            else
+            {
+                blendStrength = 0f; // Above maxBlend: fully inactive
+            }
 
+            // Apply the strength parameter to scale the blend strength
+            blendStrength *= strength;
 
-                if (slope < minBlend)
+            if (layerType == LayerType.Topology)
+            {
+                if (blendStrength > 0f)
                 {
-                    strength = 0f; // Below minBlend: fully inactive
+                    layerMap[i, j, 1] = 0f;
+                    layerMap[i, j, 0] = 1f;
                 }
-                else if (slope < min)
-                {
-                    // Gradient from minBlend to min
-                    strength = Mathf.InverseLerp(minBlend, min, slope);
-                }
-                else if (slope <= max)
-                {
-                    strength = 1f; // Between min and max: fully active
-                }
-                else if (slope < maxBlend)
-                {
-                    // Gradient from max to maxBlend
-                    strength = Mathf.InverseLerp(maxBlend, max, slope);
-                }
-                else
-                {
-                    strength = 0f; // Above maxBlend: fully inactive
-                }
-				
-				if(layerType == LayerType.Topology){
-					if (strength>0f){
-						layerMap[i,j,1] = 0f;
-						layerMap[i,j,0] = 1f;
-					}
-					continue;
-				}
-				else{				
-                ApplyLayerBlend(layerMap, i, j, layerIndex, layerCount, strength);
-				}
-
+                continue;
+            }
+            else
+            {
+                ApplyLayerBlend(layerMap, i, j, layerIndex, layerCount, blendStrength);
+            }
         }
     }
 
@@ -605,7 +617,6 @@ public static void PaintRange(Layers layerData, float minBlend = 20f, float min 
     // Notify listeners
     TerrainManager.Callbacks.InvokeLayerUpdated(layerType, layerIndex);
 }
-
 
 
 private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerIndex, int layerCount, float strength)
