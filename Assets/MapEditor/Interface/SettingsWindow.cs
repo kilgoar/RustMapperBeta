@@ -11,7 +11,7 @@ public class SettingsWindow : MonoBehaviour
 {
     FilePreset settings;
     
-	public Button openAppData;
+	public Button openAppData, defaultBinds;
     public Slider prefabRender;
     public InputField directoryField;
 	public Dropdown SkinDropdown;
@@ -202,6 +202,7 @@ public class SettingsWindow : MonoBehaviour
 		
 		
 		openAppData.onClick.AddListener(OpenAppDataFolder); 
+		defaultBinds.onClick.AddListener(BindManager.SetDefaultBinds);
     }
 	
 	public void OnSkinChanged(int selectedIndex)

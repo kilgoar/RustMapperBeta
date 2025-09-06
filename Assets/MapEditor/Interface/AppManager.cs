@@ -79,7 +79,8 @@ public class AppManager : MonoBehaviour
 		Debug.Log("area manager initialized");
 		MapManager.RuntimeInit();
 		Debug.Log("map manager initialized");
-		
+		SocketManager.LoadSocketData();
+		Debug.Log("sockets initialized");
 		
     }
 

@@ -273,6 +273,14 @@ public static class PrefabManager
 		{
 			var component = allComponents[i];
 			
+			if (component is DungeonBaseSocket)
+			{
+				SocketManager.SetupSocket(component as DungeonBaseSocket);
+				//don't allow socket colliders for processing
+				continue;
+			}
+			
+			
 			if (component is Collider collider)
 			{
 				lock (unprocessedColliders)
@@ -364,6 +372,8 @@ public static class PrefabManager
 				Entities[go] = true;
 				continue;
 			}
+			
+
 
 
 		}
@@ -374,8 +384,11 @@ public static class PrefabManager
 		
 		prefabDataHolder.AddLODs(lodComponents);
 		prefabDataHolder.connections = terrainPathConnects;
+
 		return go;
 	}
+	
+
 	
 	public static (string colliderName, string parentName, string monumentName) GetHierarchyInfo(this GameObject gameObject)
 		{
@@ -837,6 +850,7 @@ public static class PrefabManager
         newObj.transform.rotation = Quaternion.Euler(new Vector3(prefabData.rotation.x, prefabData.rotation.y, prefabData.rotation.z));
         newObj.transform.localScale = new Vector3(prefabData.scale.x, prefabData.scale.y, prefabData.scale.z);
         newObj.GetComponent<PrefabDataHolder>().prefabData = prefabData;
+		SocketManager.PopulateSockets(newObj);
         return newObj;
 
     }
@@ -1074,10 +1088,54 @@ public static class PrefabManager
 			newObj.transform.localRotation = Quaternion.Euler(rotation);
 			newObj.transform.localScale = scale;
 			
+						// Populate sockets from world.rePrefab.sockets if any exist
+			if (world.rePrefab.sockets != null && world.rePrefab.sockets.Count > 0)
+			{
+				PopulateSockets(newObj.transform, world.rePrefab.sockets, newObjName);
+			}
+			else
+			{
+				Debug.Log($"No sockets found in REPrefab data for {newObjName}.");
+			}
 			
 			MapManager.MergeOffsetREPrefab(WorldConverter.WorldToREPrefab(world), newObj.transform, loadPath);
 			
 
+	}
+	
+	
+	// Helper method to populate sockets under a SocketInfo child
+	private static void PopulateSockets(Transform parent, List<SocketInfo> sockets, string collectionName)
+	{
+		// Create SocketInfo child object
+		GameObject socketInfoObject = SocketManager.GetOrCreateSocketInfo(parent);
+		if (socketInfoObject == null)
+		{
+			Debug.LogWarning($"Failed to create or find SocketInfo object under {collectionName}.");
+			return;
+		}
+
+		// Populate sockets
+		for (int i = 0; i < sockets.Count; i++)
+		{
+			SocketInfo socketInfo = sockets[i];
+
+			// Spawn socket GameObject under SocketInfo
+			GameObject newSocket = SocketManager.SpawnSocketGameObject(socketInfoObject.transform, socketInfo.Position);
+			newSocket.name = $"Socket_{i}";
+
+			// Set rotation using Euler angles from SocketInfo
+			newSocket.transform.localRotation = Quaternion.Euler(socketInfo.Rotation);
+
+			// Configure DungeonBaseSocket component
+			DungeonBaseSocket socketComponent = newSocket.AddComponent<DungeonBaseSocket>();
+			socketComponent.Type = socketInfo.Type;
+			socketComponent.Male = socketInfo.Male;
+			socketComponent.Female = socketInfo.Female;
+
+			Debug.Log($"Spawned socket '{newSocket.name}' under SocketInfo for collection: {collectionName}");
+		}
+		Debug.Log($"Successfully added {sockets.Count} sockets to SocketInfo under {collectionName}.");
 	}
 	
 	public static Colliders ItemToColliders(Transform item)

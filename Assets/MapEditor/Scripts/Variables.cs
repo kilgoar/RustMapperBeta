@@ -413,6 +413,56 @@ namespace RustMapEditor.Variables
 	}
 	//int radius, int gradient, float seafloor, int xOffset, int yOffset, bool perlin, int s
 	
+	    // Serializable dictionary for socket data
+    [Serializable]
+	[ProtoContract]
+    public class SocketData
+    {
+        // Directly use Dictionary with Json.NET
+        [ProtoMember(1)]public Dictionary<string, List<SocketInfo>> Dictionary = new Dictionary<string, List<SocketInfo>>();
+
+        [ProtoMember(2)]public List<SocketInfo> this[string key]
+        {
+            get => Dictionary.ContainsKey(key) ? Dictionary[key] : null;
+            set => Dictionary[key] = value;
+        }
+    }
+	
+	[Serializable]
+	[ProtoContract]
+	public struct SocketInfo
+	{
+		[ProtoMember(1)]
+		public DungeonBaseSocketType Type;
+
+		[ProtoMember(2)]
+		public bool Male;
+
+		[ProtoMember(3)]
+		public bool Female;
+
+		[ProtoMember(4)]
+		public WorldSerialization.VectorData Position;
+
+		// Store rotation as Euler angles (Vector3)
+		[ProtoMember(5)]
+		public WorldSerialization.VectorData Rotation;
+
+		// Helper method to create SocketInfo from DungeonBaseSocket
+		public static SocketInfo FromDungeonBaseSocket(DungeonBaseSocket socket)
+		{
+			return new SocketInfo
+			{
+				Type = socket.Type,
+				Male = socket.Male,
+				Female = socket.Female,
+				Position = socket.transform.localPosition,
+				Rotation = socket.transform.rotation.eulerAngles // Convert Quaternion to Euler
+			};
+		}
+
+	}
+	
 	[Serializable]
 	[ProtoContract]
 	public class Colliders

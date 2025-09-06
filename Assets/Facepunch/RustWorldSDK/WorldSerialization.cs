@@ -112,6 +112,7 @@ public class WorldSerialization
 		[ProtoMember(9)] public byte[] emptychunk4 = null; // Use byte[] to store raw data
 		[ProtoMember(10)] public byte[] buildingchunk = null; // Use byte[] to store raw data
 		[ProtoMember(11)] public string checksum;
+		[ProtoMember(100)] public List<SocketInfo> sockets = new List<SocketInfo>(); // New socket list field
 
 		IExtension IExtensible.GetExtensionObject(bool createIfMissing)
 		{
@@ -133,6 +134,7 @@ public class WorldSerialization
 		[ProtoMember(9)] public byte[] emptychunk4 = null; // Use byte[] to store raw data
 		[ProtoMember(10)] public byte[] buildingchunk = null; // Use byte[] to store raw data
 		[ProtoMember(11)] public string checksum;
+		[ProtoMember(100)] public List<SocketInfo> sockets = new List<SocketInfo>(); // New socket list field
 
 		IExtension IExtensible.GetExtensionObject(bool createIfMissing)
 		{

@@ -44,7 +44,8 @@ public class VisibilityPanel : MonoBehaviour
     private const int LandLayer = 10; // Layer 10 for Land
     private const int WaterLayer = 4; // Layer 4 for Water
     private const int VolumesLayer = 11; // Placeholder: Adjust if Volumes has a specific layer
-    private const int MonumentVolumesLayer = 12; // Placeholder: Adjust if MonumentVolumes has a specific layer
+    private const int MonumentVolumesLayer = 12; // Primary layer for MonumentVolumes
+    private const int MonumentVolumesLayer2 = 13; // Additional layer for MonumentVolumes
 
     private void ShowPrefabs()
     {
@@ -74,12 +75,14 @@ public class VisibilityPanel : MonoBehaviour
     {
         Debug.Log("ShowMonumentVolumes called");
         SetLayerVisibility(MonumentVolumesLayer, true);
+        SetLayerVisibility(MonumentVolumesLayer2, true); // Include layer 13
     }
 
     private void HideMonumentVolumes()
     {
         Debug.Log("HideMonumentVolumes called");
         SetLayerVisibility(MonumentVolumesLayer, false);
+        SetLayerVisibility(MonumentVolumesLayer2, false); // Include layer 13
     }
 
     private void ShowLand()

@@ -14,6 +14,10 @@ public class InspectorWindow : MonoBehaviour
 {
     public Text footer, selection;
     public Button findInBreaker, saveCustom, applyTerrain;
+	
+	public GameObject socketPanel;
+	public Toggle male, female, horizontal, vertical;
+	
     public List<InputField> prefabDataFields = new List<InputField>();
     public List<InputField> snapFields = new List<InputField>();
     
@@ -59,6 +63,110 @@ public class InspectorWindow : MonoBehaviour
                 Debug.LogWarning("No object selected to save as a collection.");
             }
         });
+		
+	        // Add listeners for socket toggles
+        male.onValueChanged.AddListener(isOn => UpdateSocketData(_lastProcessedSelection));
+        female.onValueChanged.AddListener(isOn => UpdateSocketData(_lastProcessedSelection));
+        horizontal.onValueChanged.AddListener(isOn => UpdateSocketType(_lastProcessedSelection, isOn, vertical.isOn));
+        vertical.onValueChanged.AddListener(isOn => UpdateSocketType(_lastProcessedSelection, horizontal.isOn, isOn));
+  
+    }
+	
+	public void RetrieveSocketData(GameObject go)
+    {
+        // Disable socket panel by default
+        socketPanel.SetActive(false);
+
+        if (go == null) return;
+
+        DungeonBaseSocket socket = go.GetComponent<DungeonBaseSocket>();
+        if (socket != null)
+        {
+            // Enable socket panel if the GameObject has a DungeonBaseSocket component
+            socketPanel.SetActive(true);
+
+            // Set toggle states based on socket data
+            male.SetIsOnWithoutNotify(socket.Male);
+            female.SetIsOnWithoutNotify(socket.Female);
+            horizontal.SetIsOnWithoutNotify(socket.Type == DungeonBaseSocketType.Horizontal);
+            vertical.SetIsOnWithoutNotify(socket.Type == DungeonBaseSocketType.Vertical);
+
+            // Validate Male/Female toggles
+            if (!male.isOn && !female.isOn)
+            {
+                // Enforce rule: At least one must be active
+                male.SetIsOnWithoutNotify(true);
+                socket.Male = true;
+            }
+
+            // Validate Horizontal/Vertical toggles
+            if (!horizontal.isOn && !vertical.isOn)
+            {
+                // Enforce rule: At least one must be active (default to Horizontal if none selected)
+                horizontal.SetIsOnWithoutNotify(true);
+                socket.Type = DungeonBaseSocketType.Horizontal;
+            }
+        }
+    }
+	
+	    private void UpdateSocketData(GameObject go)
+    {
+        if (go == null) return;
+
+        DungeonBaseSocket socket = go.GetComponent<DungeonBaseSocket>();
+        if (socket != null)
+        {
+            // Update Male/Female values
+            socket.Male = male.isOn;
+            socket.Female = female.isOn;
+
+            // Enforce validation: At least one must be active
+            if (!socket.Male && !socket.Female)
+            {
+                // If both are turned off, force Male to true
+                male.SetIsOnWithoutNotify(true);
+                socket.Male = true;
+            }
+        }
+    }
+
+    private void UpdateSocketType(GameObject go, bool isHorizontalOn, bool isVerticalOn)
+    {
+        if (go == null) return;
+
+        DungeonBaseSocket socket = go.GetComponent<DungeonBaseSocket>();
+        if (socket != null)
+        {
+            // Enforce validation: At least one type (Horizontal or Vertical) must be active
+            if (!isHorizontalOn && !isVerticalOn)
+            {
+                // If both are turned off, force Horizontal to true
+                horizontal.SetIsOnWithoutNotify(true);
+                socket.Type = DungeonBaseSocketType.Horizontal;
+            }
+            else
+            {
+                // Update Type based on toggle states
+                if (isHorizontalOn)
+                {
+                    socket.Type = DungeonBaseSocketType.Horizontal;
+                    vertical.SetIsOnWithoutNotify(false); // Ensure only one is active
+                }
+                else if (isVerticalOn)
+                {
+                    socket.Type = DungeonBaseSocketType.Vertical;
+                    horizontal.SetIsOnWithoutNotify(false); // Ensure only one is active
+                }
+            }
+        }
+    }
+
+    public void DestroySocketListeners()
+    {
+        male.onValueChanged.RemoveAllListeners();
+        female.onValueChanged.RemoveAllListeners();
+        horizontal.onValueChanged.RemoveAllListeners();
+        vertical.onValueChanged.RemoveAllListeners();
     }
     
     public void CreateListeners(GameObject go)
@@ -177,6 +285,7 @@ public class InspectorWindow : MonoBehaviour
             return;
         }
         RetrievePrefabData(go);
+		RetrieveSocketData(go);
         _lastProcessedSelection = go;
         UpdateTransformSnapshot(go); // Store initial transform data
     }
@@ -403,10 +512,12 @@ public class InspectorWindow : MonoBehaviour
     public void DefaultPrefabData()
     {
         DestroyListeners();
+        DestroySocketListeners();
         for (int i = 0; i < prefabDataFields.Count; i++)
         {
             prefabDataFields[i].text = string.Empty;
         }
+        socketPanel.SetActive(false);
         _lastPosition = Vector3.zero;
         _lastRotation = Vector3.zero;
         _lastScale = Vector3.zero;

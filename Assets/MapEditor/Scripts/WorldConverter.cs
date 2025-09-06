@@ -293,6 +293,7 @@ public static class WorldConverter
         return terrains;
     }
 
+//todo: traverse collection for SocketInfo and serialize it
 	public static WorldSerialization CollectionToREPrefab(Transform parent)
 	{
 		WorldSerialization world = new WorldSerialization();
@@ -328,6 +329,36 @@ public static class WorldConverter
 					// Add the adjusted prefab to the REPrefab data
 					world.rePrefab.prefabs.Add(localPrefab);
 				}
+			}
+
+			// Find the SocketInfo child object
+			Transform socketInfoTransform = parent.Find("SocketInfo");
+			if (socketInfoTransform != null)
+			{
+				Debug.Log("socket info found");
+				// Collect all DungeonBaseSocket components under SocketInfo
+				DungeonBaseSocket[] sockets = socketInfoTransform.GetComponentsInChildren<DungeonBaseSocket>(true);
+				foreach (DungeonBaseSocket socket in sockets)
+				{
+					if (socket != null)
+					{
+						// Create SocketInfo from DungeonBaseSocket
+						SocketInfo socketInfo = SocketInfo.FromDungeonBaseSocket(socket);
+
+						// Convert position and rotation to local space relative to the parent
+						socketInfo.Position = parent.InverseTransformPoint(socket.transform.position);
+						socketInfo.Rotation = (Quaternion.Inverse(parent.rotation) * socket.transform.rotation).eulerAngles;
+
+						// Add to REPrefabData sockets list
+						world.rePrefab.sockets.Add(socketInfo);
+					}
+				}
+				// Add positive feedback about the number of sockets added
+				Debug.Log($"Successfully added {world.rePrefab.sockets.Count} sockets from SocketInfo to REPrefab data.");
+			}
+			else
+			{
+				Debug.LogWarning("No SocketInfo child found under parent; no sockets processed.");
 			}
 
 			// Initialize empty collections for other REPrefab components

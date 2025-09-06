@@ -132,7 +132,7 @@ public static class BindManager
 		SettingsManager.binds = binds;
 	}
 
-    private static void SetDefaultBinds()
+    public static void SetDefaultBinds()
     {
 		Debug.Log("setting default binds");
         binds = new List<Bind>();
@@ -172,8 +172,14 @@ public static class BindManager
 			// Terrain editing
 			new Bind("paintBrush", InputActionType.Button, "<Mouse>/leftButton", false, false, false),
 			new Bind("sampleHeight", InputActionType.Button, "<Mouse>/leftButton", true, false, false),
+			
+			
 			new Bind("undo", InputActionType.Button, "<Keyboard>/z", true, false, false),
-			new Bind("redo", InputActionType.Button, "<Keyboard>/y", true, false, false)
+			new Bind("redo", InputActionType.Button, "<Keyboard>/y", true, false, false),
+			
+			new Bind("socketConnect", InputActionType.Button, "<Keyboard>/c", false, false, false),
+			new Bind("socketSelect", InputActionType.Button, "<Keyboard>/g", false, false, false),
+			new Bind("createSocket", InputActionType.Button, "<Keyboard>/v", false, false, false)
 		});
 
 		Debug.Log("default bind list created, initializing actions");

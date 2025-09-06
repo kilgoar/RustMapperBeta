@@ -1,0 +1,19 @@
+{
+  "assets/prefabs/building core/floor.triangle/floor.triangle.wood.prefab": [
+    {
+      "Type": 0,
+      "Male": true,
+      "Female": true,
+      "Position": {
+        "x": -1.48396683,
+        "y": 0.0389010981,
+        "z": -0.004158638
+      },
+      "Rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 4.07111E-13
+      }
+    }
+  ]
+}

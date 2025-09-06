@@ -524,7 +524,7 @@ Material:
     - _ParticleLayer_MapTiling: {r: 1, g: 1, b: 0, a: 0}
     - _ParticleLayer_SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _ParticleLayer_WorldDirection: {r: 0, g: 0, b: 0, a: 0}
-    - _SelectionColor: {r: 1, g: 0, b: 0, a: 1}
+    - _SelectionColor: {r: 0, g: 0.9411765, b: 1, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _TintBase1: {r: 1, g: 1, b: 1, a: 1}
     - _TintBase2: {r: 1, g: 1, b: 1, a: 1}

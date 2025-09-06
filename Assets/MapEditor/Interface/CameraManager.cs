@@ -517,6 +517,14 @@ public void InitializeGizmos()
 	public void DeleteSelection()
 	{
 		if(_selectedObjects.Count < 1){ return; }
+		if(_selectedObjects.Count == 1){
+			    
+				DungeonBaseSocket socket = _selectedObjects[0].GetComponent<DungeonBaseSocket>();
+				// Check if the selected object has a user-defined DungeonBaseSocket
+				if (socket != null && socket.isUserDefined)		{
+					socket.Delete(); // Call the Delete method to remove socket data
+				}
+		}
 		
 		_workGizmo.Gizmo.SetEnabled(false);
 		// For each object in _selectedObjects, destroy the object
@@ -895,6 +903,18 @@ public void DepopulateNodesForRoad(GameObject roadObject)
         UpdateItemsWindow();
         UpdateGizmoState();
         OnSelectionChanged?.Invoke(); // Notify listeners
+    }
+	
+	public void SelectSocketSoft(GameObject go)
+    {
+		//this is supposed to highlight and track in inspector without enabling the transform gizmo
+		//however the gizmo still appears
+		
+        _selectedObjects.Add(go);
+        AppManager.Instance.SetInspector(go);
+        EmissionHighlight(GetRenderers(go), true);
+        //OnSelectionChanged?.Invoke(); // Notify listeners
+		_workGizmo.Gizmo.SetEnabled(false);
     }
 	
 public void SelectPrefab()
@@ -1341,37 +1361,42 @@ public void FadeSelection()
     }
 }
 
-private void EmissionHighlight(List<Renderer> selection, bool enable)
+public void EmissionHighlight(List<Renderer> selection, bool enable)
 {
     foreach (Renderer renderer in selection)
     {
         if (renderer == null) { continue; }
 
-        MaterialPropertyBlock propertyBlock = new MaterialPropertyBlock();
-        renderer.GetPropertyBlock(propertyBlock);
-
-        if (renderer.sharedMaterial != null && renderer.sharedMaterial.HasProperty("_SelectionOn"))
+        try
         {
-            if (enable)
-                renderer.sharedMaterial.EnableKeyword("_SELECTION_ON");
+            MaterialPropertyBlock propertyBlock = new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(propertyBlock);
+
+            // Check if the material supports the required properties
+            if (renderer.sharedMaterial != null && renderer.sharedMaterial.HasProperty("_SelectionOn"))
+            {
+                Color selectColor = AppManager.Instance.color4;
+                propertyBlock.SetColor("_SelectionColor", selectColor);
+                propertyBlock.SetFloat("_SelectionOn", enable ? 1.0f : 0.0f);
+
+                // Apply shader keyword for selection (if needed)
+                if (enable)
+                    propertyBlock.SetFloat("_SELECTION_ON", 1.0f); // Enable keyword via property
+                else
+                    propertyBlock.SetFloat("_SELECTION_ON", 0.0f); // Disable keyword via property
+
+                renderer.SetPropertyBlock(propertyBlock);
+
+                //Debug.Log($"EmissionHighlight: Set _SelectionOn={enable ? 1.0f : 0.0f}, _SelectionColor={selectColor} on {renderer.gameObject.name}");
+            }
             else
-                renderer.sharedMaterial.DisableKeyword("_SELECTION_ON");
-			
-			Color selectColor = AppManager.Instance.color4;
-            propertyBlock.SetColor("_SelectionColor", selectColor);
-            propertyBlock.SetFloat("_SelectionOn", enable ? 1.0f : 0.0f);
-            renderer.SetPropertyBlock(propertyBlock);
-
-            // Sync with material and toggle keyword
-            renderer.sharedMaterial.SetFloat("_SelectionOn", enable ? 1.0f : 0.0f);
-            renderer.sharedMaterial.SetColor("_SelectionColor", selectColor);
-            
-
-            //Debug.Log($"EmissionHighlight: Set _SelectionOn={enable ? 1.0f : 0.0f}, _SelectionColor={subtleYellow}, Keyword _SELECTION_ON={(enable ? "enabled" : "disabled")} on {renderer.gameObject.name}");
+            {
+                Debug.LogWarning($"Material on {renderer.gameObject.name} lacks '_SelectionOn'. Shader: {renderer.sharedMaterial?.shader.name}");
+            }
         }
-        else
+        catch (System.Exception e)
         {
-            //Debug.LogWarning($"Material on {renderer.gameObject.name} lacks '_SelectionOn'. Shader: {renderer.sharedMaterial?.shader.name}");
+            Debug.LogError($"Error highlighting {renderer.gameObject.name}: {e.Message}");
         }
     }
 }
@@ -1439,6 +1464,9 @@ private void EmissionHighlight(List<Renderer> selection, bool enable)
         // Enable the work gizmo if there are selected objects
         if (_selectedObjects.Count > 0)
         {
+			if(SocketManager.firstSocket!=null){	//keep gizmo hidden when connecting sockets
+				return;
+			}
             _workGizmo.Gizmo.SetEnabled(true);
             _workGizmo.SetTargetPivotObject(_selectedObjects[_selectedObjects.Count - 1]);
             _workGizmo.RefreshPositionAndRotation();
@@ -1487,6 +1515,9 @@ private void EmissionHighlight(List<Renderer> selection, bool enable)
 		
 		if (_selectedObjects.Count > 0)
 		{
+			if(SocketManager.firstSocket!=null){	//keep gizmo hidden when connecting sockets
+				return;
+			}
 			// Ensure all objects are still valid
 			bool hasValidObjects = false;
 			GameObject lastValidObject = null;

@@ -273,7 +273,9 @@
   "macroSources": false,
   "faves": {
     "favoriteCustoms": [
-      "assets/bundled/prefabs/autospawn/monument/small/mining_quarry_b"
+      "assets/bundled/prefabs/autospawn/monument/small/mining_quarry_b",
+      "assets/content/structures/underwater_labs/module_900x900_3way",
+      "assets/bundled/prefabs/autospawn/underwater-lab-segment/module_1200x1200_4way_ladder"
     ]
   },
   "windowStates": [
@@ -293,8 +295,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -49.29901,
-        "y": -20.0299683,
+        "x": 226.799011,
+        "y": -26.0299683,
         "z": 0.0
       },
       "scale": {
@@ -306,7 +308,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -117.0,
+        "x": -116.0,
         "y": 53.99997,
         "z": 0.0
       },
@@ -317,10 +319,10 @@
       }
     },
     {
-      "isActive": false,
+      "isActive": true,
       "position": {
         "x": -293.79657,
-        "y": -61.3733826,
+        "y": 14.6266174,
         "z": 0.0
       },
       "scale": {
@@ -332,7 +334,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -21.3925781,
+        "x": -20.3925781,
         "y": 52.01999,
         "z": 0.0
       },
@@ -345,7 +347,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -47.8999939,
+        "x": -46.8999939,
         "y": 2.1,
         "z": 0.0
       },
@@ -358,7 +360,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -26.0,
+        "x": -25.0,
         "y": 19.99997,
         "z": 0.0
       },
@@ -371,7 +373,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -8.536011,
+        "x": -56.03601,
         "y": -104.109985,
         "z": 0.0
       },
@@ -397,7 +399,7 @@
     {
       "isActive": false,
       "position": {
-        "x": 261.0,
+        "x": 262.0,
         "y": 6.99996948,
         "z": 0.0
       },
@@ -408,10 +410,10 @@
       }
     },
     {
-      "isActive": true,
+      "isActive": false,
       "position": {
-        "x": 236.852173,
-        "y": -180.099609,
+        "x": 255.352173,
+        "y": -152.151947,
         "z": 0.0
       },
       "scale": {
@@ -423,7 +425,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -264.26,
+        "x": -263.26,
         "y": 28.1000061,
         "z": 0.0
       },
@@ -684,6 +686,30 @@
       "actionType": 1,
       "primaryInput": "<Keyboard>/y",
       "requiresCtrl": true,
+      "requiresShift": false,
+      "requiresAlt": false
+    },
+    {
+      "bindName": "socketConnect",
+      "actionType": 1,
+      "primaryInput": "<Keyboard>/c",
+      "requiresCtrl": false,
+      "requiresShift": false,
+      "requiresAlt": false
+    },
+    {
+      "bindName": "socketSelect",
+      "actionType": 1,
+      "primaryInput": "<Keyboard>/g",
+      "requiresCtrl": false,
+      "requiresShift": false,
+      "requiresAlt": false
+    },
+    {
+      "bindName": "createSocket",
+      "actionType": 1,
+      "primaryInput": "<Keyboard>/v",
+      "requiresCtrl": false,
       "requiresShift": false,
       "requiresAlt": false
     }

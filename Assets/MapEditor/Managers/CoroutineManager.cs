@@ -18,6 +18,8 @@ public class CoroutineManager : MonoBehaviour
     public InputAction mouseLeftClick;
     public int heightTool;
 	public int landMask = 1 << 10; // "Land" layer
+	public int socketMask = 1 << 13; // "Land" layer
+	public int prefabMask = 1 << 3; // "Land" layer
 	public int waterMask = 1 << 4; // "Land" layer
 	public RaycastHit hit;
 	private float prefabPlacementTimer = 0f;
@@ -296,6 +298,43 @@ public void ItemStylusMode()
                 }
             }
         }
+		if (BindManager.IsPressed("socketConnect"))
+		{
+			Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+			if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, socketMask))			{
+
+				GameObject hitObject = hit.collider.gameObject;
+				DungeonBaseSocket socket = hitObject.transform.parent.GetComponent<DungeonBaseSocket>();
+				
+				if (socket != null)				{
+					SocketManager.Connect(socket);
+				}
+			}
+			else{
+				SocketManager.Unselect();
+			}
+			return;
+		}
+		if (BindManager.IsPressed("socketSelect"))
+		{
+			Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+			if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, socketMask))			{
+				CameraManager.Instance.Unselect();
+				GameObject hitObject = hit.collider.gameObject;
+				CameraManager.Instance.SelectPrefab(hitObject.transform.parent.gameObject);
+			}
+			return;
+		}
+		if (BindManager.IsPressed("createSocket"))
+		{
+			Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+			if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, prefabMask))			{
+				CameraManager.Instance.Unselect();
+				SocketManager.AddSocket(hit);
+			}
+			return;
+		}
+		SocketManager.Clear();
         CameraManager.Instance.SelectPrefab();
     }
 }
