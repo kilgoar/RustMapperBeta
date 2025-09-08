@@ -16,46 +16,126 @@ public class ConsoleWindow : MonoBehaviour
     public VerticalLayoutGroup consoleOutputLayout;
     public Text textTemplate;
     public ScrollRect consoleScrollRect;
-	
-	private List<string> commandHistory = new List<string>();
-	private int historyIndex = -1;
-	
-	private Dictionary<string, object> consoleVariables = new Dictionary<string, object>();
 
-	public static ConsoleWindow Instance { get; private set; }
-    
-	
-	
+    private List<string> commandHistory = new List<string>();
+    private int historyIndex = -1;
+    private Dictionary<string, object> consoleVariables = new Dictionary<string, object>();
+
+    // Object pool for Text objects
+    private Queue<GameObject> textObjectPool = new Queue<GameObject>();
+    private List<GameObject> activeTextObjects = new List<GameObject>();
+    private const int PoolSize = 256; // Fixed number of Text objects in the pool
+
+    public static ConsoleWindow Instance { get; private set; }
+
     private void Awake()
     {
-        if (Instance == null)        
+        if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject); 
-						//create objects necessary for using accessible methods
-			InitializeConsoleVariables();
-			
-			// Assign listener for InputField's submit event
-			consoleInput.onEndEdit.AddListener(OnInputEndEdit);
-			textTemplate.gameObject.SetActive(false);
-			Startup();		
+            DontDestroyOnLoad(gameObject);
+            InitializeConsoleVariables();
+            consoleInput.onEndEdit.AddListener(OnInputEndEdit);
+            textTemplate.gameObject.SetActive(false);
+            InitializeTextObjectPool();
+            Startup();
         }
-        else        
+        else
         {
             Destroy(gameObject);
         }
     }
-	
-	 
-	
-	// New Startup method to run a startup script
+
+    // Initialize the object pool with a fixed number of Text objects
+    private void InitializeTextObjectPool()
+    {
+        for (int i = 0; i < PoolSize; i++)
+        {
+            GameObject textObj = Instantiate(textTemplate.gameObject, consoleOutputLayout.transform);
+            textObj.SetActive(false);
+            textObjectPool.Enqueue(textObj);
+        }
+    }
+
+    // Get a Text object from the pool or recycle the oldest active one
+    private GameObject GetTextObjectFromPool()
+    {
+        GameObject textObj;
+        if (textObjectPool.Count > 0)
+        {
+            // Use an available object from the pool
+            textObj = textObjectPool.Dequeue();
+            textObj.SetActive(true);
+            activeTextObjects.Add(textObj);
+        }
+        else
+        {
+            // No objects in the pool, recycle the oldest active Text object
+            if (activeTextObjects.Count > 0)
+            {
+                textObj = activeTextObjects[0]; // Oldest object (first in the list)
+                activeTextObjects.RemoveAt(0); // Remove from active list
+                textObj.SetActive(true);
+                activeTextObjects.Add(textObj); // Re-add to active list (now at the end)
+            }
+            else
+            {
+                // Fallback: should not happen since pool is initialized
+                Debug.LogWarning("No Text objects available in pool or active list. This should not occur.");
+                textObj = Instantiate(textTemplate.gameObject, consoleOutputLayout.transform);
+                textObj.SetActive(true);
+                activeTextObjects.Add(textObj);
+            }
+        }
+
+        // Ensure the Text object is the last child to appear at the bottom
+        textObj.transform.SetAsLastSibling();
+        return textObj;
+    }
+
+    // Return a Text object to the pool
+    private void ReturnTextObjectToPool(GameObject textObj)
+    {
+        textObj.SetActive(false);
+        activeTextObjects.Remove(textObj);
+        textObjectPool.Enqueue(textObj);
+    }
+
+    public void PostMultiLine(string message)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            Post(""); // Handle empty input with a single empty post
+            return;
+        }
+
+        string[] lines = message.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+        foreach (string line in lines)
+        {
+            Post(line);
+        }
+    }
+
+    public void Post(string message)
+    {
+        // Get a Text object from the pool or recycle an active one
+        GameObject textObj = GetTextObjectFromPool();
+        Text newText = textObj.GetComponent<Text>();
+        newText.text = " " + message;
+
+        // Scroll to the bottom of the ScrollRect
+        Canvas.ForceUpdateCanvases();
+        consoleScrollRect.verticalNormalizedPosition = 0f;
+    }
+
+    // Modified Startup method to use the pool
     public void Startup()
     {
-		PostMultiLine(AppManager.Instance.harmonyMessage);
-		
+        PostMultiLine(AppManager.Instance.harmonyMessage);
+
         const string startupScriptName = "startup.rmml";
         List<string> commands = SettingsManager.GetScriptCommands(startupScriptName);
-        
+
         if (commands.Count > 0)
         {
             Post($"{startupScriptName}");
@@ -76,13 +156,6 @@ public class ConsoleWindow : MonoBehaviour
         {
             Post($"No startup script found ({startupScriptName})");
         }
-
-    }
-
-    private void Start()
-    {
-
-
     }
 
     private void OnInputEndEdit(string text)
@@ -92,35 +165,6 @@ public class ConsoleWindow : MonoBehaviour
             OnSubmit();
         }
     }
-	
-	public void PostMultiLine(string message)
-    {
-        if (string.IsNullOrEmpty(message))
-        {
-            Post(""); // Handle empty input with a single empty post
-            return;
-        }
-
-        // Split the message by line breaks (\n, \r\n, or \r) and filter out empty lines if desired
-        string[] lines = message.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
-
-        foreach (string line in lines)
-        {
-            // Post each line separately; you can trim or skip empty lines if preferred
-            Post(line);
-        }
-    }
-
-	public void Post(string message)
-	{
-		// Create a new text object for the message
-		Text newText = Instantiate(textTemplate, consoleOutputLayout.transform);
-		newText.gameObject.SetActive(true);
-		newText.text = " " + message;
-		//Canvas.ForceUpdateCanvases();
-		// Scroll to the bottom of the ScrollRect
-		consoleScrollRect.verticalNormalizedPosition = 0f;
-	}
 
     private void Update()
     {
@@ -148,8 +192,8 @@ public class ConsoleWindow : MonoBehaviour
 
         ActivateConsole();
     }
-	
-	private void NavigateHistory(bool up)
+
+    private void NavigateHistory(bool up)
     {
         if (commandHistory.Count == 0) return;
 
@@ -172,6 +216,25 @@ public class ConsoleWindow : MonoBehaviour
             consoleInput.text = "";
         }
     }
+
+    private void OnEnable()
+    {
+        consoleInput.ActivateInputField();
+    }
+
+    private void ActivateConsole()
+    {
+        consoleInput.text = "";
+        consoleInput.ActivateInputField();
+    }
+	
+	 
+
+
+
+
+	
+
 	
     public void ExecuteCommand(string command)
     {
@@ -413,14 +476,9 @@ public class ConsoleWindow : MonoBehaviour
         ActivateConsole();
     }
 	
-	private void OnEnable(){
-		consoleInput.ActivateInputField();
-	}
+
 	
-	private void ActivateConsole(){
-		consoleInput.text = "";
-		consoleInput.ActivateInputField();
-	}
+
 
 	private void PostVariableFields(object variable)
 	{

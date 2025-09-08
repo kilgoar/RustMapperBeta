@@ -15,6 +15,7 @@ public class DebugManager : MonoBehaviour
 	public float usedMemoryf;
 	private static readonly string SuppressedPrefix = "The referenced script";
 	private static readonly string SuppressedPrefix1 = "Couldn't create a";
+	private static readonly string SuppressedPrefix2 = "Material on";
 	private StreamWriter logWriter;
     private string logFilePath;
 	public string buildId;
@@ -81,7 +82,7 @@ public class DebugManager : MonoBehaviour
         if (logWriter == null) return;
 
 		// Suppress spammy messages with ordinal comparison
-		if (logString.StartsWith(SuppressedPrefix, StringComparison.Ordinal) || logString.StartsWith(SuppressedPrefix1, StringComparison.Ordinal))
+		if (logString.StartsWith(SuppressedPrefix, StringComparison.Ordinal) || logString.StartsWith(SuppressedPrefix1, StringComparison.Ordinal) || logString.StartsWith(SuppressedPrefix2, StringComparison.Ordinal))
 		{
 			return;
 		}

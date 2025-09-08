@@ -1,0 +1,50 @@
+# Sectors: ABC
+# Max pieces: 30
+# Max depth: 128
+# Start piece: assets/content/structures/underwater_labs/module_1200x1200_4way,1,1,AB
+# AllowCollision: end
+
+# tubes
+assets/content/structures/underwater_labs/conditionals/hatch_tube_150 [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/hatch_tube_300 [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/hatch_tube_300_s_left [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/hatch_tube_300_s_right [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/hatch_tube_600 [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/hatch_tube_corner_left_45 [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/hatch_tube_corner_left_90 [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/hatch_tube_corner_right_45 [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/hatch_tube_corner_right_90 [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/hatch_tube_end [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/underwater_lab_leg_a [10,5000,ABC];
+assets/content/structures/underwater_labs/conditionals/vertical_hatch_end [100,5000,ABC];
+
+# Corridors (Sector A)
+assets/content/structures/underwater_labs/module_1200x600_2way_corridor [1,20,AC];
+assets/content/structures/underwater_labs/module_1500x600_2way_corridor [1,20,AC];
+assets/content/structures/underwater_labs/module_2100x600_3way_corridor [1,2,AC];
+
+# 4-way modules (Sector AB)
+assets/content/structures/underwater_labs/module_1200x1200_4way [1,5,AB];
+assets/content/structures/underwater_labs/module_1200x1200_4way_ladder [1,5,AB];
+assets/content/structures/underwater_labs/module_900x900_4way [1,10,AB];
+assets/content/structures/underwater_labs/module_900x900_4way_ladder [1,10,AB];
+assets/content/structures/underwater_labs/module_1500x1500_4way_lshaped [1,5,AB];
+assets/content/structures/underwater_labs/module_1800x1800_4way_lshaped [1,5,AB];
+
+# Other modules (Sector B)
+assets/content/structures/underwater_labs/module_1200x1200_1way [1,10,B];
+assets/content/structures/underwater_labs/module_1200x1200_1way_ladder [1,10,B];
+assets/content/structures/underwater_labs/module_1200x1200_3way [1,10,B];
+assets/content/structures/underwater_labs/module_1200x1200_3way_ladder [1,10,B];
+assets/content/structures/underwater_labs/module_1200x1500_1way_moonpool [1,10,B];
+assets/content/structures/underwater_labs/module_1200x1500_2way_moonpool [1,10,B];
+assets/content/structures/underwater_labs/module_1200x1500_3way_moonpool [1,10,B];
+assets/content/structures/underwater_labs/module_1200x1800_2way [1,5,B];
+assets/content/structures/underwater_labs/module_1200x1800_ladder_moonpool [1,5,B];
+assets/content/structures/underwater_labs/module_1500x1500_ladder [1,5,B];
+assets/content/structures/underwater_labs/module_1500x1800_2way_ladder [1,5,B];
+assets/content/structures/underwater_labs/module_900x900_1way [1,10,B];
+assets/content/structures/underwater_labs/module_900x900_1way_ladder [1,10,B];
+assets/content/structures/underwater_labs/module_900x900_2way_moonpool [1,10,B];
+assets/content/structures/underwater_labs/module_900x900_3way [1,10,B];
+assets/content/structures/underwater_labs/module_900x900_3way_ladder [1,10,B];

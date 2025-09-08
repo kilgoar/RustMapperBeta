@@ -863,29 +863,100 @@ namespace RustMapEditor.Variables
 		public string customPrefab;
 		public uint prefabID;
 		public int emphasis;
+		public int maximum;
+		public string sectors;
 		public bool custom;
-		public GeologyItem Clone()		{
-			
-			return new GeologyItem			{
+		public int minDepth; // New field for minimum depth
+		public int maxDepth; // New field for maximum depth
+
+		public GeologyItem Clone()
+		{
+			return new GeologyItem
+			{
 				custom = this.custom,
 				customPrefab = this.customPrefab,
 				prefabID = this.prefabID,
-				emphasis = this.emphasis
+				emphasis = this.emphasis,
+				maximum = this.maximum,
+				sectors = this.sectors,
+				minDepth = this.minDepth,
+				maxDepth = this.maxDepth
 			};
 		}
-		
-		public GeologyItem(uint prefabID)		{
+
+		public GeologyItem(uint prefabID, int minDepth = 0, int maxDepth = int.MaxValue)
+		{
 			this.prefabID = prefabID;
+			this.custom = false;
+			this.customPrefab = "";
+			this.emphasis = 1;
+			this.maximum = int.MaxValue;
+			this.sectors = "";
+			this.minDepth = Math.Max(0, minDepth);
+			this.maxDepth = Math.Max(minDepth, maxDepth);
 		}
-		
-		public GeologyItem(GeologyItem geoItem)		{
+
+		public GeologyItem(GeologyItem geoItem)
+		{
 			this.prefabID = geoItem.prefabID;
-			this.custom =  geoItem.custom;
-			this.emphasis = geoItem.emphasis;
+			this.custom = geoItem.custom;
 			this.customPrefab = geoItem.customPrefab;
+			this.emphasis = geoItem.emphasis;
+			this.maximum = geoItem.maximum;
+			this.sectors = geoItem.sectors;
+			this.minDepth = geoItem.minDepth;
+			this.maxDepth = geoItem.maxDepth;
 		}
-		
-		public GeologyItem()		{
+
+		public GeologyItem()
+		{
+			this.emphasis = 1;
+			this.maximum = int.MaxValue;
+			this.sectors = "";
+			this.minDepth = 0;
+			this.maxDepth = int.MaxValue;
+		}
+
+		public GeologyItem(string path, int emphasis = 1, int maximum = int.MaxValue, string sectors = "", int minDepth = 0, int maxDepth = int.MaxValue)
+		{
+			if (string.IsNullOrEmpty(path))
+			{
+				custom = false;
+				prefabID = 0;
+				customPrefab = "";
+				this.emphasis = Math.Max(1, emphasis);
+				this.maximum = Math.Max(1, maximum);
+				this.sectors = sectors;
+				this.minDepth = Math.Max(0, minDepth);
+				this.maxDepth = Math.Max(minDepth, maxDepth);
+				return;
+			}
+
+			if (path[0] == '~')
+			{
+				path = path.Replace("~", "").Replace("\\", "/");
+				custom = true;
+				customPrefab = path;
+				prefabID = 0;
+			}
+			else
+			{
+				custom = false;
+				prefabID = AssetManager.ToID(path + ".prefab");
+				customPrefab = "";
+			}
+			this.emphasis = Math.Max(1, emphasis);
+			this.maximum = Math.Max(1, maximum);
+			this.sectors = sectors;
+			this.minDepth = Math.Max(0, minDepth);
+			this.maxDepth = Math.Max(minDepth, maxDepth);
+		}
+
+		public bool CanConnectTo(GeologyItem other)
+		{
+			if (string.IsNullOrEmpty(sectors) || string.IsNullOrEmpty(other.sectors))
+				return true;
+			return sectors.Intersect(other.sectors).Any();
 		}
 	}
 	

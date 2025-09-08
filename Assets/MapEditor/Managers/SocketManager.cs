@@ -141,7 +141,7 @@ public static class SocketManager
         }
     }
 
-    private static bool IsValidConnection(DungeonBaseSocket socket1, DungeonBaseSocket socket2)
+    public static bool IsValidConnection(DungeonBaseSocket socket1, DungeonBaseSocket socket2)
     {
         Transform prefabParent1 = GetPrefabParent(socket1.transform);
         Transform prefabParent2 = GetPrefabParent(socket2.transform);
@@ -180,24 +180,36 @@ public static class SocketManager
         return false;
     }
 
-    private static void AttachSockets(DungeonBaseSocket socket1, DungeonBaseSocket socket2)
+public static void AttachSockets(DungeonBaseSocket socket1, DungeonBaseSocket socket2)
+{
+    // Find the parent transform of socket2 (assumed to be tagged as 'Prefab')
+    Transform prefabParent = GetPrefabParent(socket2.transform);
+    if (prefabParent == null)
     {
-        Transform prefabParent = GetPrefabParent(socket2.transform);
-        if (prefabParent == null)
-        {
-            Debug.LogWarning("No parent object with 'Prefab' tag found for socket2");
-            return;
-        }
-
-        Vector3 targetForward = -socket1.transform.forward;
-        Quaternion targetRotation = Quaternion.LookRotation(targetForward, socket1.transform.up);
-        Quaternion socket2LocalRotation = Quaternion.Inverse(prefabParent.rotation) * socket2.transform.rotation;
-        Vector3 socket2LocalForward = socket2LocalRotation * Vector3.forward;
-        Quaternion rotationCorrection = Quaternion.FromToRotation(socket2LocalForward, Vector3.forward);
-        prefabParent.rotation = targetRotation * rotationCorrection;
-        Vector3 positionOffset = socket1.transform.position - socket2.transform.position;
-        prefabParent.position += positionOffset;
+        Debug.LogWarning("No parent object with 'Prefab' tag found for socket2");
+        return;
     }
+
+    // Step 1: Compute the desired world rotation for socket2
+    Vector3 targetForward = -socket1.transform.forward; // Antiparallel to socket1's forward
+    Vector3 targetUp = socket1.transform.up; // Match socket1's up direction
+    Quaternion targetSocket2Rotation = Quaternion.LookRotation(targetForward, targetUp);
+
+    // Step 2: Compute the parent's rotation
+    // socket2's local rotation relative to its parent
+    Quaternion socket2LocalRotation = Quaternion.Inverse(prefabParent.rotation) * socket2.transform.rotation;
+    // The parent's rotation should make socket2's world rotation equal to targetSocket2Rotation
+    Quaternion newParentRotation = targetSocket2Rotation * Quaternion.Inverse(socket2LocalRotation);
+
+    // Step 3: Apply the rotation to the parent
+    prefabParent.rotation = newParentRotation;
+
+    // Step 4: Align positions by offsetting the parent
+    Vector3 positionOffset = socket1.transform.position - socket2.transform.position;
+    prefabParent.position += positionOffset;
+
+    //Debug.Log("Sockets attached successfully");
+}
 
     public static void SetupSocket(DungeonBaseSocket component)
     {
@@ -367,6 +379,32 @@ public static class SocketManager
         }
         return parent;
     }
+	
+	
+	public static Transform GetParentForTransform(Transform transform)
+	{
+		Transform current = transform;
+		Transform prefabParent = null;
+
+		// Traverse up the hierarchy
+		while (current != null)
+		{
+			if (current.CompareTag("Collection"))
+			{
+				// A "Collection" was found
+				return current;
+			}
+			else if (current.CompareTag("Prefab"))
+			{
+				// Store the last "Prefab" found, but keep checking for "Collection"
+				prefabParent = current;
+			}
+			current = current.parent;
+		}
+
+		// Return the prefab parent if found and no "Collection" was encountered
+		return prefabParent;
+	}
 
     // Helper method to get prefab path from PrefabDataHolder
     public static string GetPrefabPath(Transform prefabParent)
@@ -519,7 +557,7 @@ public static class SocketManager
 	
 	public static void PopulateSockets(GameObject prefab, string filePath = null)
 	{
-		Debug.Log("Populating sockets");
+		//Debug.Log("Populating sockets");
 		if (prefab == null)
 		{
 			Debug.LogWarning("Prefab is null, can't populate sockets");
@@ -548,7 +586,7 @@ public static class SocketManager
 		List<SocketInfo> socketInfos = GetOrCreateSocketList(filePath);
 		if (socketInfos == null || socketInfos.Count == 0)
 		{
-			Debug.Log($"No sockets found for prefab: {filePath}, can't populate sockets");
+			//Debug.Log($"No sockets found for prefab: {filePath}, can't populate sockets");
 			return;
 		}
 

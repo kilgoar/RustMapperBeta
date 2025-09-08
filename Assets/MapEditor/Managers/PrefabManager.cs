@@ -1062,7 +1062,7 @@ public static class PrefabManager
 		MapManager.MergeOffsetREPrefab(WorldConverter.WorldToRMPrefab(world), newObj.transform, loadPath);
 	}
 
-	public static void placeCustomPrefab(string loadPath,Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
+	public static GameObject placeCustomPrefab(string loadPath,Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
 	{
 			var world = new WorldSerialization();
             world.LoadREPrefab(loadPath);
@@ -1099,7 +1099,7 @@ public static class PrefabManager
 			}
 			
 			MapManager.MergeOffsetREPrefab(WorldConverter.WorldToREPrefab(world), newObj.transform, loadPath);
-			
+			return newObj;
 
 	}
 	
@@ -1308,7 +1308,7 @@ public static class PrefabManager
 		return prefab;
 	}
 	
-	public static void createPrefab(string category, uint id, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
+	public static GameObject createPrefab(string category, uint id, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
     {
 		Transform prefabsParent;
 		if (parent == null){
@@ -1333,7 +1333,7 @@ public static class PrefabManager
 			rotation = new VectorData(rotation.x, rotation.y, rotation.z), 
 			scale = new VectorData(scale.x, scale.y, scale.z)             
 		};
-		SpawnPrefab(defaultObj, prefab, prefabsParent);
+		return SpawnPrefab(defaultObj, prefab, prefabsParent);
     }
 	
 	public static void createPrefab(string category, uint id, Transform transItem)

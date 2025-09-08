@@ -2720,13 +2720,13 @@ private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerI
 
 	
 	
-	public static void spawnCustom(GeologyItem geoItem, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent)
+	public static GameObject spawnCustom(GeologyItem geoItem, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent)
 	{
 		// Check if geoItem or its customPrefab is null
 		if (geoItem == null || string.IsNullOrEmpty(geoItem.customPrefab))
 		{
 			Debug.LogError("GeologyItem or its customPrefab is null or empty.");
-			return;
+			return null;
 		}
 		string prefabPath = Path.Combine(SettingsManager.AppDataPath(), geoItem.customPrefab);;
 		
@@ -2736,28 +2736,29 @@ private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerI
 		else{
 			if (System.IO.File.Exists(prefabPath)){
 				PrefabManager.placeCustomMonument(prefabPath, position, rotation, scale, parent);
-				return;
+				return null;
 			}
 			Debug.LogError("monument not found");
-			return;
+			return null;
 		}
 		
 		// Check if the file exists at the given path
 		if (!System.IO.File.Exists(prefabPath))
 		{
 			Debug.LogError($"Prefab file not found at path: {prefabPath}");
-			return;
+			return null;
 		}
 
 		// Attempt to place the prefab and log the result
 		try
 		{
-			PrefabManager.placeCustomPrefab(prefabPath, position, rotation, scale, parent);
+			return PrefabManager.placeCustomPrefab(prefabPath, position, rotation, scale, parent);
 		}
 		catch (System.Exception e)
 		{
 			Debug.LogError($"Failed to place prefab at {prefabPath}. Error: {e.Message}");
 		}
+		return null;
 	}
 	
 	public static void SpawnFeature(GeologyItem item, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
@@ -2769,6 +2770,22 @@ private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerI
 		}
 		else
 			spawnCustom(item, position, rotation, scale, parent);
+	}
+	
+	public static GameObject SpawnFeature(GeologyItem item, Transform parent = null)
+	{
+		if (!item.custom)
+		{
+			return spawnGeoItem(item, Vector3.zero, Vector3.zero, Vector3.one, parent);
+			
+		}
+		else
+			return spawnCustom(item, Vector3.zero, Vector3.zero, Vector3.one, parent);
+	}
+	
+	[ConsoleCommand("loads file.dungeon from appdata/presets/scripts/")]
+	public static void CreateDungeon(string file){
+		DungeonManager.StartDungeon(Path.Combine(SettingsManager.AppDataPath(), "Presets","Scripts", file));
 	}
 	
 [ConsoleCommand("directory list")]
@@ -2984,9 +3001,9 @@ public static void EntityDumpMap()
 			PrefabManager.createPrefab("Decor", geoItem.prefabID, transItem);
 	}
 	
-	public static void spawnGeoItem(GeologyItem geoItem, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
+	public static GameObject spawnGeoItem(GeologyItem geoItem, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
 	{
-			PrefabManager.createPrefab("Decor", geoItem.prefabID, position, rotation, scale, parent);
+			return PrefabManager.createPrefab("Decor", geoItem.prefabID, position, rotation, scale, parent);
 	}
 	
 	#if UNITY_EDITOR
