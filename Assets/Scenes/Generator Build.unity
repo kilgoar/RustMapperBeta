@@ -48553,7 +48553,11 @@ MonoBehaviour:
     customPrefab: 
     prefabID: 0
     emphasis: 0
+    maximum: 2147483647
+    sectors: 
     custom: 0
+    minDepth: 0
+    maxDepth: 2147483647
   itemTemplate: {fileID: 1093387453}
   content: {fileID: 1958746202}
 --- !u!1 &553447450

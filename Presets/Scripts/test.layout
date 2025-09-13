@@ -1,0 +1,170 @@
+# Sample RustMapper layout file for procedural map generation
+- Min POIs:15
+- Max POIs:25
+
+#biome codes: D-arid T-temperate U-tundra A-arctic J-jungle
+
+- path:assets/bundled/prefabs/autospawn/monument/xlarge/launch_site_1 required:1 TUNNELSNAP
+ weight:10 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:50 heightRange:[505,1000]
+
+- INCLUDE:3
+- path:assets/bundled/prefabs/autospawn/monument/cave/cave_large_hard
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+- path:assets/bundled/prefabs/autospawn/monument/cave/cave_large_medium
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+- path:assets/bundled/prefabs/autospawn/monument/cave/cave_large_sewers_hard
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+- path:assets/bundled/prefabs/autospawn/monument/cave/cave_medium_easy
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+- path:assets/bundled/prefabs/autospawn/monument/cave/cave_medium_hard
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+- path:assets/bundled/prefabs/autospawn/monument/cave/cave_small_easy
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+}
+
+- INCLUDE:2
+- path:assets/bundled/prefabs/autospawn/monument/fishing_village/fishing_village_a WATERFRONT OCEAN
+ weight:8 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:40 heightRange:[499,501]
+- path:assets/bundled/prefabs/autospawn/monument/fishing_village/fishing_village_b WATERFRONT OCEAN
+ weight:8 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:40 heightRange:[499,501]
+- path:assets/bundled/prefabs/autospawn/monument/fishing_village/fishing_village_c WATERFRONT OCEAN
+ weight:8 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:40 heightRange:[499,501]
+}
+
+- INCLUDE:2
+- path:assets/bundled/prefabs/autospawn/monument/harbor/ferry_terminal_1 WATERFRONT TUNNELSNAP
+ weight:6 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:30 heightRange:[499,501]
+- path:assets/bundled/prefabs/autospawn/monument/harbor/harbor_1 WATERFRONT TUNNELSNAP
+ weight:6 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:30 heightRange:[499,501]
+- path:assets/bundled/prefabs/autospawn/monument/harbor/harbor_2 WATERFRONT TUNNELSNAP
+ weight:6 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:30 heightRange:[499,501]
+}
+
+- INCLUDE:2
+- path:assets/bundled/prefabs/autospawn/monument/ice_lakes/ice_lake_1
+ weight:4 countRange:[0,1] biomes:AU tiers:0 poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/ice_lakes/ice_lake_2
+ weight:4 countRange:[0,1] biomes:AU tiers:0 poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/ice_lakes/ice_lake_3
+ weight:4 countRange:[0,1] biomes:AU tiers:0 poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/ice_lakes/ice_lake_4
+ weight:4 countRange:[0,1] biomes:AU tiers:0 poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
+}
+
+- INCLUDE:2
+- path:assets/bundled/prefabs/autospawn/monument/jungle_ruins/jungle_ruins_a
+ weight:7 countRange:[0,1] biomes:J tiers:01 poiDistance:[800,0] terrainTolerance:30 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/jungle_ruins/jungle_ruins_b
+ weight:7 countRange:[0,1] biomes:J tiers:01 poiDistance:[800,0] terrainTolerance:30 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/jungle_ruins/jungle_ruins_c
+ weight:7 countRange:[0,1] biomes:J tiers:01 poiDistance:[800,0] terrainTolerance:30 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/jungle_ruins/jungle_ruins_d
+ weight:7 countRange:[0,1] biomes:J tiers:01 poiDistance:[800,0] terrainTolerance:30 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/jungle_ruins/jungle_ruins_e
+ weight:7 countRange:[0,1] biomes:J tiers:01 poiDistance:[800,0] terrainTolerance:30 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/jungle_ruins/jungle_ziggurat_a
+ weight:7 countRange:[0,1] biomes:J tiers:01 poiDistance:[800,0] terrainTolerance:30 heightRange:[505,1000]
+}
+
+- path:assets/bundled/prefabs/autospawn/monument/military_bases/desert_military_base_a LOCKROTATE
+ weight:9 countRange:[0,1] biomes:D tiers:12 poiDistance:[400,0] terrainTolerance:30 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/offshore/oilrig_1 OCEAN
+ weight:9 countRange:[1,1] biomes: tiers: poiDistance:[400,0] terrainTolerance:100 heightRange:[0,480]
+- path:assets/bundled/prefabs/autospawn/monument/offshore/oilrig_2 OCEAN
+ weight:9 countRange:[1,1] biomes: tiers: poiDistance:[400,0] terrainTolerance:100 heightRange:[0,480]
+
+- INCLUDE:1
+- path:assets/bundled/prefabs/autospawn/monument/small/stables_a
+ weight:12 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:35 heightRange:[500,1000]
+- path:assets/bundled/prefabs/autospawn/monument/small/stables_b
+ weight:12 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:35 heightRange:[500,1000]
+}
+
+- INCLUDE:1
+- path:assets/bundled/prefabs/autospawn/monument/swamp/swamp_a
+ weight:6 countRange:[0,1] biomes: tiers:0 poiDistance:[150,0] terrainTolerance:25 heightRange:[500,1000]
+- path:assets/bundled/prefabs/autospawn/monument/swamp/swamp_b
+ weight:6 countRange:[0,1] biomes: tiers:0 poiDistance:[150,0] terrainTolerance:25 heightRange:[500,1000]
+- path:assets/bundled/prefabs/autospawn/monument/swamp/swamp_c
+ weight:6 countRange:[0,1] biomes: tiers:0 poiDistance:[150,0] terrainTolerance:25 heightRange:[500,1000]
+}
+
+- INCLUDE:4
+- path:assets/bundled/prefabs/autospawn/monument/tiny/water_well_a
+ weight:15 countRange:[0,3] biomes: tiers: poiDistance:[50,100] terrainTolerance:50 heightRange:[500,1000]
+- path:assets/bundled/prefabs/autospawn/monument/tiny/water_well_b
+ weight:15 countRange:[0,3] biomes: tiers: poiDistance:[50,100] terrainTolerance:50 heightRange:[500,1000]
+- path:assets/bundled/prefabs/autospawn/monument/tiny/water_well_c
+ weight:15 countRange:[0,3] biomes: tiers: poiDistance:[50,100] terrainTolerance:50 heightRange:[500,1000]
+- path:assets/bundled/prefabs/autospawn/monument/tiny/water_well_d
+ weight:15 countRange:[0,3] biomes: tiers: poiDistance:[50,100] terrainTolerance:50 heightRange:[500,1000]
+- path:assets/bundled/prefabs/autospawn/monument/tiny/water_well_e
+ weight:15 countRange:[0,3] biomes: tiers: poiDistance:[50,100] terrainTolerance:50 heightRange:[500,1000]
+}
+
+- INCLUDE:2
+- path:assets/bundled/prefabs/autospawn/monument/underwater_lab/underwater_lab_a
+ weight:5 countRange:[1,1] biomes: tiers: poiDistance:[400,0] terrainTolerance:20 heightRange:[0,480]
+- path:assets/bundled/prefabs/autospawn/monument/underwater_lab/underwater_lab_b
+ weight:5 countRange:[1,1] biomes: tiers: poiDistance:[400,0] terrainTolerance:20 heightRange:[0,480]
+- path:assets/bundled/prefabs/autospawn/monument/underwater_lab/underwater_lab_c
+ weight:5 countRange:[1,1] biomes: tiers: poiDistance:[400,0] terrainTolerance:20 heightRange:[0,480]
+- path:assets/bundled/prefabs/autospawn/monument/underwater_lab/underwater_lab_d
+ weight:5 countRange:[1,1] biomes: tiers: poiDistance:[400,0] terrainTolerance:20 heightRange:[0,480]
+}
+
+- path:assets/bundled/prefabs/autospawn/monument/arctic_bases/arctic_research_base_a
+ weight:4 countRange:[0,1] biomes:U tiers:12 poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/large/excavator_1 LOCKROTATE
+ weight:6 countRange:[1,1] biomes: tiers:12 poiDistance:[0,0] terrainTolerance:40 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/large/military_tunnel_1 TUNNELSNAP
+ weight:7 countRange:[0,1] biomes: tiers:2 poiDistance:[400,1000] terrainTolerance:30 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/large/powerplant_1 TUNNELSNAP
+ weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:50 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/large/trainyard_1 TUNNELSNAP
+ weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:50 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/large/water_treatment_plant_1 TUNNELSNAP
+ weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:50 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/medium/bandit_town
+ weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:45 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/medium/compound TUNNELSNAP
+ weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:45 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/medium/junkyard_1 TUNNELSNAP
+ weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:45 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/medium/nuclear_missile_silo
+ weight:7 countRange:[0,1] biomes: tiers:12 poiDistance:[200,0] terrainTolerance:60 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/medium/radtown_small_3
+ weight:7 countRange:[0,2] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:40 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/roadside/gas_station_1
+ weight:10 countRange:[0,2] biomes: tiers:012 poiDistance:[100,0] terrainTolerance:30 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/roadside/radtown_1
+ weight:10 countRange:[0,2] biomes: tiers:012 poiDistance:[100,0] terrainTolerance:30 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/roadside/supermarket_1
+ weight:10 countRange:[0,2] biomes: tiers:012 poiDistance:[100,0] terrainTolerance:30 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/roadside/warehouse
+ weight:10 countRange:[0,2] biomes: tiers:012 poiDistance:[100,0] terrainTolerance:30 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/small/mining_quarry_a
+ weight:5 countRange:[0,1] biomes: tiers:12 poiDistance:[100,0] terrainTolerance:70 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/small/mining_quarry_b
+ weight:5 countRange:[0,1] biomes: tiers:12 poiDistance:[100,0] terrainTolerance:70 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/small/mining_quarry_c
+ weight:5 countRange:[0,1] biomes: tiers:12 poiDistance:[100,0] terrainTolerance:70 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/small/satellite_dish TUNNELSNAP
+ weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:35 heightRange:[505,1000]
+- path:assets/bundled/prefabs/autospawn/monument/small/sphere_tank TUNNELSNAP
+ weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:35 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/lighthouse/lighthouse
+ weight:8 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:40 heightRange:[505,1000]
+
+- path:assets/bundled/prefabs/autospawn/monument/large/airfield_1 TUNNELSNAP
+ weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:75 heightRange:[505,1000]

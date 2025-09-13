@@ -1,8 +1,8 @@
 === Rust Manifest and Bundle Dump ===
-Date: 9/8/2025 2:22:24 PM
+Date: 9/13/2025 1:42:35 AM
 
 --- Pooled Strings (Manifest) ---
-Total entries: 33584
+Total entries: 33589
 _bikebase : Hash=1249547831
 _headlight group : Hash=3873694652
 _hold_ammobox : Hash=879182934
@@ -1970,6 +1970,10 @@ assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_gravel_01.prefab : Hash=37
 assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_gravel_02.prefab : Hash=2090754565 : GUID=950c3bf5e86d1c949a15c338189c231e
 assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_ice_01.prefab : Hash=3513657256 : GUID=b0d19db164b957947b1f409339bbf12f
 assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_ice_02.prefab : Hash=2693707408 : GUID=005b9191d00834e4f90e6fa76cb99ccd
+assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_lava_01.prefab : Hash=3013080716 : GUID=7234f0fd7db0c444c9063b69f6dff9d4
+assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_lava_02.prefab : Hash=1212580584 : GUID=fa437f82c71dd804ab13788fa23d0598
+assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_lava_02_w_fx.prefab : Hash=2299999359 : GUID=694b380c00153fd408eb31d26a7d6598
+assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_lava_02_w_fx_dmg.prefab : Hash=2657962325 : GUID=e394f473a37cac24cabd1b1ae6981545
 assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_metal_01.prefab : Hash=298123073 : GUID=04eda1c49a3a9f24b9cf87c1b6a28b23
 assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_metal_02.prefab : Hash=969777638 : GUID=102dbf7cdabe99547a970d49c27c1685
 assets/bundled/prefabs/modding/cubes/tiled/cube_tiled_metal_03.prefab : Hash=2624065695 : GUID=ba40a5c8d7666ee43a623139e63ea914
@@ -2055,6 +2059,7 @@ assets/bundled/prefabs/modding/events/twitch/twitch_dropbox.deployed.prefab : Ha
 assets/bundled/prefabs/modding/fx/fire_static_01.prefab : Hash=330621420 : GUID=cd94ceddb7632094cba579b648995502
 assets/bundled/prefabs/modding/fx/fire_static_02.prefab : Hash=1556864240 : GUID=615d56c56313edb4fb6a3f282dc2e201
 assets/bundled/prefabs/modding/fx/fire_static_03.prefab : Hash=1324214617 : GUID=d04024b8370d63c4eaf2c15086da722d
+assets/bundled/prefabs/modding/fx/smoke_volcano.prefab : Hash=408078464 : GUID=2fd31d663dc040c42bc5c61f1b891ff4
 assets/bundled/prefabs/modding/glass/ferryterminal_glass_ground_b.prefab : Hash=3306994423 : GUID=5f645223e01db424b9852f831fe8c504
 assets/bundled/prefabs/modding/glass/glass_cabin_1.prefab : Hash=3268706432 : GUID=1f2dead7551a1764fa27624c411734b0
 assets/bundled/prefabs/modding/glass/glass_cabin_2.prefab : Hash=2661874690 : GUID=bfe3bcb6b9680414dbfea159f273201d
@@ -33593,11 +33598,11 @@ Total entries: 1557
 Unique entries (not in Pooled Strings): 0
 
 --- Prefab Properties (Manifest) ---
-Total entries: 14611
+Total entries: 14616
 Unique entries (not in Pooled Strings): 0
 
 --- All Bundle Assets (BundleLookup) ---
-Total entries: 54802
+Total entries: 54816
 assets/benchmark/assets/grid.mat
 Assets/Benchmark/BaseRaidBenchmark.unity
 Assets/Benchmark/BiomeBenchmark.unity
@@ -33672,6 +33677,8 @@ assets/bundled/prefabs/modding/cubes/tiled/materials/cube_tiled_gravel_01.mat
 assets/bundled/prefabs/modding/cubes/tiled/materials/cube_tiled_gravel_02.mat
 assets/bundled/prefabs/modding/cubes/tiled/materials/cube_tiled_ice_01.mat
 assets/bundled/prefabs/modding/cubes/tiled/materials/cube_tiled_ice_02.mat
+assets/bundled/prefabs/modding/cubes/tiled/materials/cube_tiled_lava_01.mat
+assets/bundled/prefabs/modding/cubes/tiled/materials/cube_tiled_lava_02.mat
 assets/bundled/prefabs/modding/cubes/tiled/materials/cube_tiled_metal_01.mat
 assets/bundled/prefabs/modding/cubes/tiled/materials/cube_tiled_metal_02.mat
 assets/bundled/prefabs/modding/cubes/tiled/materials/cube_tiled_metal_03.mat
@@ -35934,6 +35941,7 @@ assets/content/effects/cars/vfx_ember2.mat
 assets/content/effects/cars/vfx_gibs_snow.mat
 assets/content/effects/cars/vfx_heatshimmer.mat
 assets/content/effects/cars/vfx_heatshimmer_heater.mat
+assets/content/effects/cars/vfx_heatshimmer_lava.mat
 assets/content/effects/cars/vfx_heatshimmer_milder.mat
 assets/content/effects/cars/vfx_heatshimmer_stronger.mat
 assets/content/effects/cars/vfx_heatshimmer_strongest.mat
@@ -36133,6 +36141,7 @@ assets/content/effects/explosions/textures/ramp03.png
 assets/content/effects/explosions/textures/roundsoftparticle.tif
 assets/content/effects/explosions/textures/roundsoftparticle2.tif
 assets/content/effects/explosions/textures/roundsoftparticle3.tif
+assets/content/effects/explosions/textures/roundsoftparticle4.tif
 assets/content/effects/explosions/textures/shockwave.tif
 assets/content/effects/explosions/textures/smokeloop.tif
 assets/content/effects/explosions/textures/smokeloop02.tif
@@ -36143,6 +36152,7 @@ assets/content/effects/explosions/textures/smokepuff04normal.tif
 assets/content/effects/explosions/textures/smokepuffnormal.tif
 assets/content/effects/explosions/textures/smokeysteam.tif
 assets/content/effects/explosions/textures/spherenormal.tif
+assets/content/effects/explosions/textures/spherenormal2.tga
 assets/content/effects/explosions/textures/spherenormalrippled.tga
 assets/content/effects/explosions/textures/tinystones.png
 assets/content/effects/explosions/textures/twinkle.png
@@ -36558,6 +36568,7 @@ assets/content/effects/materials/smoke/smoke_exhaustfumes2_highdepth.mat
 assets/content/effects/materials/smoke/smoke_exhaustfumes2_lowdepth.mat
 assets/content/effects/materials/smoke/smoke_explode_vertical.mat
 assets/content/effects/materials/smoke/smoke_grenade.mat
+assets/content/effects/materials/smoke/smoke_volcano.mat
 assets/content/effects/materials/smoke/torch_smoke_a.mat
 assets/content/effects/materials/smoke/warm_fumes_additive.mat
 assets/content/effects/materials/smoke/wispy-4.mat
@@ -59633,6 +59644,14 @@ assets/content/textures/generic/jungle_ruins_walls_a/jungle_ruins_walls_b_diff.t
 assets/content/textures/generic/jungle_ruins_walls_a/jungle_ruins_walls_b_ms.tga
 assets/content/textures/generic/jungle_ruins_walls_a/jungle_ruins_walls_b_nrm.tga
 assets/content/textures/generic/lamp_lens/lamp_lens_nrm.tga
+assets/content/textures/generic/lava/lava_a_diff.tga
+assets/content/textures/generic/lava/lava_a_emissive.tga
+assets/content/textures/generic/lava/lava_a_nrm.tga
+assets/content/textures/generic/lava/lava_a_spec.tga
+assets/content/textures/generic/lava/lava_b_diff.tga
+assets/content/textures/generic/lava/lava_b_emissive.tga
+assets/content/textures/generic/lava/lava_b_nrm.tga
+assets/content/textures/generic/lava/lava_b_spec.tga
 assets/content/textures/generic/lift/lift_ao.tga
 assets/content/textures/generic/lift/lift_diff.tga
 assets/content/textures/generic/lift/lift_nrm.tga
@@ -88400,4 +88419,4 @@ assets/workshop/rustslider.workshopblue.asset : Hash=2133951964
 assets/workshop/rustslider.workshopcutoff.asset : Hash=3858340216
 assets/workshop/rustslider.workshopgreen.asset : Hash=2964085215
 assets/workshop/rustslider.workshopred.asset : Hash=1076016445
-Unique entries (not in previous sections): 44047
+Unique entries (not in previous sections): 44061

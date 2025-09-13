@@ -66,8 +66,8 @@ public class AddToHeightMap : MonoBehaviour
                 if (component.Raycast(ray, out raycastHit, bounds.size.y))
                 {
                     // Draw green ray from origin to the hit point
-                    Debug.DrawRay(origin, Vector3.down * raycastHit.distance, Color.green, 5f);
-                    float newHeight = (raycastHit.point.y - terrainPosition.y) / terrainSize.y;
+                    //Debug.DrawRay(origin, Vector3.down * raycastHit.distance, Color.green, 5f);
+                    float newHeight = ((raycastHit.point.y - terrainPosition.y) / terrainSize.y) -.0015f;
                     float currentHeight = currentHeightMap[i, j];
 
                     if (newHeight > currentHeight)
@@ -83,7 +83,7 @@ public class AddToHeightMap : MonoBehaviour
                 else
                 {
                     // Draw red ray for the full distance if no hit
-                    Debug.DrawRay(origin, Vector3.down * bounds.size.y, Color.red, 5f);
+                    //Debug.DrawRay(origin, Vector3.down * bounds.size.y, Color.red, 5f);
                     regionHeights[i - zMin, j - xMin] = currentHeightMap[i, j];
                 }
                 // --- End of Debug Ray Addition ---

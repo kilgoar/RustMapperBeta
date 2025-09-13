@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6431822700879895215}
-  - component: {fileID: 7838056846853734572}
+  - component: {fileID: 3937693764699998194}
   m_Layer: 3
   m_Name: TranslucentCube
   m_TagString: Prefab
@@ -33,7 +33,7 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7838056846853734572
+--- !u!114 &3937693764699998194
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

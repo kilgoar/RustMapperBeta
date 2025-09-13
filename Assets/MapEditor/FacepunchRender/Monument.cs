@@ -116,6 +116,147 @@ protected override void ApplyHeightMap(Matrix4x4 localToWorld, Matrix4x4 worldTo
         regionHeightsBefore
     );
 }
+protected override int CheckTolerance(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions)
+{
+    if (!HeightMap || heightmap == null)
+    {
+        Debug.LogWarning("Heightmap is not enabled or invalid. Returning 0 tolerance.");
+        return 0;
+    }
+
+    Texture2D heightTexture = heightmap.GetResource();
+    Texture2D blendTexture = blendmap?.GetResource();
+    if (heightTexture == null || !heightTexture.isReadable)
+    {
+        Debug.LogWarning("Height texture is null or not readable. Returning 0 tolerance.");
+        return 0;
+    }
+    if (blendTexture == null || !blendTexture.isReadable)
+    {
+        Debug.LogWarning("Blend texture is null or not readable. Returning 0 tolerance.");
+        return 0;
+    }
+
+    // Step 1: Traverse blendmap to find blend base coordinates (alpha between 0.01 and 0.1)
+    List<Vector2> blendBaseUVs = new List<Vector2>();
+    int width = blendTexture.width;
+    int height = blendTexture.height;
+    for (int x = 0; x < width; x += Mathf.Max(1, width / 100)) // Stride for performance
+    {
+        for (int y = 0; y < height; y += Mathf.Max(1, height / 100))
+        {
+            float u = x / (float)(width - 1);
+            float v = y / (float)(height - 1);
+            float blendAlpha = blendTexture.GetPixelBilinear(u, v).a;
+            if (blendAlpha > 0.01f && blendAlpha <= 0.1f)
+            {
+                blendBaseUVs.Add(new Vector2(u, v));
+            }
+        }
+    }
+
+    if (blendBaseUVs.Count == 0)
+    {
+        Debug.LogWarning("No blend base coordinates found with alpha in (0.01, 0.1]. Returning 0 tolerance.");
+        return 0;
+    }
+
+    // Step 2: Set up bounding box (MATCH ApplyHeightMap/GetWorldCorners LOGIC)
+    float radius = Radius == 0f ? extents.x : Radius;
+    bool useBlendMap = blendTexture != null;
+    float radiusX = useBlendMap ? extents.x : radius;
+    float radiusZ = useBlendMap ? extents.z : radius;
+
+    Vector3 position = localToWorld.MultiplyPoint3x4(Vector3.zero);
+    Quaternion rotation = localToWorld.rotation;
+    Vector3 localXAxis = rotation * Vector3.right;
+    Vector3 localZAxis = rotation * Vector3.forward;
+
+    float extentX = Mathf.Abs(Vector3.Dot(new Vector3(radiusX, 0f, 0f), localXAxis)) +
+                    Mathf.Abs(Vector3.Dot(new Vector3(0f, 0f, radiusZ), localXAxis));
+    float extentZ = Mathf.Abs(Vector3.Dot(new Vector3(radiusX, 0f, 0f), localZAxis)) +
+                    Mathf.Abs(Vector3.Dot(new Vector3(0f, 0f, radiusZ), localZAxis));
+
+    Vector3[] corners = new Vector3[]
+    {
+        position + new Vector3(-extentX, 0f, -extentZ),
+        position + new Vector3(extentX, 0f, -extentZ),
+        position + new Vector3(-extentX, 0f, extentZ),
+        position + new Vector3(extentX, 0f, extentZ)
+    };
+
+    // Convert to terrain grid coordinates
+    int[] gridBounds = TerrainManager.WorldCornersToGrid(corners[0], corners[1], corners[2], corners[3]);
+    int minX = Mathf.Max(0, gridBounds[0]), minZ = Mathf.Max(0, gridBounds[1]);
+    int maxX = Mathf.Min(TerrainManager.HeightMapRes - 1, gridBounds[2]), maxZ = Mathf.Min(TerrainManager.HeightMapRes - 1, gridBounds[3]);
+    int widthGrid = maxX - minX + 1, heightGrid = maxZ - minZ + 1;
+
+    if (widthGrid <= 0 || heightGrid <= 0)
+    { 
+    
+        Debug.LogWarning($"Invalid region size for tolerance check: width={widthGrid}, height={heightGrid}. " +
+                         $"Unclamped gridBounds=[{gridBounds[0]},{gridBounds[1]},{gridBounds[2]},{gridBounds[3]}], " +
+                         $"extents=({extents.x:F1},{extents.z:F1}), Radius={Radius:F1}, useBlendMap={useBlendMap}. " +
+                         $"Position={position}, Rotation={rotation.eulerAngles}. Returning 0 tolerance.");
+						 
+	
+        return 0;
+    }
+
+    // Update dimensions (only if valid)
+    dimensions.IncludeRect(new RectInt(minX, minZ, widthGrid, heightGrid));
+
+    // Step 3: Compare heightmaps at blend base coordinates
+    float[,] heightMap = TerrainManager.GetHeightMap();
+    Vector3 terrainPosition = TerrainManager.Land.transform.position;
+    Vector3 terrainSize = TerrainManager.TerrainSize;
+    Vector3 scale = localToWorld.lossyScale;
+
+    float totalAbsDiff = 0f;
+    int sampleCount = 0;
+
+    foreach (Vector2 uv in blendBaseUVs)
+    {
+        // Convert UV to local position
+        Vector3 localPos = new Vector3(
+            uv.x * size.x - extents.x,
+            0f,
+            uv.y * size.z - extents.z
+        );
+
+        // Convert to world space
+        Vector3 worldPos = localToWorld.MultiplyPoint3x4(localPos);
+
+        // Sample monument height
+        float monumentHeight = BitUtility.SampleHeightBilinear(heightTexture, uv.x, uv.y);
+        float worldMonumentHeight = position.y + offset.y + monumentHeight * size.y * scale.y;
+
+        // Sample terrain height
+        float normX = (worldPos.x - terrainPosition.x) / terrainSize.x;
+        float normZ = (worldPos.z - terrainPosition.z) / terrainSize.z;
+        int x = Mathf.Clamp(Mathf.FloorToInt(normX * TerrainManager.HeightMapRes), 0, TerrainManager.HeightMapRes - 1);
+        int z = Mathf.Clamp(Mathf.FloorToInt(normZ * TerrainManager.HeightMapRes), 0, TerrainManager.HeightMapRes - 1);
+        float terrainHeight = heightMap[z, x] * terrainSize.y + terrainPosition.y;
+
+        // Calculate absolute difference: |monument - terrain|
+        float absDiff = Mathf.Abs(worldMonumentHeight - terrainHeight);
+        totalAbsDiff += absDiff;
+        sampleCount++;
+    }
+
+    // Step 4: Calculate tolerance (0-100)
+    if (sampleCount == 0)
+    {
+        Debug.LogWarning("No valid samples for tolerance check. Returning 0 tolerance.");
+        return 0;
+    }
+
+    float averageAbsDiff = totalAbsDiff / sampleCount;
+    int tolerance = Mathf.RoundToInt(Mathf.Clamp((averageAbsDiff / 25f) * 100f, 0f, 100f));
+
+    //Debug.Log($"Tolerance calculated: {tolerance} (based on {sampleCount} blend base samples, avg abs diff: {averageAbsDiff:F3} units)");
+    return tolerance;
+}
 
 protected override void ApplyAlphaMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions)
 {
@@ -149,27 +290,36 @@ protected override void ApplyAlphaMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
         }
     }
 
-
     float[,] regionAlpha = new float[height, width];
     float alphaValue = 0f;
 
+    // FIXED: Center sampling to match Unity native (add +0.5f, like HeightMap)
+    Vector3 terrainPosition = TerrainManager.Land.transform.position;  // Assume Land for alpha
+    Vector3 terrainSize = TerrainManager.TerrainSize;
     for (int x = minX; x <= maxX; x++)
     {
         for (int z = minZ; z <= maxZ; z++)
         {
-            Vector3 worldPos = new Vector3(TerrainManager.ToWorldX(x), 0, TerrainManager.ToWorldZ(z));
+            float normX = ((float)x + 0.5f) / TerrainManager.AlphaMapRes;
+            float normZ = ((float)z + 0.5f) / TerrainManager.AlphaMapRes;
+            Vector3 worldPos = new Vector3(
+                terrainPosition.x + normX * terrainSize.x,
+                0f,
+                terrainPosition.z + normZ * terrainSize.z
+            );
             Vector3 localPos = worldToLocal.MultiplyPoint3x4(worldPos) - offset;
             float u = Mathf.Clamp01((localPos.x + extents.x) / size.x);
             float v = Mathf.Clamp01((localPos.z + extents.z) / size.z);
-            float blendAlpha = blendTexture.GetPixelBilinear(u, v).a;
+            float blendAlpha = blendTexture != null ? blendTexture.GetPixelBilinear(u, v).a : 1f;  // Optional: Use for fade if needed
 
             alphaValue = user ? alphaTexture.GetPixelBilinear(u, v).r : alphaTexture.GetPixelBilinear(u, v).a;
-            regionAlpha[z - minZ, x - minX] = alphaValue;
+            regionAlpha[z - minZ, x - minX] = alphaValue;  // Multiply by blendAlpha if fading
         }
     }
 
     TerrainManager.SetAlphaMapRegion(regionAlpha, minX, minZ, width, height);
-	    // Register undo state
+    
+    // Register undo state
     TerrainUndoManager.RegisterAlphaMapUndoRedo(
         "Monument AlphaMap",
         minX,
@@ -216,11 +366,19 @@ protected override void ApplyAlphaMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
     float[,,] regionBiomes = new float[height, width, biomeCount];
     int biomeCountLocal = 5; // Arid, Temperate, Tundra, Arctic, Jungle
 
+    Vector3 terrainPosition = TerrainManager.Land.transform.position;
+    Vector3 terrainSize = TerrainManager.TerrainSize;
     for (int x = minX; x <= maxX; x++)
     {
         for (int z = minZ; z <= maxZ; z++)
         {
-            Vector3 worldPos = new Vector3(TerrainManager.ToWorldX(x), 0, TerrainManager.ToWorldZ(z));
+            float normX = ((float)x + 0.5f) / TerrainManager.SplatMapRes;
+            float normZ = ((float)z + 0.5f) / TerrainManager.SplatMapRes;
+            Vector3 worldPos = new Vector3(
+                terrainPosition.x + normX * terrainSize.x,
+                0f,
+                terrainPosition.z + normZ * terrainSize.z
+            );
             Vector3 localPos = worldToLocal.MultiplyPoint3x4(worldPos) - offset;
 
             float u = Mathf.Clamp01((localPos.x + extents.x) / size.x);
@@ -261,6 +419,7 @@ protected override void ApplyAlphaMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
             regionBiomes[z - minZ, x - minX, 4] = Mathf.Lerp(biomeMap[z, x, 4], biomeValues[4], effectiveFade); // Jungle
         }
     }
+
 
     // Normalize biome values
     for (int x = 0; x < width; x++)
@@ -340,11 +499,20 @@ protected override void ApplySplatMap(Matrix4x4 localToWorld, Matrix4x4 worldToL
     float[,,] regionSplats = new float[height, width, layerCount];
     Debug.Log($"Splat Layer Count: {layerCount}");
 
+    // FIXED: Center sampling (add +0.5f to match Alpha/Height)
+    Vector3 terrainPosition = TerrainManager.Land.transform.position;
+    Vector3 terrainSize = TerrainManager.TerrainSize;
     for (int x = minX; x <= maxX; x++)
     {
         for (int z = minZ; z <= maxZ; z++)
         {
-            Vector3 worldPos = new Vector3(TerrainManager.ToWorldX(x), 0, TerrainManager.ToWorldZ(z));
+            float normX = ((float)x + 0.5f) / TerrainManager.SplatMapRes;
+            float normZ = ((float)z + 0.5f) / TerrainManager.SplatMapRes;
+            Vector3 worldPos = new Vector3(
+                terrainPosition.x + normX * terrainSize.x,
+                0f,
+                terrainPosition.z + normZ * terrainSize.z
+            );
             Vector3 localPos = worldToLocal.MultiplyPoint3x4(worldPos) - offset;
 
             float u = Mathf.Clamp01((localPos.x + extents.x) / size.x);
@@ -480,11 +648,20 @@ protected override void ApplyTopologyMap(Matrix4x4 localToWorld, Matrix4x4 world
         return;
     }
 
+    // FIXED: Center sampling (add +0.5f to match Alpha/Height)
+    Vector3 terrainPosition = TerrainManager.Land.transform.position;
+    Vector3 terrainSize = TerrainManager.TerrainSize;
     for (int x = minX; x <= maxX; x++)
     {
         for (int z = minZ; z <= maxZ; z++)
         {
-            Vector3 worldPos = new Vector3(TerrainManager.ToWorldX(x), 0, TerrainManager.ToWorldZ(z));
+            float normX = ((float)x + 0.5f) / TerrainManager.AlphaMapRes;
+            float normZ = ((float)z + 0.5f) / TerrainManager.AlphaMapRes;
+            Vector3 worldPos = new Vector3(
+                terrainPosition.x + normX * terrainSize.x,
+                0f,
+                terrainPosition.z + normZ * terrainSize.z
+            );
             Vector3 localPos = worldToLocal.MultiplyPoint3x4(worldPos) - offset;
 
             float u = Mathf.Clamp01((localPos.x + extents.x) / size.x);

@@ -2761,6 +2761,7 @@ private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerI
 		return null;
 	}
 	
+	/*
 	public static void SpawnFeature(GeologyItem item, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
 	{
 		if (!item.custom)
@@ -2770,6 +2771,18 @@ private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerI
 		}
 		else
 			spawnCustom(item, position, rotation, scale, parent);
+	}
+	*/
+	
+	public static GameObject SpawnFeature(GeologyItem item, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
+	{
+		if (!item.custom)
+		{
+			return spawnGeoItem(item, position, rotation, scale, parent);
+			
+		}
+		else
+			return spawnCustom(item, position, rotation, scale, parent);
 	}
 	
 	public static GameObject SpawnFeature(GeologyItem item, Transform parent = null)
@@ -2783,9 +2796,14 @@ private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerI
 			return spawnCustom(item, Vector3.zero, Vector3.zero, Vector3.one, parent);
 	}
 	
-	[ConsoleCommand("loads file.dungeon from appdata/presets/scripts/")]
+	[ConsoleCommand("loads file from appdata/presets/scripts/")]
 	public static void CreateDungeon(string file){
 		DungeonManager.StartDungeon(Path.Combine(SettingsManager.AppDataPath(), "Presets","Scripts", file));
+	}
+	
+	[ConsoleCommand("loads file from appdata/presets/scripts/")]
+	public static void MakeLayout(string file){
+		LayoutManager.LoadAndPlacePOIs(Path.Combine(SettingsManager.AppDataPath(), "Presets","Scripts", file));
 	}
 	
 [ConsoleCommand("directory list")]

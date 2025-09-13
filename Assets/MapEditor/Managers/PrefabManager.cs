@@ -128,7 +128,14 @@ public static class PrefabManager
 	public static Dictionary<GameObject, bool> Entities;
 	public static List<Collider> unprocessedColliders = new List<Collider>();
     /// <summary>Prefabs currently spawned on the map.</summary>
-    public static PrefabDataHolder[] CurrentMapPrefabs { get => PrefabParent.gameObject.GetComponentsInChildren<PrefabDataHolder>(); }
+	
+	
+		public static PrefabDataHolder[] CurrentMapPrefabs 
+		{ 
+			get => PrefabParent.gameObject.GetComponentsInChildren<PrefabDataHolder>()
+				.Where(holder => holder.prefabData.id != 0)
+				.ToArray(); 
+		}
 	
 	public static bool networking = false;
 	//public static PrefabDataHolder CurrentSelection { get; private set; }

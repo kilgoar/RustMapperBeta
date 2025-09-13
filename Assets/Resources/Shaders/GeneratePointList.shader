@@ -1,0 +1,68 @@
+#pragma kernel GeneratePointList
+
+// Global textures (set via Shader.SetGlobalTexture)
+Texture2D<float> Terrain_HeightTexture;  // R16: red = height (0-1)
+sampler2D sampler_HeightTexture;
+Texture2D<float4> Terrain_Biome;         // ARGB32: A=D(0), R=T(1), G=U(2), B=A(3) ≥0.25
+sampler2D sampler_Biome;
+
+// Separate topology textures for tiers (sample .r channel, ≥0.5 for dominant)
+Texture2D<float> Topology_Tier0;         // Layer 26: .r >=0.5 for tier '0'
+sampler2D sampler_Tier0;
+Texture2D<float> Topology_Tier1;         // Layer 27: .r >=0.5 for tier '1'
+sampler2D sampler_Tier1;
+Texture2D<float> Topology_Tier2;         // Layer 28: .r >=0.5 for tier '2'
+sampler2D sampler_Tier2;
+
+// Output: Append valid (i,j) coords
+AppendStructuredBuffer<float2> ValidPoints;
+
+// Params
+int HeightMapRes;
+int SplatMapRes;
+float MinHeight;     // e.g., 0-1000 (scaled from height*1000)
+float MaxHeight;
+float4 BiomeMask;    // x=D, y=T, z=U, w=A (1.0 if allowed); J omitted (add if needed)
+float3 TierMask;     // x=tier0, y=tier1, z=tier2 (1.0 if allowed)
+
+[numthreads(8,8,1)]
+void GeneratePointList (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)HeightMapRes || id.y >= (uint)HeightMapRes) return;
+
+    // Step 1: Height check (sample at full res)
+    float height = tex2Dlod(sampler_HeightTexture, float4(id.xy / (float)HeightMapRes, 0, 0)).r * 1000.0;
+    if (height < MinHeight || height > MaxHeight) return;
+
+    // Step 2: Biome check (downsample to splat res)
+    int resRatio = HeightMapRes / SplatMapRes;
+    int2 biomeCoord = int2(id.x / resRatio, id.y / resRatio);
+    float4 biomeValues = tex2Dlod(sampler_Biome, float4(biomeCoord / (float)SplatMapRes, 0, 0));
+    bool biomeMatch = false;
+    if (BiomeMask.x > 0.5 && biomeValues.a >= 0.25) biomeMatch = true;  // D (alpha channel)
+    if (BiomeMask.y > 0.5 && biomeValues.r >= 0.25) biomeMatch = true;  // T (red)
+    if (BiomeMask.z > 0.5 && biomeValues.g >= 0.25) biomeMatch = true;  // U (green)
+    if (BiomeMask.w > 0.5 && biomeValues.b >= 0.25) biomeMatch = true;  // A (blue)
+    // Add for J if present: e.g., if (BiomeMask[4] > 0.5 && separate J texture >=0.25) ...
+    if (!biomeMatch) return;
+
+    // Step 3: Tier check (downsample, check allowed tier dominant >=0.5 at .r channel)
+    float2 topoCoord = float2(biomeCoord / (float)SplatMapRes);
+    bool tierMatch = false;
+    if (TierMask.x > 0.5) {
+        float tier0Val = tex2Dlod(sampler_Tier0, float4(topoCoord, 0, 0)).r;
+        if (tier0Val >= 0.5) tierMatch = true;
+    }
+    if (TierMask.y > 0.5) {
+        float tier1Val = tex2Dlod(sampler_Tier1, float4(topoCoord, 0, 0)).r;
+        if (tier1Val >= 0.5) tierMatch = true;
+    }
+    if (TierMask.z > 0.5) {
+        float tier2Val = tex2Dlod(sampler_Tier2, float4(topoCoord, 0, 0)).r;
+        if (tier2Val >= 0.5) tierMatch = true;
+    }
+    if (!tierMatch) return;
+
+    // Valid: Append coord
+    ValidPoints.Append(float2(id.x, id.y));
+}

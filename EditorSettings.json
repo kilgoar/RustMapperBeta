@@ -20,6 +20,9 @@
     "newSplat": 16,
     "startupSkin": "D:\\Users\\kilgoar\\Desktop\\rustmapper2023\\Custom\\Skins\\darkmode.png",
     "recentFiles": [
+      "E:\\generatortest.map",
+      "E:\\downloads\\WaterTreatmentVariantShowcase.map",
+      "E:\\downloads\\WaterTreatmentVariantShowcaseFix.map",
       "E:\\pathstest.map",
       "E:\\marstest.map",
       "E:\\downloads\\Sloped Test Map BXR2.map",
@@ -83,7 +86,9 @@
         "emphasis": 1,
         "maximum": 2147483647,
         "sectors": "",
-        "custom": false
+        "custom": false,
+        "minDepth": 0,
+        "maxDepth": 2147483647
       }
     ],
     "geologyCollisions": [
@@ -284,8 +289,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 53.46,
-        "y": -66.86,
+        "x": 9.279968,
+        "y": -63.0249939,
         "z": 0.0
       },
       "scale": {
@@ -297,8 +302,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -289.299,
-        "y": -40.02997,
+        "x": -152.799,
+        "y": -28.0299683,
         "z": 0.0
       },
       "scale": {
@@ -373,10 +378,10 @@
       }
     },
     {
-      "isActive": true,
+      "isActive": false,
       "position": {
-        "x": -99.53601,
-        "y": -99.1099854,
+        "x": -21.46399,
+        "y": -78.1099854,
         "z": 0.0
       },
       "scale": {
@@ -414,8 +419,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 220.352173,
-        "y": -152.151947,
+        "x": 186.352173,
+        "y": 66.84805,
         "z": 0.0
       },
       "scale": {

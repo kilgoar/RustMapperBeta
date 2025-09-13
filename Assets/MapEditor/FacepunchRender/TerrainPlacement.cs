@@ -46,6 +46,29 @@ public abstract class TerrainPlacement : PrefabAttribute
 		
         ApplyHeightMap(localToWorld, worldToLocal, dimensions);
     }
+	
+	public void CheckHeights(Vector3 position, Quaternion rotation, Vector3 scale, TerrainBounds dimensions)
+    {
+        //if (!ShouldHeight()) return;
+		
+		Matrix4x4 localToWorld = Matrix4x4.TRS(position, rotation, scale);
+        Matrix4x4 worldToLocal = localToWorld.inverse;
+		
+        // Store for gizmo drawing
+        gizmoLocalToWorld = localToWorld;
+        gizmoDimensions = dimensions;
+        shouldDrawGizmo = true;
+		
+        Debug.Log("monument tolerance is: " + CheckTolerance(localToWorld, worldToLocal, dimensions));
+    }
+	
+	public int GetTolerance(Vector3 position, Quaternion rotation, Vector3 scale, TerrainBounds dimensions)
+	{
+		Matrix4x4 localToWorld = Matrix4x4.TRS(position, rotation, scale);
+		Matrix4x4 worldToLocal = localToWorld.inverse;
+		
+		return CheckTolerance(localToWorld, worldToLocal, dimensions);
+	}
 
     public void ApplySplat(Vector3 position, Quaternion rotation, Vector3 scale, TerrainBounds dimensions)
     {
@@ -101,6 +124,9 @@ public abstract class TerrainPlacement : PrefabAttribute
     protected abstract void ApplyAlphaMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions);
     protected abstract void ApplyBiomeMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions);
     protected abstract void ApplyHeightMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions);
+	
+    protected abstract int CheckTolerance(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions);
+	
     protected abstract void ApplySplatMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions);
     protected abstract void ApplyTopologyMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions);
     protected abstract void ApplyWaterMap(Matrix4x4 localToWorld, Matrix4x4 worldToLocal, TerrainBounds dimensions);

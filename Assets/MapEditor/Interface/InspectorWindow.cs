@@ -199,45 +199,47 @@ public class InspectorWindow : MonoBehaviour
         });
     }
     
-    private void ApplyTerrain()
-    {
-        if (CameraManager.Instance._selectedObjects.Count == 0) return;
+	private void ApplyTerrain()
+	{
+		if (CameraManager.Instance._selectedObjects.Count == 0) return;
 
-        foreach (GameObject selected in CameraManager.Instance._selectedObjects)
-        {
-            TerrainPlacement terrainPlacement = selected.GetComponent<TerrainPlacement>();
-            if (terrainPlacement != null)
-            {
-                TerrainBounds dimensions = new TerrainBounds();
-                Vector3 position = selected.transform.position;
-                Quaternion rotation = selected.transform.rotation;
-                Vector3 scale = selected.transform.localScale;
-                
-                terrainPlacement.ApplyHeight(position, rotation, scale, dimensions);
-                terrainPlacement.ApplySplat(position, rotation, scale, dimensions);
-                terrainPlacement.ApplyTopology(position, rotation, scale, dimensions);
-                terrainPlacement.ApplyAlpha(position, rotation, scale, dimensions);
-                terrainPlacement.ApplyWater(position, rotation, scale, dimensions);
-            }
-            else
-            {
-                
-				AddToHeightMap[] colliderHeights = selected.GetComponentsInChildren<AddToHeightMap>();
-				
-				if (colliderHeights.Length > 0)
-				{
-					foreach (AddToHeightMap heightMap in colliderHeights)
-					{
-						heightMap.Apply();
-					}
-				}
-				else
-				{
-					Debug.LogWarning($"No AddToHeightMap components found on {selected.name} or its children");
-				}
-			}
-        }
-    }
+		foreach (GameObject selected in CameraManager.Instance._selectedObjects)
+		{
+			TraverseAndApply(selected);
+		}
+	}
+
+	private void TraverseAndApply(GameObject obj)
+	{
+		TerrainPlacement terrainPlacement = obj.GetComponent<TerrainPlacement>();
+		if (terrainPlacement != null)
+		{
+			TerrainBounds dimensions = new TerrainBounds();
+			Vector3 position = obj.transform.position;
+			Quaternion rotation = obj.transform.rotation;
+			Vector3 scale = obj.transform.localScale;
+
+			terrainPlacement.ApplyHeight(position, rotation, scale, dimensions);
+			terrainPlacement.ApplySplat(position, rotation, scale, dimensions);
+			terrainPlacement.ApplyTopology(position, rotation, scale, dimensions);
+			terrainPlacement.ApplyAlpha(position, rotation, scale, dimensions);
+			terrainPlacement.ApplyWater(position, rotation, scale, dimensions);
+			return; // End traversal on this branch
+		}
+
+		AddToHeightMap heightMap = obj.GetComponent<AddToHeightMap>();
+		if (heightMap != null)
+		{
+			heightMap.Apply();
+			return; // End traversal on this branch
+		}
+
+		// Continue traversal to children
+		for (int i = 0; i < obj.transform.childCount; i++)
+		{
+			TraverseAndApply(obj.transform.GetChild(i).gameObject);
+		}
+	}
     
     public void SaveCollection(GameObject go)
     {

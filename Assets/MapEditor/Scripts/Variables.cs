@@ -916,6 +916,35 @@ namespace RustMapEditor.Variables
 			this.minDepth = 0;
 			this.maxDepth = int.MaxValue;
 		}
+		
+		public GeologyItem(string path){
+			if (string.IsNullOrEmpty(path))
+			{
+				custom = false;
+				prefabID = 0;
+				customPrefab = "";
+				this.emphasis = Math.Max(1, emphasis);
+				this.maximum = Math.Max(1, maximum);
+				this.sectors = sectors;
+				this.minDepth = Math.Max(0, minDepth);
+				this.maxDepth = Math.Max(minDepth, maxDepth);
+				return;
+			}
+
+			if (path[0] == '~')
+			{
+				path = path.Replace("~", "").Replace("\\", "/");
+				custom = true;
+				customPrefab = path;
+				prefabID = 0;
+			}
+			else
+			{
+				custom = false;
+				prefabID = AssetManager.ToID(path + ".prefab");
+				customPrefab = "";
+			}
+		}
 
 		public GeologyItem(string path, int emphasis = 1, int maximum = int.MaxValue, string sectors = "", int minDepth = 0, int maxDepth = int.MaxValue)
 		{

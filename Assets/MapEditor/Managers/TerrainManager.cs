@@ -3344,15 +3344,16 @@ public static void SetHeightMapRegion(float[,] array, int x, int y, int width, i
 	}
 
 
-    // Convert world corners to terrain grid bounds
-    public static int[] WorldCornersToGrid(Vector3 bottomLeft, Vector3 bottomRight, Vector3 topLeft, Vector3 topRight)
-    {
-        int minX = Mathf.FloorToInt(ToTerrainX(bottomLeft.x));
-        int minZ = Mathf.FloorToInt(ToTerrainZ(bottomLeft.z));
-        int maxX = Mathf.CeilToInt(ToTerrainX(topRight.x));
-        int maxZ = Mathf.CeilToInt(ToTerrainZ(topRight.z));
-        return new[] { minX, minZ, maxX, maxZ };
-    }
+	// Convert world corners to terrain grid bounds
+	public static int[] WorldCornersToGrid(Vector3 bottomLeft, Vector3 bottomRight, Vector3 topLeft, Vector3 topRight)
+	{
+		// FIXED: Use FloorToInt for max to avoid off-by-one on exact edges (raw max <= Res-1)
+		int minX = Mathf.FloorToInt(ToTerrainX(bottomLeft.x));
+		int minZ = Mathf.FloorToInt(ToTerrainZ(bottomLeft.z));
+		int maxX = Mathf.FloorToInt(ToTerrainX(topRight.x));  // Changed from CeilToInt
+		int maxZ = Mathf.FloorToInt(ToTerrainZ(topRight.z));  // Changed from CeilToInt
+		return new[] { minX, minZ, maxX, maxZ };
+	}
 
     /// <summary>Changes the active Land and Topology Layers.</summary>
     /// <param name="layer">The LayerType to change to.</param>
