@@ -1561,6 +1561,8 @@ public void EmissionHighlight(List<Renderer> selection, bool enable)
 			_workGizmo.Gizmo.SetEnabled(false);
 			_workGizmo.SetTargetObjects(new List<GameObject>()); // Clear targets to avoid stale references
 		}
+		
+		UpdateSnapSettings();
 	}
 	
 	void DragTransform()
@@ -1631,16 +1633,14 @@ public void EmissionHighlight(List<Renderer> selection, bool enable)
             for (int i = 0; i < 3; i++)
             {
                 int index = i;
-                snapFields[i].onEndEdit.AddListener((text) => UpdateSnapSettings());
+                snapFields[i].onValueChanged.AddListener((text) => UpdateSnapSettings());
             }
 
     }
 
-private void UpdateSnapSettings()
+public void UpdateSnapSettings()
 {
-	
     if (_workGizmo == null) return;
-
 
     float moveSnap = ParseSnapValue(snapFields[0].text);
     float rotateSnap = ParseSnapValue(snapFields[1].text);
@@ -1715,7 +1715,6 @@ private void UpdateSnapSettings()
             break;
     }
 	
-	UpdateGizmoState();
 
 }
     private float ParseSnapValue(string text)

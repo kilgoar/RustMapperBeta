@@ -1,6 +1,6 @@
 # Sample RustMapper layout file for procedural map generation
-- Min POIs:15
-- Max POIs:25
+- Min POIs:40
+- Max POIs:50
 
 #biome codes: D-arid T-temperate U-tundra A-arctic J-jungle
 
@@ -9,17 +9,17 @@
 
 - INCLUDE:3
 - path:assets/bundled/prefabs/autospawn/monument/cave/cave_large_hard
- weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
 - path:assets/bundled/prefabs/autospawn/monument/cave/cave_large_medium
- weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
 - path:assets/bundled/prefabs/autospawn/monument/cave/cave_large_sewers_hard
- weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
 - path:assets/bundled/prefabs/autospawn/monument/cave/cave_medium_easy
- weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
 - path:assets/bundled/prefabs/autospawn/monument/cave/cave_medium_hard
- weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
 - path:assets/bundled/prefabs/autospawn/monument/cave/cave_small_easy
- weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[20,1000]
+ weight:5 countRange:[0,1] biomes: tiers: poiDistance:[200,0] terrainTolerance:20 heightRange:[505,1000]
 }
 
 - INCLUDE:2
@@ -32,12 +32,12 @@
 }
 
 - INCLUDE:2
-- path:assets/bundled/prefabs/autospawn/monument/harbor/ferry_terminal_1 WATERFRONT TUNNELSNAP
- weight:6 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:30 heightRange:[499,501]
-- path:assets/bundled/prefabs/autospawn/monument/harbor/harbor_1 WATERFRONT TUNNELSNAP
- weight:6 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:30 heightRange:[499,501]
-- path:assets/bundled/prefabs/autospawn/monument/harbor/harbor_2 WATERFRONT TUNNELSNAP
- weight:6 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:30 heightRange:[499,501]
+- path:assets/bundled/prefabs/autospawn/monument/harbor/ferry_terminal_1 required:1 WATERFRONT TUNNELSNAP OCEAN
+ weight:6 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:30 heightRange:[490,495]
+- path:assets/bundled/prefabs/autospawn/monument/harbor/harbor_1 required:1 WATERFRONT TUNNELSNAP OCEAN
+ weight:6 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:30 heightRange:[490,495]
+- path:assets/bundled/prefabs/autospawn/monument/harbor/harbor_2 required:1 WATERFRONT TUNNELSNAP OCEAN
+ weight:6 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:30 heightRange:[490,495]
 }
 
 - INCLUDE:2
@@ -137,7 +137,7 @@
  weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:45 heightRange:[505,1000]
 
 - path:assets/bundled/prefabs/autospawn/monument/medium/nuclear_missile_silo
- weight:7 countRange:[0,1] biomes: tiers:12 poiDistance:[200,0] terrainTolerance:60 heightRange:[505,1000]
+ weight:7 countRange:[0,1] biomes: tiers:12 poiDistance:[200,0] terrainTolerance:40 heightRange:[505,1000]
 
 - path:assets/bundled/prefabs/autospawn/monument/medium/radtown_small_3
  weight:7 countRange:[0,2] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:40 heightRange:[505,1000]
@@ -152,11 +152,11 @@
  weight:10 countRange:[0,2] biomes: tiers:012 poiDistance:[100,0] terrainTolerance:30 heightRange:[505,1000]
 
 - path:assets/bundled/prefabs/autospawn/monument/small/mining_quarry_a
- weight:5 countRange:[0,1] biomes: tiers:12 poiDistance:[100,0] terrainTolerance:70 heightRange:[505,1000]
+ weight:5 countRange:[0,1] biomes: tiers:12 poiDistance:[100,0] terrainTolerance:40 heightRange:[505,1000]
 - path:assets/bundled/prefabs/autospawn/monument/small/mining_quarry_b
- weight:5 countRange:[0,1] biomes: tiers:12 poiDistance:[100,0] terrainTolerance:70 heightRange:[505,1000]
+ weight:5 countRange:[0,1] biomes: tiers:12 poiDistance:[100,0] terrainTolerance:40 heightRange:[505,1000]
 - path:assets/bundled/prefabs/autospawn/monument/small/mining_quarry_c
- weight:5 countRange:[0,1] biomes: tiers:12 poiDistance:[100,0] terrainTolerance:70 heightRange:[505,1000]
+ weight:5 countRange:[0,1] biomes: tiers:12 poiDistance:[100,0] terrainTolerance:40 heightRange:[505,1000]
 
 - path:assets/bundled/prefabs/autospawn/monument/small/satellite_dish TUNNELSNAP
  weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:35 heightRange:[505,1000]
@@ -164,7 +164,7 @@
  weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:35 heightRange:[505,1000]
 
 - path:assets/bundled/prefabs/autospawn/monument/lighthouse/lighthouse
- weight:8 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:40 heightRange:[505,1000]
+ weight:8 countRange:[0,1] biomes: tiers:01 poiDistance:[200,0] terrainTolerance:40 heightRange:[498,500]
 
 - path:assets/bundled/prefabs/autospawn/monument/large/airfield_1 TUNNELSNAP
  weight:7 countRange:[0,1] biomes: tiers:1 poiDistance:[200,0] terrainTolerance:75 heightRange:[505,1000]

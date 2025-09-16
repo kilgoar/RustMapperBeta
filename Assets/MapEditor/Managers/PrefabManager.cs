@@ -1140,9 +1140,9 @@ public static class PrefabManager
 			socketComponent.Male = socketInfo.Male;
 			socketComponent.Female = socketInfo.Female;
 
-			Debug.Log($"Spawned socket '{newSocket.name}' under SocketInfo for collection: {collectionName}");
+			//Debug.Log($"Spawned socket '{newSocket.name}' under SocketInfo for collection: {collectionName}");
 		}
-		Debug.Log($"Successfully added {sockets.Count} sockets to SocketInfo under {collectionName}.");
+		//Debug.Log($"Successfully added {sockets.Count} sockets to SocketInfo under {collectionName}.");
 	}
 	
 	public static Colliders ItemToColliders(Transform item)

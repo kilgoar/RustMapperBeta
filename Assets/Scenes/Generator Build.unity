@@ -49196,8 +49196,8 @@ RectTransform:
   m_Father: {fileID: 1679381142}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.09274194, y: 0}
-  m_AnchorMax: {x: 0.09274194, y: 1}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: -0.34000015}
   m_SizeDelta: {x: 12.4, y: 4.9199996}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -142125,7 +142125,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_CaretColor: {r: 0.6431373, g: 0.6431373, b: 0.6431373, a: 1}
-  m_CustomCaretColor: 1
+  m_CustomCaretColor: 0
   m_SelectionColor: {r: 0.050980397, g: 0.6666667, b: 0.8196079, a: 1}
   m_Text: 
   m_CaretBlinkRate: 0.85
@@ -142255,7 +142255,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 560793364}
   m_Direction: 0
   m_MinValue: 2
-  m_MaxValue: 250
+  m_MaxValue: 500
   m_WholeNumbers: 1
   m_Value: 25
   m_OnValueChanged:
@@ -151608,7 +151608,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_CaretColor: {r: 0.6431373, g: 0.6431373, b: 0.6431373, a: 1}
-  m_CustomCaretColor: 1
+  m_CustomCaretColor: 0
   m_SelectionColor: {r: 0.050980397, g: 0.6666667, b: 0.8196079, a: 1}
   m_Text: 
   m_CaretBlinkRate: 0.85
@@ -152490,7 +152490,7 @@ RectTransform:
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0.09274194, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 10, y: -4.9200006}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -194883,7 +194883,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_CaretColor: {r: 0.6431373, g: 0.6431373, b: 0.6431373, a: 1}
-  m_CustomCaretColor: 1
+  m_CustomCaretColor: 0
   m_SelectionColor: {r: 0.050980397, g: 0.6666667, b: 0.8196079, a: 1}
   m_Text: 
   m_CaretBlinkRate: 0.85

@@ -512,7 +512,7 @@ public void PopulateList()
     }
     foreach (Transform child in PathManager.PathParent)
     {
-		Debug.Log("populating paths");
+		//Debug.Log("populating paths");
         BuildTreeRecursive(child, null, transformToNodeMap, currentQuery);
     }
 

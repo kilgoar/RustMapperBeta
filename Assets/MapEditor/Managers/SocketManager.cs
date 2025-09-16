@@ -180,6 +180,8 @@ public static class SocketManager
         return false;
     }
 
+
+
 public static void AttachSockets(DungeonBaseSocket socket1, DungeonBaseSocket socket2)
 {
     // Find the parent transform of socket2 (assumed to be tagged as 'Prefab')
@@ -210,7 +212,7 @@ public static void AttachSockets(DungeonBaseSocket socket1, DungeonBaseSocket so
 
     //Debug.Log("Sockets attached successfully");
 }
-
+	
     public static void SetupSocket(DungeonBaseSocket component)
     {
         GameObject socket = Resources.Load<GameObject>("Prefabs/TranslucentConnection");
@@ -369,6 +371,7 @@ public static void AttachSockets(DungeonBaseSocket socket1, DungeonBaseSocket so
 		return (null, "");
     }
 
+/*
     // Helper method to get prefab parent specifically
     public static Transform GetPrefabParent(Transform transform)
     {
@@ -379,9 +382,9 @@ public static void AttachSockets(DungeonBaseSocket socket1, DungeonBaseSocket so
         }
         return parent;
     }
+*/	
 	
-	
-	public static Transform GetParentForTransform(Transform transform)
+	public static Transform GetPrefabParent(Transform transform)
 	{
 		Transform current = transform;
 		Transform prefabParent = null;

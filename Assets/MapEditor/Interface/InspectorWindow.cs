@@ -57,6 +57,7 @@ public class InspectorWindow : MonoBehaviour
             if (CameraManager.Instance._selectedObjects.Count > 0)
             {
                 SaveCollection(CameraManager.Instance._selectedObjects[^1]);
+				HierarchyWindow.Instance?.LoadTree();
             }
             else
             {
@@ -67,12 +68,46 @@ public class InspectorWindow : MonoBehaviour
 	        // Add listeners for socket toggles
         male.onValueChanged.AddListener(isOn => UpdateSocketData(_lastProcessedSelection));
         female.onValueChanged.AddListener(isOn => UpdateSocketData(_lastProcessedSelection));
-        horizontal.onValueChanged.AddListener(isOn => UpdateSocketType(_lastProcessedSelection, isOn, vertical.isOn));
-        vertical.onValueChanged.AddListener(isOn => UpdateSocketType(_lastProcessedSelection, horizontal.isOn, isOn));
+		
+		    // Modified listeners to ensure mutual exclusivity
+			horizontal.onValueChanged.AddListener(isOn => 
+			{
+				if (isOn)
+				{
+					UpdateSocketType(_lastProcessedSelection, true, false);
+				}
+				else if (vertical.isOn)
+				{
+					UpdateSocketType(_lastProcessedSelection, false, true);
+				}
+				else
+				{
+					// Prevent both from being off
+					horizontal.SetIsOnWithoutNotify(true);
+					UpdateSocketType(_lastProcessedSelection, true, false);
+				}
+			});
+			
+			vertical.onValueChanged.AddListener(isOn => 
+			{
+				if (isOn)
+				{
+					UpdateSocketType(_lastProcessedSelection, false, true);
+				}
+				else if (horizontal.isOn)
+				{
+					UpdateSocketType(_lastProcessedSelection, true, false);
+				}
+				else
+				{
+					// Prevent both from being off
+					horizontal.SetIsOnWithoutNotify(true);
+					UpdateSocketType(_lastProcessedSelection, true, false);
+				}
+			});
+	}
   
-    }
-	
-	public void RetrieveSocketData(GameObject go)
+    public void RetrieveSocketData(GameObject go)
     {
         // Disable socket panel by default
         socketPanel.SetActive(false);
@@ -109,7 +144,9 @@ public class InspectorWindow : MonoBehaviour
         }
     }
 	
-	    private void UpdateSocketData(GameObject go)
+
+	
+	private void UpdateSocketData(GameObject go)
     {
         if (go == null) return;
 
@@ -130,36 +167,20 @@ public class InspectorWindow : MonoBehaviour
         }
     }
 
-    private void UpdateSocketType(GameObject go, bool isHorizontalOn, bool isVerticalOn)
-    {
-        if (go == null) return;
+	private void UpdateSocketType(GameObject go, bool isHorizontalOn, bool isVerticalOn)
+	{
+		if (go == null) return;
 
-        DungeonBaseSocket socket = go.GetComponent<DungeonBaseSocket>();
-        if (socket != null)
-        {
-            // Enforce validation: At least one type (Horizontal or Vertical) must be active
-            if (!isHorizontalOn && !isVerticalOn)
-            {
-                // If both are turned off, force Horizontal to true
-                horizontal.SetIsOnWithoutNotify(true);
-                socket.Type = DungeonBaseSocketType.Horizontal;
-            }
-            else
-            {
-                // Update Type based on toggle states
-                if (isHorizontalOn)
-                {
-                    socket.Type = DungeonBaseSocketType.Horizontal;
-                    vertical.SetIsOnWithoutNotify(false); // Ensure only one is active
-                }
-                else if (isVerticalOn)
-                {
-                    socket.Type = DungeonBaseSocketType.Vertical;
-                    horizontal.SetIsOnWithoutNotify(false); // Ensure only one is active
-                }
-            }
-        }
-    }
+		DungeonBaseSocket socket = go.GetComponent<DungeonBaseSocket>();
+		if (socket != null)
+		{
+			//Debug.Log($"Updating socket: Horizontal={isHorizontalOn}, Vertical={isVerticalOn}");
+			horizontal.SetIsOnWithoutNotify(isHorizontalOn);
+			vertical.SetIsOnWithoutNotify(isVerticalOn);
+			socket.Type = isHorizontalOn ? DungeonBaseSocketType.Horizontal : DungeonBaseSocketType.Vertical;
+			//Debug.Log($"Socket Type set to: {socket.Type}");
+		}
+	}
 
     public void DestroySocketListeners()
     {
@@ -290,6 +311,7 @@ public class InspectorWindow : MonoBehaviour
 		RetrieveSocketData(go);
         _lastProcessedSelection = go;
         UpdateTransformSnapshot(go); // Store initial transform data
+		CameraManager.Instance.UpdateSnapSettings();
     }
     
     public void UpdateData()
@@ -472,7 +494,7 @@ public class InspectorWindow : MonoBehaviour
             data.id = uint.Parse(prefabDataFields[10].text);
             holder.CastPrefabData();
         }
-        else if (go.CompareTag("Collection"))
+        else if (go.CompareTag("Collection") || go.CompareTag("Untagged")) //untagged is for sockets
         {
             go.transform.localPosition = position;
             go.transform.rotation = Quaternion.Euler(rotation);
@@ -483,6 +505,7 @@ public class InspectorWindow : MonoBehaviour
         CameraManager.Instance.UpdateGizmoState();
         UpdateTransformSnapshot(go); // Update snapshot after changes
     }
+	
     
     private void UpdatePrefabData(GameObject go, int index, float value)
     {
