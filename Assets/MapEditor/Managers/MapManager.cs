@@ -569,9 +569,7 @@ public static class MapManager
 		Vector3 centerPosition = new Vector3(mapInfo.size.x / 2, 500, mapInfo.size.z / 2);
 
 		PrefabManager.PrefabParent.GetComponent<LockObject>().SetPosition(centerPosition);
-		if( PrefabManager.EditorSpace.GetComponent<LockObject>() != null){
-			PrefabManager.EditorSpace.GetComponent<LockObject>().SetPosition(centerPosition);
-			}
+		PrefabManager.EditorSpace.position = centerPosition;
 		PathManager.PathParent.GetComponent<LockObject>().SetPosition(centerPosition);
 	}
 
@@ -622,7 +620,6 @@ public static class MapManager
     /// <param name="path">The path to save to.</param>
     public static void Save(string path)
     {
-		PrefabManager.BlacklistCurrent();
         CoroutineManager.Instance.StartRuntimeCoroutine(Coroutines.Save(path));
     }
 	
@@ -1154,10 +1151,57 @@ public static IEnumerator Save(string path)
     yield return null; // Allow frame update after SaveLayer
 
     yield return BlacklistCurrent();
+	yield return CheckEntityDump();
 
     TerrainToWorld(Land, Water, (0,0,0)).Save(path);
     Callbacks.OnMapSaved(path);
 }
+
+	private static IEnumerator CheckEntityDump()
+	{
+		// Define raycast parameters
+		Vector3 rayOrigin = PrefabManager.EditorSpace.position + new Vector3(0, 5, 0); // Start 10 units above EditorSpace
+		Vector3 rayDirection = Vector3.down; // Aim downward
+		int terrainLayerMask = 1 << 10; // Layer 10 for terrain
+
+		// Perform raycast
+		bool hitTerrain = Physics.Raycast(rayOrigin, rayDirection, out RaycastHit hit, Mathf.Infinity, terrainLayerMask);
+
+		// If no terrain hit, exit early
+		if (!hitTerrain)
+		{
+			Debug.Log("No terrain hit at entity dump location (0,0,0).");
+			yield break;
+		}
+
+		// Create confirmation message
+		string message = "Exposed Entity Dump";
+
+		// Show confirmation dialog and wait for response
+		Task<bool> confirmationTask = ConfirmationManager.Instance.ShowConfirmationAsync(
+			title: "Warning",
+			message: message,
+			yes: "Save",
+			no: "Cancel"
+		);
+
+		// Yield until the confirmation task completes
+		while (!confirmationTask.IsCompleted)
+		{
+			yield return null;
+		}
+
+		// Process user response
+		if (confirmationTask.Result)
+		{
+			Debug.Log("User confirmed saving with exposed entity dump.");
+		}
+		else
+		{
+			Debug.Log("Save cancelled due to exposed entity dump.");
+			yield break; // Stop the coroutine if user cancels
+		}
+	}
 
 	/// <summary>Checks for blacklisted prefabs and deletes them if confirmed by the user.</summary>
 	/// <returns>An IEnumerator that yields until the blacklist operation is complete.</returns>
@@ -1187,14 +1231,14 @@ public static IEnumerator Save(string path)
 		}
 
 		// Create confirmation message
-		string message = $"Found {blacklistedPrefabs.Count} blacklisted prefabs. Delete?";
+		string message = $"Found {blacklistedPrefabs.Count}";
 
 		// Show confirmation dialog and wait for response
 		Task<bool> confirmationTask = ConfirmationManager.Instance.ShowConfirmationAsync(
 			title: "Bad Prefabs",
 			message: message,
 			yes: "Delete",
-			no: "Cancel"
+			no: "Continue"
 		);
 
 		// Yield until the confirmation task completes

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -12,6 +13,9 @@ public class ConfirmationManager : MonoBehaviour
     
     private ConfirmationTemplate currentConfirmation;
     private readonly Dictionary<string, ConfirmationTemplate> confirmationCache = new Dictionary<string, ConfirmationTemplate>();
+    private readonly Queue<(string title, string message, string yes, string no, TaskCompletionSource<bool> tcs)> dialogQueue 
+        = new Queue<(string, string, string, string, TaskCompletionSource<bool>)>();
+    private bool isProcessingQueue = false;
 
     private void Awake()
     {
@@ -44,53 +48,71 @@ public class ConfirmationManager : MonoBehaviour
             return false;
         }
 
-        if (currentConfirmation != null)
-        {
-            Debug.LogWarning("A confirmation dialog is already active.");
-            return false;
-        }
-		
-		gameObject.transform.SetAsLastSibling();
-
         var tcs = new TaskCompletionSource<bool>();
+        dialogQueue.Enqueue((title, message, yes, no, tcs));
 
-        // Check for cached confirmation with matching title
-        if (confirmationCache.TryGetValue(title, out var cachedConfirmation))
+        if (!isProcessingQueue)
         {
-            currentConfirmation = cachedConfirmation;
-            currentConfirmation.gameObject.SetActive(true);
+            StartCoroutine(ProcessDialogQueue());
         }
-        else
-        {
-            // Instantiate new confirmation if no match
-            currentConfirmation = Instantiate(templateObject, gameObject.transform);
-			currentConfirmation.gameObject.SetActive(true);
-            confirmationCache[title] = currentConfirmation; // Add to cache
-			ModManager.SkinGameObject(currentConfirmation.gameObject);
-        }
-
-        // Setup UI elements
-        if (currentConfirmation.title != null)
-            currentConfirmation.title.text = title;
-        if (currentConfirmation.footer != null)
-            currentConfirmation.footer.text = message;
-        if (currentConfirmation.yes != null && currentConfirmation.yes.GetComponentInChildren<Text>() != null)
-            currentConfirmation.yes.GetComponentInChildren<Text>().text = yes;
-        if (currentConfirmation.no != null && currentConfirmation.no.GetComponentInChildren<Text>() != null)
-            currentConfirmation.no.GetComponentInChildren<Text>().text = no;
-
-        // Setup button listeners
-        if (currentConfirmation.yes != null)
-            currentConfirmation.yes.onClick.RemoveAllListeners(); // Clear previous listeners
-        if (currentConfirmation.no != null)
-            currentConfirmation.no.onClick.RemoveAllListeners();
-        
-        if (currentConfirmation.yes != null)
-            currentConfirmation.yes.onClick.AddListener(() => OnButtonClicked(true, tcs));
-        if (currentConfirmation.no != null)
-            currentConfirmation.no.onClick.AddListener(() => OnButtonClicked(false, tcs));
 
         return await tcs.Task;
+    }
+
+    private IEnumerator ProcessDialogQueue()
+    {
+        isProcessingQueue = true;
+
+        while (dialogQueue.Count > 0)
+        {
+            var dialog = dialogQueue.Dequeue();
+
+            gameObject.transform.SetAsLastSibling();
+
+            // Check for cached confirmation with matching title
+            if (confirmationCache.TryGetValue(dialog.title, out var cachedConfirmation))
+            {
+                currentConfirmation = cachedConfirmation;
+                currentConfirmation.gameObject.SetActive(true);
+            }
+            else
+            {
+                // Instantiate new confirmation if no match
+                currentConfirmation = Instantiate(templateObject, gameObject.transform);
+                currentConfirmation.gameObject.SetActive(true);
+                confirmationCache[dialog.title] = currentConfirmation; // Add to cache
+                ModManager.SkinGameObject(currentConfirmation.gameObject);
+            }
+
+            // Setup UI elements
+            if (currentConfirmation.title != null)
+                currentConfirmation.title.text = dialog.title;
+            if (currentConfirmation.footer != null)
+                currentConfirmation.footer.text = dialog.message;
+            if (currentConfirmation.yes != null && currentConfirmation.yes.GetComponentInChildren<Text>() != null)
+                currentConfirmation.yes.GetComponentInChildren<Text>().text = dialog.yes;
+            if (currentConfirmation.no != null && currentConfirmation.no.GetComponentInChildren<Text>() != null)
+                currentConfirmation.no.GetComponentInChildren<Text>().text = dialog.no;
+
+            // Setup button listeners
+            if (currentConfirmation.yes != null)
+                currentConfirmation.yes.onClick.RemoveAllListeners(); // Clear previous listeners
+            if (currentConfirmation.no != null)
+                currentConfirmation.no.onClick.RemoveAllListeners();
+            
+            if (currentConfirmation.yes != null)
+                currentConfirmation.yes.onClick.AddListener(() => OnButtonClicked(true, dialog.tcs));
+            if (currentConfirmation.no != null)
+                currentConfirmation.no.onClick.AddListener(() => OnButtonClicked(false, dialog.tcs));
+
+            // Wait until the dialog is resolved (OnButtonClicked clears currentConfirmation)
+            while (currentConfirmation != null)
+            {
+                yield return null;
+            }
+        }
+
+        isProcessingQueue = false;
     }
 
     private void OnButtonClicked(bool result, TaskCompletionSource<bool> tcs)
@@ -105,4 +127,6 @@ public class ConfirmationManager : MonoBehaviour
         // Set result
         tcs.SetResult(result);
     }
+
+    public bool IsDialogActive() => currentConfirmation != null || isProcessingQueue;
 }

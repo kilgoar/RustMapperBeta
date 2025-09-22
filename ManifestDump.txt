@@ -1,8 +1,8 @@
 === Rust Manifest and Bundle Dump ===
-Date: 9/13/2025 1:42:35 AM
+Date: 9/22/2025 2:40:30 PM
 
 --- Pooled Strings (Manifest) ---
-Total entries: 33589
+Total entries: 33590
 _bikebase : Hash=1249547831
 _headlight group : Hash=3873694652
 _hold_ammobox : Hash=879182934
@@ -2156,6 +2156,7 @@ assets/bundled/prefabs/modding/radiation/radiation_high.prefab : Hash=833428709 
 assets/bundled/prefabs/modding/radiation/radiation_low.prefab : Hash=3571862586 : GUID=b14654ad4c20680459bc8664ced1152f
 assets/bundled/prefabs/modding/radiation/radiation_med.prefab : Hash=1311846197 : GUID=2f854bba8376040459f50c333ef3d30f
 assets/bundled/prefabs/modding/radiation/radiation_minimal.prefab : Hash=3581403810 : GUID=86db3cfa708e29b498bf18a3cc803123
+assets/bundled/prefabs/modding/volumes_and_triggers/biomefogstencilvolume.prefab : Hash=508508557 : GUID=b60c823293cbc4846a0345400def2130
 assets/bundled/prefabs/modding/volumes_and_triggers/cold_high_volume.prefab : Hash=2368952222 : GUID=7719f6b44e59d1446a701803ae889ce5
 assets/bundled/prefabs/modding/volumes_and_triggers/cold_med_volume.prefab : Hash=1587311116 : GUID=a17fc15312013c343a3a226f63ebb4a8
 assets/bundled/prefabs/modding/volumes_and_triggers/cold_volume.prefab : Hash=432403891 : GUID=a04fd5f3b2cdda646ba5d3b17127fd71
@@ -33598,11 +33599,11 @@ Total entries: 1557
 Unique entries (not in Pooled Strings): 0
 
 --- Prefab Properties (Manifest) ---
-Total entries: 14616
+Total entries: 14617
 Unique entries (not in Pooled Strings): 0
 
 --- All Bundle Assets (BundleLookup) ---
-Total entries: 54816
+Total entries: 54817
 assets/benchmark/assets/grid.mat
 Assets/Benchmark/BaseRaidBenchmark.unity
 Assets/Benchmark/BiomeBenchmark.unity
@@ -46479,6 +46480,7 @@ assets/content/shaders/spatialbiomefog/foregroundfog.shader
 assets/content/shaders/spatialbiomefog/shadowmapdownsample.shader
 assets/content/shaders/spatialbiomefog/skyaverageambient.compute
 assets/content/shaders/spatialbiomefog/spatialbiomefog.compute
+assets/content/shaders/spatialbiomefog/stencilvolumerender.compute
 assets/content/shaders/spatialbiomefog/terrainmapsprocess.shader
 assets/content/shaders/spatialbiomefog/voxelfogblur.compute
 assets/content/shaders/standard/foliage.shader
@@ -88419,4 +88421,4 @@ assets/workshop/rustslider.workshopblue.asset : Hash=2133951964
 assets/workshop/rustslider.workshopcutoff.asset : Hash=3858340216
 assets/workshop/rustslider.workshopgreen.asset : Hash=2964085215
 assets/workshop/rustslider.workshopred.asset : Hash=1076016445
-Unique entries (not in previous sections): 44061
+Unique entries (not in previous sections): 44062

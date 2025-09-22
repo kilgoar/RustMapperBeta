@@ -18,6 +18,9 @@ public class LoadScreen : MonoBehaviour
     
     private string patreonUrl = "https://www.patreon.com/kilgoar";
     private string discordUrl = "https://discord.com/invite/PUHAafD5dw";
+	
+	public List<Button> linkButtons = new List<Button>();
+    public List<string> linkUrls = new List<string>();
 
     public void OpenPatreon()
     {
@@ -151,6 +154,16 @@ public class LoadScreen : MonoBehaviour
 		
 		patreonButton.onClick.AddListener(OpenPatreon);
 		discordButton.onClick.AddListener(OpenDiscord);
+		
+		        // Set up additional link buttons
+        for (int i = 0; i < Mathf.Min(linkButtons.Count, linkUrls.Count); i++)
+        {
+            if (linkButtons[i] != null && !string.IsNullOrEmpty(linkUrls[i]))
+            {
+                int index = i; // Capture index for lambda
+                linkButtons[i].onClick.AddListener(() => Application.OpenURL(linkUrls[index]));
+            }
+        }
 	}
 	
 	

@@ -63,7 +63,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _BiomeMode: 0
-    - _BrushSize: 0.078125
+    - _BrushSize: 0.0390625
     - _BrushStrength: 1
     - _Cutoff: 1
     - _CutoffRange: 0
@@ -122,7 +122,7 @@ Material:
     - _ShoreWetnessLayer_Range: 1
     - _ShoreWetnessLayer_WetAlbedoScale: 0.5
     - _ShoreWetnessLayer_WetSmoothness: 0.8
-    - _SplatRatio: 1.0019531
+    - _SplatRatio: 1.0009766
     - _SrcBlend: 1
     - _TerrainParallax: 0
     - _TerrainTarget: 0.033333335
@@ -135,7 +135,7 @@ Material:
     - _WetnessLayer_Wetness: 0
     - _ZWrite: 1
     m_Colors:
-    - _BrushPos: {r: 0.6171875, g: 0.35742188, b: 0, a: 0}
+    - _BrushPos: {r: 0.3388672, g: 0.96777344, b: 0, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _LayerFallback_Albedo: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   m_BuildTextureStacks: []

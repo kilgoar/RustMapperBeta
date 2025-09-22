@@ -352,15 +352,20 @@ public static class AssetManager
 			return PrefabManager.DefaultCubeVolume;
 		}*/
 		
-		if(VolumesCache.ContainsKey(filePath)){
-			go = (GameObject)VolumesCache[filePath];
-			PrefabManager.SetupVolume(go, filePath);
-			AssetCache.Add(filePath, go);
-			return go;
-		}
+
 		
 		if (SceneAssetCache.ContainsKey(filePath)){
+			
 			go = (GameObject)SceneAssetCache[filePath];
+			
+				if(VolumesCache.ContainsKey(filePath)){
+			
+					GameObject vo = (GameObject)VolumesCache[filePath];
+					PrefabManager.SetupVolume(go, vo, filePath);					
+					AssetCache.Add(filePath, go);					
+					return go;
+				}
+			
 		}
 		else
 		{
@@ -433,10 +438,10 @@ public static void SetVolumesCache()
                 lineSplit[2] = lineSplit[2].Trim(); // Hex Color
                 lineSplit[3] = lineSplit[3].Trim(); // Scale Multiplier
                 
-                if (!int.TryParse(lineSplit[3], out int scaleMultiplier))
+                if (!float.TryParse(lineSplit[3], out float scaleMultiplier))
                 {
                     Debug.LogWarning($"Invalid scale multiplier '{lineSplit[3]}' for volume {lineSplit[1]}");
-                    scaleMultiplier = 1;
+                    scaleMultiplier = 1f;
                 }
 
                 switch (lineSplit[0])

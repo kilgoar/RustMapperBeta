@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿
+using UnityEngine;
 
 [ExecuteInEditMode]
 public class SceneObjectHideFlags : MonoBehaviour

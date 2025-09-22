@@ -63,7 +63,7 @@ public static class PrefabManager
 		DefaultCollider = GameObject.FindGameObjectWithTag("DefaultCollider");
 		boxCollider = DefaultCollider.GetComponent<BoxCollider>();
 		
-		EditorSpace = GameObject.FindGameObjectWithTag("EditorSpace").transform;
+		EditorSpace = GameObject.FindGameObjectWithTag("DangerSphere").transform;
 		
 		LoadBlacklistFromJson(Path.Combine(SettingsManager.AppDataPath() , "blacklist.json"));
 
@@ -235,17 +235,18 @@ public static class PrefabManager
     }
 
 
-	public static GameObject SetupVolume(GameObject go, string filePath){
+	public static GameObject SetupVolume(GameObject go, GameObject vo, string filePath){
 		NetworkManager.Register(go);
-		// gameobject's selection criteria for prefab
-		go.SetLayerRecursively(11);
-		//go.SetTagRecursively("Untagged");
-		//go.tag = "Prefab";
+		vo.transform.SetParent(go.transform, false);
+
+		var prefabDataHolder = go.AddComponent<PrefabDataHolder>();
+		prefabDataHolder.prefabData = new WorldSerialization.PrefabData { id = AssetManager.ToID(filePath) };
 		
-		//performance
-		//go.SetStaticRecursively(false);
-		var prefabDataHolder = go.GetComponent<PrefabDataHolder>();
-		prefabDataHolder.prefabData = new PrefabData { id = AssetManager.ToID(filePath) };
+		go.SetLayerRecursively(11);
+		vo.SetTagRecursively("Untagged");
+		go.tag = "Prefab";		
+		go.SetStaticRecursively(false);
+		
 		return go;
 	}
 
@@ -625,66 +626,6 @@ public static class PrefabManager
 		Debug.Log("blacklist retrieved");
 		
 		ItemBlacklist= LoadBlacklistLookup(JsonConvert.DeserializeObject<Blacklist>(json));
-	}
-
-	public static async void BlacklistCurrent()
-	{
-		// Get current map prefabs
-		PrefabDataHolder[] currentPrefabs = CurrentMapPrefabs;
-		List<PrefabDataHolder> blacklistedPrefabs = new List<PrefabDataHolder>();
-
-		// Check for blacklisted prefabs
-		foreach (PrefabDataHolder prefab in currentPrefabs)
-		{
-			if (prefab != null)
-			{
-				string path = AssetManager.ToPath(prefab.prefabData.id).Replace("\\", "/"); // Normalize path
-				if (ItemBlacklist.TryGetValue(path, out ItemSettings settings) && settings.blacklisted)
-				{
-					blacklistedPrefabs.Add(prefab);
-				}
-			}
-		}
-
-		// If no blacklisted prefabs found, return early
-		if (blacklistedPrefabs.Count == 0)
-		{
-			Debug.Log("No blacklisted prefabs found in current map.");
-			return;
-		}
-
-		// Create confirmation message
-		string message = $"Found {blacklistedPrefabs.Count} blacklisted prefabs.\nDo you want to delete them?";
-
-
-		// Show confirmation dialog using ConfirmationManager
-		bool confirmed = await ConfirmationManager.Instance.ShowConfirmationAsync(
-			title: "Delete Blacklisted Prefabs",
-			message: message,
-			yes: "Delete",
-			no: "Cancel"
-		);
-
-		// If user confirms deletion
-		if (confirmed)
-		{
-			int deletedCount = 0;
-			foreach (PrefabDataHolder prefab in blacklistedPrefabs)
-			{
-				if (prefab != null && prefab.gameObject != null)
-				{
-					GameObject.DestroyImmediate(prefab.gameObject);
-					deletedCount++;
-				}
-			}
-
-			NotifyItemsChanged();
-			Debug.Log($"Deleted {deletedCount} blacklisted prefabs.");
-		}
-		else
-		{
-			Debug.Log("Blacklist deletion cancelled by user.");
-		}
 	}
 
 	public static void CreateBlacklist(){

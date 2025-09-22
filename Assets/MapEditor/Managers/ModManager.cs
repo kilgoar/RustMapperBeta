@@ -53,7 +53,7 @@ public static class ModManager
 			// Set the loaded object to the Prefab layer (layer 3)
 			loadedObject.layer = 3;
 			loadedObject.SetTagRecursively("Untagged");
-			loadedObject.tag = "Prefab";
+			loadedObject.tag = "Collection";
 			// Rotate x by -90 degrees
 			loadedObject.transform.rotation = Quaternion.Euler(-90f, 0f, 0f);
 			// Set position to (0,0,0)
@@ -184,8 +184,18 @@ public static void LoadSkin(string path)
     Texture2D skinTexture = LoadTexture(path);
     if (skinTexture == null)
     {
-        Debug.LogError("Failed to load skin texture. Aborting skin application.");
-        return;
+		return;
+		/*
+        Debug.LogError("Failed to load skin texture path. Attempting to load from default path.");
+		skinTexture = LoadTexture(Path.Combine(SettingsManager.AppDataPath(), "Custom", "Skins", "darkmode.png"));
+		if (skinTexture == null){
+			Debug.Log("fallback skin load failed");
+			return;
+		}
+		else{
+			Debug.Log("default skin set successfully");			
+		}
+		*/
     }
 	currentSkin = path;
     // Load the sprite sheet from Resources

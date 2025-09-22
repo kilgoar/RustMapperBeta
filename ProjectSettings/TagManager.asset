@@ -27,6 +27,7 @@ TagManager:
   - Path
   - Ocean
   - beg
+  - DangerSphere
   layers:
   - Default
   - TransparentFX

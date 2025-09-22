@@ -8,18 +8,19 @@
   "style": true,
   "application": {
     "rustDirectory": "E:/Program Files (x86)/Steam/steamapps/common/Rust",
-    "prefabRenderDistance": 5000.0,
+    "prefabRenderDistance": 1094.0,
     "pathRenderDistance": 5000.0,
     "waterTransparency": 0.0,
     "loadbundleonlaunch": false,
     "terrainTextureSet": false,
     "loadBatch": 128,
-    "newSize": 712,
+    "newSize": 1000,
     "newHeight": 0.5,
     "newBiome": 2,
     "newSplat": 16,
     "startupSkin": "D:\\Users\\kilgoar\\Desktop\\rustmapper2023\\Custom\\Skins\\darkmode.png",
     "recentFiles": [
+      "E:\\Program Files (x86)\\Steam\\steamapps\\common\\Rust\\maps\\proceduralmap.4500.1195662783.271_0c7c46c7b1ccd56690f4c7b32215696a.map",
       "E:\\generatortest.map",
       "E:\\downloads\\WaterTreatmentVariantShowcase.map",
       "E:\\downloads\\WaterTreatmentVariantShowcaseFix.map",
@@ -289,8 +290,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 9.279968,
-        "y": -63.0249939,
+        "x": 1.22003174,
+        "y": 1.9750061,
         "z": 0.0
       },
       "scale": {
@@ -302,8 +303,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -152.799,
-        "y": -28.0299683,
+        "x": -139.299,
+        "y": 9.970032,
         "z": 0.0
       },
       "scale": {
@@ -315,7 +316,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -151.0,
+        "x": -166.5,
         "y": 53.99997,
         "z": 0.0
       },
@@ -328,8 +329,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -292.79657,
-        "y": 14.6266174,
+        "x": -346.29657,
+        "y": -22.8733826,
         "z": 0.0
       },
       "scale": {
@@ -341,8 +342,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -55.39258,
-        "y": 52.01999,
+        "x": -297.468567,
+        "y": 27.5704041,
         "z": 0.0
       },
       "scale": {
@@ -354,7 +355,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -81.8999939,
+        "x": -97.3999939,
         "y": 2.1,
         "z": 0.0
       },
@@ -367,8 +368,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -60.0,
-        "y": 19.99997,
+        "x": 175.5,
+        "y": 16.99997,
         "z": 0.0
       },
       "scale": {
@@ -380,7 +381,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -21.46399,
+        "x": -36.96399,
         "y": -78.1099854,
         "z": 0.0
       },
@@ -406,8 +407,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 227.0,
-        "y": 6.99996948,
+        "x": 131.549988,
+        "y": -71.45001,
         "z": 0.0
       },
       "scale": {
@@ -419,8 +420,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 186.352173,
-        "y": 66.84805,
+        "x": -17.6478271,
+        "y": -181.620758,
         "z": 0.0
       },
       "scale": {
@@ -432,7 +433,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -298.26,
+        "x": -313.76,
         "y": 28.1000061,
         "z": 0.0
       },
@@ -450,8 +451,8 @@
       "z": 1.0
     },
     "position": {
-      "x": 962.0,
-      "y": 610.0,
+      "x": 1073.0,
+      "y": 599.0,
       "z": 0.0
     }
   },

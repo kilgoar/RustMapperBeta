@@ -34,7 +34,9 @@ public class LockObject : MonoBehaviour
             rotation = transform.localRotation;
         }
     }
+	
 
+	
     /// <summary>Updates the fixed transform values to current transform values.
     /// Call if moving an object that is locked when the Main Thread is in use.</summary>
     public void UpdateTransform()

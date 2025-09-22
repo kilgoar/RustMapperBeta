@@ -166,7 +166,7 @@ public class FileWindow : MonoBehaviour
 			List<string> pathList = new List<string> { fullPath };
 			SettingsManager.AddPathsAsNodes(tree, pathList);
 			
-			footer.text = fullPath + " saved";
+			//footer.text = fullPath + " saved";
 		}
 		catch (Exception e)
 		{
