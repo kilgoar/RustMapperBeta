@@ -72,6 +72,178 @@ namespace RustMapEditor.Variables
         long EstimateMemoryUsage();
     }
 	
+	public class DeleteSelectionUndoAction : IUndoAction
+	{
+		private readonly string _operationName;
+		private readonly List<GameObject> _recycledObjects; // Cloned objects stored in memory
+		private readonly GameObject _cloneParent; // Parent for cloned objects
+		private List<GameObject> _restoredObjects; // Track restored objects for redo
+
+		public DeleteSelectionUndoAction(string operationName, List<GameObject> selectedObjects)
+		{
+			_operationName = operationName;
+			_recycledObjects = new List<GameObject>();
+			_restoredObjects = new List<GameObject>();
+			_cloneParent = new GameObject(operationName); // Create parent named after operation
+
+			// Filter GameObjects whose direct parent is PrefabManager.PrefabParent
+			var prefabParentObjects = selectedObjects
+				.Where(go => go != null && go.transform.parent != null && go.transform.parent == PrefabManager.PrefabParent)
+				.ToList();
+
+			foreach (var go in prefabParentObjects)
+			{
+				go.SetActive(false); // Disable to avoid scene interference
+				go.transform.SetParent(_cloneParent.transform, false); // Parent to _cloneParent
+				_recycledObjects.Add(go);
+			}
+		}
+
+		public string OperationName => _operationName;
+
+		public void Undo()
+		{
+			_restoredObjects.Clear(); // Clear previous restored objects
+			foreach (var go in _recycledObjects)
+			{
+				if (go != null)
+				{
+					go.SetActive(true); // Re-enable in scene
+					go.transform.SetParent(PrefabManager.PrefabParent.transform, false); // Parent to PrefabManager.PrefabParent
+					_restoredObjects.Add(go);
+				}
+			}
+
+			PrefabManager.NotifyItemsChanged();
+		}
+
+		public void Redo()
+		{
+			// Reparent restored objects back to _cloneParent and deactivate
+			foreach (var go in _restoredObjects)
+			{
+				if (go != null)
+				{
+					go.transform.SetParent(_cloneParent.transform, false); // Reparent to _cloneParent
+					go.SetActive(false); // Deactivate
+				}
+			}
+			_restoredObjects.Clear();
+
+			PrefabManager.NotifyItemsChanged();
+		}
+
+		public void OnRemoved()
+		{
+			// Clean up cloned objects and parent
+			foreach (var clone in _recycledObjects)
+			{
+				if (clone != null)
+				{
+					UnityEngine.Object.DestroyImmediate(clone);
+				}
+			}
+			foreach (var restored in _restoredObjects)
+			{
+				if (restored != null)
+				{
+					UnityEngine.Object.DestroyImmediate(restored);
+				}
+			}
+			_recycledObjects.Clear();
+			_restoredObjects.Clear();
+			if (_cloneParent != null)
+			{
+				UnityEngine.Object.DestroyImmediate(_cloneParent);
+			}
+		}
+
+		public long EstimateMemoryUsage()
+		{
+			// Rough estimate: 1KB per object plus hierarchy, plus 1KB for parent
+			long size = _recycledObjects.Count * 1024 + 1024;
+			return size;
+		}
+	}
+	
+	public class GeologyItemUndoAction : IUndoAction
+	{
+		private readonly string _operationName;
+		private readonly bool _isAddAction;
+		private GameObject _gameObject; // Reference to the GameObject
+		private readonly GameObject _recycleParent; // Parent for recycling the GameObject
+		private Transform _originalParent; // Store the original parent (e.g., PrefabManager.PrefabParent)
+
+		public GeologyItemUndoAction(string operationName, GameObject gameObject, bool isAddAction)
+		{
+			_operationName = operationName;
+			_isAddAction = isAddAction;
+			_gameObject = gameObject;
+			_recycleParent = new GameObject($"{operationName}_RecycleParent"); // Create a hidden parent for recycling
+			_recycleParent.SetActive(false); // Ensure the recycle parent is inactive
+			_originalParent = gameObject != null ? gameObject.transform.parent : null; // Store original parent
+		}
+
+		public string OperationName => _operationName;
+
+		public void Undo()
+		{
+			if (_gameObject == null) return;
+
+			if (_isAddAction)
+			{
+				// Undo an add action: recycle the GameObject
+				_gameObject.SetActive(false);
+				_gameObject.transform.SetParent(_recycleParent.transform, false);
+			}
+			else
+			{
+				// Undo a remove action: restore the GameObject
+				_gameObject.SetActive(true);
+				_gameObject.transform.SetParent(_originalParent ?? PrefabManager.PrefabParent.transform, false);
+			}
+			PrefabManager.NotifyItemsChanged();
+		}
+
+		public void Redo()
+		{
+			if (_gameObject == null) return;
+
+			if (_isAddAction)
+			{
+				// Redo an add action: restore the GameObject
+				_gameObject.SetActive(true);
+				_gameObject.transform.SetParent(_originalParent ?? PrefabManager.PrefabParent.transform, false);
+			}
+			else
+			{
+				// Redo a remove action: recycle the GameObject
+				_gameObject.SetActive(false);
+				_gameObject.transform.SetParent(_recycleParent.transform, false);
+			}
+			PrefabManager.NotifyItemsChanged();
+		}
+
+		public void OnRemoved()
+		{
+			// Clean up: destroy the recycled GameObject and parent
+			if (_gameObject != null && _gameObject.transform.parent == _recycleParent.transform)
+			{
+				UnityEngine.Object.DestroyImmediate(_gameObject);
+				_gameObject = null;
+			}
+			if (_recycleParent != null)
+			{
+				UnityEngine.Object.DestroyImmediate(_recycleParent);
+			}
+		}
+
+		public long EstimateMemoryUsage()
+		{
+			return 1024; // Minimal memory usage for storing references
+		}
+	}
+	
 	public class TransformUndoAction : IUndoAction
     {
         private readonly RTG.IUndoRedoAction _action;
@@ -1171,6 +1343,7 @@ namespace RustMapEditor.Variables
 	public struct FilePreset
 	{
 		    public string rustDirectory;
+			public string currentDirectory;
 			public float prefabRenderDistance;
 			public float pathRenderDistance;
 			public float waterTransparency;

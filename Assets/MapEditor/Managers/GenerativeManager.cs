@@ -2761,19 +2761,6 @@ private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerI
 		return null;
 	}
 	
-	/*
-	public static void SpawnFeature(GeologyItem item, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
-	{
-		if (!item.custom)
-		{
-			spawnGeoItem(item, position, rotation, scale, parent);
-			return;
-		}
-		else
-			spawnCustom(item, position, rotation, scale, parent);
-	}
-	*/
-	
 	public static GameObject SpawnFeature(GeologyItem item, Vector3 position, Vector3 rotation, Vector3 scale, Transform parent = null)
 	{
 		if (!item.custom)

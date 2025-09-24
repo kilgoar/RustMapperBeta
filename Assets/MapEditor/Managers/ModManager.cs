@@ -55,8 +55,8 @@ public static class ModManager
 			loadedObject.SetTagRecursively("Untagged");
 			loadedObject.tag = "Collection";
 			// Rotate x by -90 degrees
-			loadedObject.transform.rotation = Quaternion.Euler(-90f, 0f, 0f);
-			// Set position to (0,0,0)
+			loadedObject.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+			loadedObject.transform.localScale = Vector3.one;
 			loadedObject.transform.localPosition = Vector3.zero;
 		}
 	}

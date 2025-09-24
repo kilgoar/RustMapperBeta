@@ -58,7 +58,8 @@ public class FileWindow : MonoBehaviour
 		open.onClick.AddListener(OpenFile);
 		save.onClick.AddListener(SaveFile);
 		LoadDriveList();
-		OnRecentChanged();
+		ExpandPath(settings.currentDirectory);
+		//OnRecentChanged();
 	}
 	
 	public void OnEnable(){
@@ -180,7 +181,470 @@ public class FileWindow : MonoBehaviour
 		footer.text = path + " saved";
 	}	
 
-public void SavePNGs(string directory)
+    public void OnExtensionChanged()
+    {
+        extension = extensionsDrop.options[extensionsDrop.value].text;
+        // refresh the tree with files matching the new extension
+        LoadDriveList();
+        // refresh recent files to show only those matching the extension
+        PopulateLists();
+		SetInteractable();
+		ExpandPath(settings.currentDirectory);
+    }
+
+	public void SavePrefab(string path){
+		MapManager.SaveCustomPrefab(path);
+		footer.text = path + " saved";
+	}
+	
+	public void SaveMonument(string path){
+		MapManager.SaveMonument(path);
+		footer.text = path + " saved";
+	}
+
+	public void FilenameChanged(string change)	{		
+		name = change;
+		displayPath.text = FilePath();
+		SetInteractable();
+	}
+	
+	private void SetInteractable()	{
+		// If input is empty, disable both buttons
+		if (string.IsNullOrEmpty(name))		{
+			save.interactable = false;
+			open.interactable = false;
+			return;
+		}
+
+		// Check directory existence for save button
+		save.interactable = !string.IsNullOrEmpty(path) && Directory.Exists(path);
+
+		// Check file existence and extension for open button
+		if (extension.ToLower() is "png")		{
+			open.interactable = false;
+		}
+		else		{
+			open.interactable = File.Exists(FilePath());
+		}
+	}	
+	
+	public string FilePath(){
+			string fullPath = Path.Combine(path, name);
+			fullPath = fullPath + "." + extension;
+			return fullPath;
+	}
+	
+	private void SetFilePath(string nodePath)
+	{
+		string directory = Path.GetDirectoryName(nodePath);		
+		
+		if (string.IsNullOrEmpty(directory))		{
+			// Try root path
+			directory = Path.GetPathRoot(nodePath) + "\\";
+			if (string.IsNullOrEmpty(directory))
+			{
+				Debug.Log("Directory not found for path: " + nodePath);
+				return;
+			}
+		}
+		
+		path = directory;
+		
+		// If there is an extension at the end of the path
+		if (!string.IsNullOrEmpty(Path.GetExtension(nodePath)))
+		{
+			name = Path.GetFileNameWithoutExtension(nodePath);
+		}
+		else{
+			if(!string.IsNullOrEmpty(Path.GetFileNameWithoutExtension(nodePath))){
+				path = Path.Combine(path, Path.GetFileNameWithoutExtension(nodePath) + "\\");
+			}
+		}
+		// If we are just cruising through directories, name does not need changing
+		// (no else needed as name retains its previous value)
+		settings.currentDirectory = path;
+		SettingsManager.application = settings;
+		//Debug.Log(path + " is current directory, saving settings");
+		SettingsManager.SaveSettings();
+	}
+	
+	public void OnSelect(Node node)
+	{
+		if (node.isSelected)
+		{
+			Expand(node);
+			SetFilePath(node.fullPath);
+			
+			// Check if the node is a file (has an extension) or a folder
+			if (Path.HasExtension(node.fullPath))	{				
+				string filename = Path.GetFileNameWithoutExtension(node.fullPath);
+				
+				if (!string.IsNullOrEmpty(filename))		{
+					name = filename;
+					filenameField.text = filename;
+				}
+			}
+			
+			displayPath.text = path + name + "." + extension;
+			return;
+		}
+		
+		node.CollapseAll();
+	}
+	
+	public void OnExpand(Node node)
+	{
+		node.isSelected = true;
+	}
+
+	public void Expand(Node node)
+	{
+		string folderPath = node.fullPath;
+		string fullPath = folderPath;
+		if (!fullPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+			fullPath += Path.DirectorySeparatorChar; 
+		List<string> paths = SettingsManager.AddFilePaths(fullPath, extension);
+		SettingsManager.AddPathsAsNodes(tree, paths); 
+		node.isExpanded = true;
+	}
+
+	public void OnRecentChanged()
+	{
+		// Check if dropdown has valid options
+		if (recentDrop == null || recentDrop.options == null || recentDrop.options.Count == 0)
+		{
+			Debug.LogWarning("Dropdown is unpopulated or null. Cannot process recent file selection.");
+			return;
+		}
+
+		// Check if selected index is valid
+		if (recentDrop.value < 0 || recentDrop.value >= recentDrop.options.Count)
+		{
+			Debug.LogWarning($"Invalid dropdown index: {recentDrop.value}. Options count: {recentDrop.options.Count}");
+			return;
+		}
+
+		// Safely get the selected option
+		string recentSelect = recentDrop.options[recentDrop.value].text;
+		if (string.IsNullOrWhiteSpace(recentSelect))
+		{
+			Debug.LogWarning("Selected recent file path is empty or invalid.");
+			return;
+		}
+
+		Debug.Log($"Selected recent file: '{recentSelect}'");
+		SetFilePath(recentSelect);
+		FocusPath(recentSelect);
+	}
+	
+	public void FocusPath(string path)
+	{
+		Debug.Log("focusing on " + path);
+		Node file = FindNodeByPath(tree, path);
+		Debug.Log(file.fullPath + "node selected");
+		tree.FocusOn(file);
+		file.isSelected = true;
+	}
+	
+	public void ExpandPath(string targetPath)
+	{
+		StartCoroutine(ExpandPathCoroutine(targetPath));
+	}
+
+private IEnumerator ExpandPathCoroutine(string targetPath)
+{
+    // Validate and normalize path to use forward slashes
+    if (string.IsNullOrEmpty(targetPath))
+    {
+        Debug.LogWarning("Target path is null or empty.");
+        footer.text = "Invalid path";
+        yield break;
+    }
+
+    try
+    {
+        targetPath = Path.GetFullPath(targetPath).Replace("\\", "/").TrimEnd('/'); // Remove trailing slash from input
+    }
+    catch (Exception e)
+    {
+        Debug.LogError($"Invalid path format: {e.Message}");
+        footer.text = "Invalid path format";
+        yield break;
+    }
+
+    // Clear and reload drive list
+    LoadDriveList();
+
+    // Get drive and path parts
+    string drive = Path.GetPathRoot(targetPath).Replace("\\", "/").TrimEnd('/');
+    string[] pathParts = targetPath.Substring(drive.Length).Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+    // Find drive node
+    Node currentNode = tree.rootNode.GetAllChildrenRecursive().FirstOrDefault(n =>
+        n.fullPath.Equals(drive, StringComparison.OrdinalIgnoreCase));
+    if (currentNode == null)
+    {
+        Debug.LogError($"Drive node not found for: {drive}");
+        footer.text = "Drive not found";
+        yield break;
+    }
+
+    Expand(currentNode);
+    yield return new WaitUntil(() => !tree._isReloading);
+    Debug.Log($"Post-expand wait complete for {currentNode.fullPath}, _isReloading: {tree._isReloading}");
+
+    // Traverse path parts
+    string currentPath = drive; // Start without trailing slash
+    foreach (string part in pathParts)
+    {
+        currentPath = string.Join("/", currentPath, part); // Build path without trailing slash
+        Debug.Log($"Searching for node: {currentPath} (fullPath format)");
+
+        Node nextNode = currentNode.GetAllChildrenRecursive().FirstOrDefault(n =>
+            n.fullPath.Equals(currentPath, StringComparison.OrdinalIgnoreCase));
+        if (nextNode == null)
+        {
+            Debug.Log($"Node not found, adding: {currentPath}");
+            List<string> pathList = new List<string> { currentPath + "/" }; // Add with slash for AddPathsAsNodes
+            SettingsManager.AddPathsAsNodes(tree, pathList);
+            yield return new WaitUntil(() => !tree._isReloading);
+            Debug.Log($"Post-add wait complete for {currentPath}, _isReloading: {tree._isReloading}");
+
+            // Search again without trailing slash
+            nextNode = currentNode.GetAllChildrenRecursive().FirstOrDefault(n =>
+                n.fullPath.Equals(currentPath, StringComparison.OrdinalIgnoreCase));
+            if (nextNode == null)
+            {
+                Debug.LogWarning($"Could not create or find node for: {currentPath}");
+                Debug.Log($"Current children: {string.Join(", ", currentNode.GetAllChildrenRecursive().Select(n => n.fullPath))}");
+                footer.text = "Path not found";
+                yield break;
+            }
+        }
+
+        Expand(nextNode);
+        yield return new WaitUntil(() => !tree._isReloading);
+        Debug.Log($"Post-expand wait complete for {nextNode.fullPath}, _isReloading: {tree._isReloading}");
+        currentNode = nextNode;
+    }
+
+    // Focus on final node
+    tree.FocusOn(currentNode);
+    currentNode.isSelected = true;
+    SetFilePath(targetPath);
+    displayPath.text = FilePath();
+    footer.text = $"Expanded to {targetPath}";
+}
+
+	public Node FindNodeByPath(UIRecycleTree tree, string path)
+	{
+		string drive = Path.GetPathRoot(path);
+		string[] parts = path.Substring(drive.Length).Split(Path.DirectorySeparatorChar);
+
+		if (parts.Length == 0)
+		{
+			//Debug.LogError("Invalid path: " + path);
+			return null;
+		}
+		
+		Node nextNode = tree.rootNode;
+		
+		foreach (string folder in parts){
+			
+			Node[] searchNodes = nextNode.GetAllChildrenRecursive();
+			
+			foreach (Node node in searchNodes)		{
+				if (node.name.Equals(folder))			{
+					nextNode = node;
+					Expand(node);
+				}
+			}
+		}
+		
+		
+		return nextNode;
+	}
+
+
+	public void LoadDriveList()
+	{
+		tree.Clear();
+		DriveInfo[] drives = DriveInfo.GetDrives();
+		List<string> driveRoots = new List<string>();
+
+		foreach (DriveInfo drive in drives)
+		{
+			if (drive.IsReady)
+			{
+				string root = drive.Name;
+				driveRoots.Add(root);
+			}
+		}
+		SettingsManager.AddPathsAsNodes(tree, driveRoots);
+
+		// Filter and add recent files
+		settings.recentFiles = FilterExistingFiles(settings.recentFiles);
+		List<string> filteredRecentFiles = FilterRecentFilesByExtension(settings.recentFiles);
+		Debug.Log($"Found {filteredRecentFiles.Count} recent files with extension '{extension}'");
+		SettingsManager.AddPathsAsNodes(tree, filteredRecentFiles);
+
+	}
+	
+	private List<string> FilterExistingFiles(IEnumerable<string> recentFiles)
+	{
+		List<string> filteredFiles = new List<string>();
+
+		// Check for null or empty inputs
+		if (recentFiles == null)		{
+			Debug.LogWarning("Recent files list is null.");
+			return filteredFiles;
+		}
+
+		try		{
+			foreach (string file in recentFiles)			{
+				
+				// Skip null or empty file paths
+				if (string.IsNullOrEmpty(file))            {
+					continue;
+				}
+
+				// Check if the file exists on disk
+				if (File.Exists(file))            {
+					filteredFiles.Add(file);
+				}
+				else            {
+					Debug.Log($"Skipping non-existent file: {file}");
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			Debug.LogError($"Error filtering existing files: {ex.Message}");
+		}
+
+		return filteredFiles;
+	}
+
+	private List<string> FilterRecentFilesByExtension(IEnumerable<string> recentFiles)	{
+		List<string> filteredFiles = new List<string>();
+
+		// Check for null or empty inputs
+		if (recentFiles == null || string.IsNullOrEmpty(extension))		{
+			Debug.LogWarning("Recent files list or extension is null or empty.");
+			return filteredFiles;
+		}
+
+		try		{
+			foreach (string file in recentFiles)
+			{
+				if (string.IsNullOrEmpty(file))				{
+					continue;
+				}
+
+				// Skip files without an extension
+				if (!Path.HasExtension(file))				{
+					continue;
+				}
+
+				// Get file extension, remove leading dot, and convert to lowercase
+				string fileExtension = Path.GetExtension(file).TrimStart('.').ToLowerInvariant();
+				Debug.Log(fileExtension);
+				
+				// Compare extensions case-insensitively
+				if (string.Equals(fileExtension, extension, StringComparison.OrdinalIgnoreCase))
+				{
+					filteredFiles.Add(file);
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			Debug.LogError($"Error filtering recent files: {ex.Message}");
+		}
+
+		return filteredFiles;
+	}
+
+   public void AddRecent(string path)
+    {
+        if (settings.recentFiles == null)    {
+            settings.recentFiles = new List<string>();
+        }
+
+        if (settings.recentFiles.Contains(path))      {
+                settings.recentFiles.Remove(path);
+            }
+			
+        settings.recentFiles.Insert(0, path);
+
+        if (settings.recentFiles.Count > 12)      {
+                settings.recentFiles.RemoveAt(settings.recentFiles.Count - 1);
+            }
+
+            SettingsManager.application = settings;
+            SettingsManager.SaveSettings();
+            PopulateLists();
+      
+    }
+	
+	public void PopulateLists()	{
+		
+		foreach (TerrainSplat.Enum splat in Enum.GetValues(typeof(TerrainSplat.Enum)))
+		{
+			splatEnums.Add(splat);
+			splatDrop.options.Add(new Dropdown.OptionData(splat.ToString()));
+		}
+
+		foreach (TerrainBiome.Enum biome in Enum.GetValues(typeof(TerrainBiome.Enum)))
+		{
+			biomeEnums.Add(biome);
+			biomeDrop.options.Add(new Dropdown.OptionData(biome.ToString()));
+		}
+		
+		if (settings.recentFiles == null)
+		{
+			settings.recentFiles = new List<string>();
+		}
+
+       // Clear existing options in the dropdown
+        recentDrop.options.Clear();
+
+        // Add only recent files matching the current extension
+        if(settings.recentFiles.Count > 0){
+			
+			foreach (string file in settings.recentFiles)			{
+				Debug.Log(Path.GetExtension(file).ToLower() + " populating recent dropdown");
+				
+				if (Path.GetExtension(file).ToLower() == "."+extension.ToLower())				{
+					recentDrop.options.Add(new Dropdown.OptionData(file));
+				}
+			}
+			recentDrop.RefreshShownValue();
+		}
+		
+	    extensionsDrop.options.Clear(); // Clear existing options to avoid duplicates
+		List<string> extensions = new List<string> { "map", "prefab", "monument", "json", "png", "obj" };
+		foreach (string ext in extensions)
+		{
+			extensionsDrop.options.Add(new Dropdown.OptionData(ext));
+		}
+		extensionsDrop.RefreshShownValue();
+		
+	}
+
+
+
+	public void StateChange()
+	{
+		FilePreset application = SettingsManager.application;
+		application.newSplat = splatEnums[splatDrop.value]; 
+		application.newBiome = biomeEnums[biomeDrop.value];
+		application.newSize = (int)newSizeSlider.value;    
+		application.newHeight = newHeightSlider.value;		
+		SettingsManager.application = application;
+	}
+	
+	public void SavePNGs(string directory)
 {
     var texturesToSave = new (Texture texture, string name)[]
     {
@@ -299,347 +763,6 @@ private Texture2D RenderTextureToTexture2DR16(RenderTexture rt)
 		return texture;
 	}
 
-
-	public void SavePrefab(string path){
-		MapManager.SaveCustomPrefab(path);
-		footer.text = path + " saved";
-	}
-	
-	public void SaveMonument(string path){
-		MapManager.SaveMonument(path);
-		footer.text = path + " saved";
-	}
-
-	public void FilenameChanged(string change)	{		
-		name = change;
-		displayPath.text = FilePath();
-		SetInteractable();
-	}
-	
-	private void SetInteractable()	{
-		// If input is empty, disable both buttons
-		if (string.IsNullOrEmpty(name))		{
-			save.interactable = false;
-			open.interactable = false;
-			return;
-		}
-
-		// Check directory existence for save button
-		save.interactable = !string.IsNullOrEmpty(path) && Directory.Exists(path);
-
-		// Check file existence and extension for open button
-		if (extension.ToLower() is "png")		{
-			open.interactable = false;
-		}
-		else		{
-			open.interactable = File.Exists(FilePath());
-		}
-	}
-	
-	
-	public string FilePath(){
-			string fullPath = Path.Combine(path, name);
-			fullPath = fullPath + "." + extension;
-			return fullPath;
-	}
-	
-	private void SetFilePath(string nodePath)
-	{
-		string directory = Path.GetDirectoryName(nodePath);
-		
-		
-		if (string.IsNullOrEmpty(directory))
-		{
-			// Try root path
-			directory = Path.GetPathRoot(nodePath) + "\\";
-			if (string.IsNullOrEmpty(directory))
-			{
-				Debug.Log("Directory not found for path: " + nodePath);
-				return;
-			}
-		}
-		
-		path = directory;
-		
-		// If there is an extension at the end of the path
-		if (!string.IsNullOrEmpty(Path.GetExtension(nodePath)))
-		{
-			name = Path.GetFileNameWithoutExtension(nodePath);
-		}
-		else{
-			if(!string.IsNullOrEmpty(Path.GetFileNameWithoutExtension(nodePath))){
-				path = Path.Combine(path, Path.GetFileNameWithoutExtension(nodePath) + "\\");
-			}
-		}
-		// If we are just cruising through directories, name does not need changing
-		// (no else needed as name retains its previous value)
-		
-		Debug.LogError(name + " is current file");
-	}
-	
-	public void OnSelect(Node node)
-	{
-		if (node.isSelected)
-		{
-			Expand(node);
-			SetFilePath(node.fullPath);
-			
-			// Check if the node is a file (has an extension) or a folder
-			if (Path.HasExtension(node.fullPath))	{				
-				string filename = Path.GetFileNameWithoutExtension(node.fullPath);
-				
-				if (!string.IsNullOrEmpty(filename))		{
-					name = filename;
-					filenameField.text = filename;
-				}
-			}
-			
-			displayPath.text = path + name + "." + extension;
-			return;
-		}
-		
-		node.CollapseAll();
-	}
-	
-	public void OnExpand(Node node)
-	{
-		node.isSelected = true;
-	}
-
-	public void Expand(Node node)
-	{
-		string folderPath = node.fullPath;
-		string fullPath = folderPath;
-		if (!fullPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
-			fullPath += Path.DirectorySeparatorChar; 
-		List<string> paths = SettingsManager.AddFilePaths(fullPath, extension);
-		SettingsManager.AddPathsAsNodes(tree, paths); 
-		node.isExpanded = true;
-	}
-
-	public void OnRecentChanged()
-	{
-		// Check if dropdown has valid options
-		if (recentDrop == null || recentDrop.options == null || recentDrop.options.Count == 0)
-		{
-			Debug.LogWarning("Dropdown is unpopulated or null. Cannot process recent file selection.");
-			return;
-		}
-
-		// Check if selected index is valid
-		if (recentDrop.value < 0 || recentDrop.value >= recentDrop.options.Count)
-		{
-			Debug.LogWarning($"Invalid dropdown index: {recentDrop.value}. Options count: {recentDrop.options.Count}");
-			return;
-		}
-
-		// Safely get the selected option
-		string recentSelect = recentDrop.options[recentDrop.value].text;
-		if (string.IsNullOrWhiteSpace(recentSelect))
-		{
-			Debug.LogWarning("Selected recent file path is empty or invalid.");
-			return;
-		}
-
-		Debug.Log($"Selected recent file: '{recentSelect}'");
-		SetFilePath(recentSelect);
-		FocusPath(recentSelect);
-	}
-	
-	public void FocusPath(string path)
-	{
-		Node file = FindNodeByPath(tree, path);
-		tree.FocusOn(file);
-		file.isSelected = true;
-	}
-
-	public Node FindNodeByPath(UIRecycleTree tree, string path)
-	{
-		string drive = Path.GetPathRoot(path);
-		string[] parts = path.Substring(drive.Length).Split(Path.DirectorySeparatorChar);
-
-		if (parts.Length == 0)
-		{
-			//Debug.LogError("Invalid path: " + path);
-			return null;
-		}
-		
-		Node nextNode = tree.rootNode;
-		
-		foreach (string folder in parts){
-			
-			Node[] searchNodes = nextNode.GetAllChildrenRecursive();
-			
-			foreach (Node node in searchNodes)		{
-				if (node.name.Equals(folder))			{
-					nextNode = node;
-					Expand(node);
-				}
-			}
-		}
-		
-		
-		return nextNode;
-	}
-
-
-	public void LoadDriveList()
-	{
-		tree.Clear();
-		DriveInfo[] drives = DriveInfo.GetDrives();
-		List<string> driveRoots = new List<string>();
-
-		foreach (DriveInfo drive in drives)
-		{
-			if (drive.IsReady)
-			{
-				string root = drive.Name;
-				driveRoots.Add(root);
-			}
-		}
-		SettingsManager.AddPathsAsNodes(tree, driveRoots);
-
-		// Filter and add recent files
-		List<string> filteredRecentFiles = FilterRecentFilesByExtension(settings.recentFiles);
-		Debug.Log($"Found {filteredRecentFiles.Count} recent files with extension '{extension}'");
-		SettingsManager.AddPathsAsNodes(tree, filteredRecentFiles);
-
-	}
-
-	// Helper method to filter recent files by extension without using .Where
-	private List<string> FilterRecentFilesByExtension(IEnumerable<string> recentFiles)
-	{
-		List<string> filteredFiles = new List<string>();
-
-		// Check for null or empty inputs
-		if (recentFiles == null || string.IsNullOrEmpty(extension))
-		{
-			Debug.LogWarning("Recent files list or extension is null or empty.");
-			return filteredFiles;
-		}
-
-		try
-		{
-
-			foreach (string file in recentFiles)
-			{
-				// Skip null or empty file paths
-				if (string.IsNullOrEmpty(file))
-				{
-					continue;
-				}
-
-				// Skip files without an extension
-				if (!Path.HasExtension(file))
-				{
-					continue;
-				}
-
-				// Get file extension, remove leading dot, and convert to lowercase
-				string fileExtension = Path.GetExtension(file).TrimStart('.').ToLowerInvariant();
-				Debug.Log(fileExtension);
-				
-				// Compare extensions case-insensitively
-				if (string.Equals(fileExtension, extension, StringComparison.OrdinalIgnoreCase))
-				{
-					filteredFiles.Add(file);
-				}
-			}
-		}
-		catch (Exception ex)
-		{
-			Debug.LogError($"Error filtering recent files: {ex.Message}");
-		}
-
-		return filteredFiles;
-	}
-
-   public void AddRecent(string path)
-    {
-        if (settings.recentFiles == null)    {
-            settings.recentFiles = new List<string>();
-        }
-
-        if (settings.recentFiles.Contains(path))      {
-                settings.recentFiles.Remove(path);
-            }
-			
-        settings.recentFiles.Insert(0, path);
-
-        if (settings.recentFiles.Count > 12)      {
-                settings.recentFiles.RemoveAt(settings.recentFiles.Count - 1);
-            }
-
-            SettingsManager.application = settings;
-            SettingsManager.SaveSettings();
-            PopulateLists();
-      
-    }
-	
-	public void PopulateLists()	{
-		
-		foreach (TerrainSplat.Enum splat in Enum.GetValues(typeof(TerrainSplat.Enum)))
-		{
-			splatEnums.Add(splat);
-			splatDrop.options.Add(new Dropdown.OptionData(splat.ToString()));
-		}
-
-		foreach (TerrainBiome.Enum biome in Enum.GetValues(typeof(TerrainBiome.Enum)))
-		{
-			biomeEnums.Add(biome);
-			biomeDrop.options.Add(new Dropdown.OptionData(biome.ToString()));
-		}
-		
-		if (settings.recentFiles == null)
-		{
-			settings.recentFiles = new List<string>();
-		}
-
-       // Clear existing options in the dropdown
-        recentDrop.options.Clear();
-
-        // Add only recent files matching the current extension
-        if(settings.recentFiles.Count > 0){
-			
-			foreach (string file in settings.recentFiles)			{
-				Debug.Log(Path.GetExtension(file).ToLower() + " populating recent dropdown");
-				
-				if (Path.GetExtension(file).ToLower() == "."+extension.ToLower())				{
-					recentDrop.options.Add(new Dropdown.OptionData(file));
-				}
-			}
-			recentDrop.RefreshShownValue();
-		}
-		
-	    extensionsDrop.options.Clear(); // Clear existing options to avoid duplicates
-		List<string> extensions = new List<string> { "map", "prefab", "monument", "json", "png", "obj" };
-		foreach (string ext in extensions)
-		{
-			extensionsDrop.options.Add(new Dropdown.OptionData(ext));
-		}
-		extensionsDrop.RefreshShownValue();
-		
-	}
-
-    public void OnExtensionChanged()
-    {
-        extension = extensionsDrop.options[extensionsDrop.value].text;
-        // refresh the tree with files matching the new extension
-        LoadDriveList();
-        // refresh recent files to show only those matching the extension
-        PopulateLists();
-		SetInteractable();
-    }
-
-	public void StateChange()
-	{
-		FilePreset application = SettingsManager.application;
-		application.newSplat = splatEnums[splatDrop.value]; 
-		application.newBiome = biomeEnums[biomeDrop.value];
-		application.newSize = (int)newSizeSlider.value;    
-		application.newHeight = newHeightSlider.value;		
-		SettingsManager.application = application;
-	}
 
 	public void NewFile()
 	{

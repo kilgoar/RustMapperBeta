@@ -77,6 +77,20 @@ public static class UndoManager
         OnStateStackChanged?.Invoke(); // Notify listeners of state stack change
     }
 	
+	    // Check if the next undo action is a TerrainUndoAction
+    public static bool IsNextUndoTerrainAction()
+    {
+        if (undoStack.Count == 0) return false;
+        return undoStack[undoStack.Count - 1] is TerrainUndoAction;
+    }
+
+    // Check if the next redo action is a TerrainUndoAction
+    public static bool IsNextRedoTerrainAction()
+    {
+        if (redoStack.Count == 0) return false;
+        return redoStack[redoStack.Count - 1] is TerrainUndoAction;
+    }
+	
 
     public static void ClearHistory()
     {

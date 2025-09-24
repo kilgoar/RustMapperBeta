@@ -276,6 +276,7 @@ public static class PrefabManager
 		// Create LOD component list
 		List<LODComponent> lodComponents = new List<LODComponent>(allComponents.Length);
 		List<TerrainPathConnect> terrainPathConnects = new List<TerrainPathConnect>();
+		List<MeshFilter> filters = new List<MeshFilter>();
 		
 		for (int i = 0; i < allComponents.Length; i++)
 		{
@@ -294,8 +295,15 @@ public static class PrefabManager
 				lock (unprocessedColliders)
 				{
 					unprocessedColliders.Add(collider);
+				}				
+				continue;
+			}
+			
+			if (component is MeshFilter filter)
+			{
+				lock (filters){
+				filters.Add(filter);
 				}
-				
 				continue;
 			}
 			 
@@ -379,14 +387,10 @@ public static class PrefabManager
 			{
 				Entities[go] = true;
 				continue;
-			}
-			
-
-
-
+			}			
 		}
 		if(unprocessedColliders.Count == 0){
-			boxCollider = go.AddComponent<BoxCollider>();
+			CreateColliders(filters);
 		}
 		ActivateColliders();
 		
@@ -528,6 +532,44 @@ public static class PrefabManager
 		// Clear the cache after activation
 		unprocessedColliders.Clear();
 	}
+	
+	private static void CreateColliders(List<MeshFilter> filters)
+	{
+		foreach (MeshFilter meshFilter in filters)
+		{
+			if (meshFilter != null && meshFilter.sharedMesh != null)
+			{
+				Mesh colliderMesh = meshFilter.sharedMesh;
+
+				Collider collider;
+				if (colliderMesh.isReadable)
+				{
+					// Use MeshCollider for readable meshes
+					MeshCollider meshCollider = meshFilter.gameObject.AddComponent<MeshCollider>();
+					meshCollider.sharedMesh = colliderMesh;
+					meshCollider.convex = true; // Set convex for physics (will be re-set in ActivateColliders if needed)
+					collider = meshCollider;
+					//Debug.Log($"Created MeshCollider for '{meshFilter.sharedMesh.name}' on GameObject '{meshFilter.gameObject.name}' with {colliderMesh.vertexCount} vertices.");
+				}
+				else
+				{
+					// Create BoxCollider for non-readable meshes using bounds
+					BoxCollider boxCollider = meshFilter.gameObject.AddComponent<BoxCollider>();
+					boxCollider.center = colliderMesh.bounds.center;
+					boxCollider.size = colliderMesh.bounds.size;
+					collider = boxCollider;
+					//Debug.Log($"Created BoxCollider for non-readable mesh '{meshFilter.sharedMesh.name}' on GameObject '{meshFilter.gameObject.name}' with bounds size {colliderMesh.bounds.size}.");
+				}
+
+				// Add the collider to unprocessedColliders for further processing
+				lock (unprocessedColliders)
+				{
+					unprocessedColliders.Add(collider);
+				}
+			}
+		}
+	}
+
 	
 	public static Vector3 ExtractColliderScale(Collider collider)
 	{

@@ -7,6 +7,7 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UIRecycleTreeNamespace;
+using RustMapEditor.Variables;
 using static WorldSerialization;
 
 public class ItemsWindow : MonoBehaviour
@@ -1105,62 +1106,67 @@ private Node FindFirstNodeBySuffixTree(Node root, string query)
 	}
 	
 
-	private void DeleteCheckedNodes()
-	{
-		DeleteCheckedNodesStack(tree.rootNode);
-		CameraManager.Instance._selectedObjects.Clear();
-		tree.Rebuild();
-		CameraManager.Instance.UpdateGizmoState();
-		
-		PrefabManager.NotifyItemsChanged(false);
-	}
+private void DeleteCheckedNodes()
+{
+    // Collect GameObjects to recycle
+    List<GameObject> objectsToRecycle = new List<GameObject>();
+    DeleteCheckedNodesStack(tree.rootNode, objectsToRecycle);
 
-	private void DeleteCheckedNodesStack(Node rootNode)
-	{
-		Stack<Node> stack = new Stack<Node>();
-		stack.Push(rootNode);
+    // Create and register a DeleteSelectionUndoAction if there are objects to recycle
+    if (objectsToRecycle.Count > 0)
+    {
+        var undoAction = new DeleteSelectionUndoAction(
+            operationName: "Delete Selected Nodes",
+            selectedObjects: objectsToRecycle
+        );
+        UndoManager.RegisterAction(undoAction);
+    }
 
-		while (stack.Count > 0)
-		{
-			Node currentNode = stack.Pop();
+    // Clear selection and notify changes
+    CameraManager.Instance._selectedObjects.Clear();
+    CameraManager.Instance.UpdateGizmoState();
+    PrefabManager.NotifyItemsChanged();
+}
 
-			for (int i = currentNode.nodes.Count - 1; i >= 0; i--)
-			{
-				Node childNode = currentNode.nodes[i];
+private void DeleteCheckedNodesStack(Node rootNode, List<GameObject> objectsToRecycle)
+{
+    Stack<Node> stack = new Stack<Node>();
+    stack.Push(rootNode);
 
-				if (!childNode.isChecked)
-				{
-					stack.Push(childNode);
-					continue;
-				}
+    while (stack.Count > 0)
+    {
+        Node currentNode = stack.Pop();
 
-				if (childNode.data is PrefabDataHolder childPrefabData && childPrefabData.gameObject != null)
-				{
-					Destroy(childPrefabData.gameObject);
-					currentNode.nodes.RemoveAtWithoutNotify(i);
-				}
-				else if (childNode.data is Transform childTransform)
-				{
-					Destroy(childTransform.gameObject);
-					currentNode.nodes.RemoveAtWithoutNotify(i);
-				}
-				else
-				{
-					stack.Push(childNode);
-				}
-			}
+        // Process child nodes
+        foreach (Node childNode in currentNode.nodes)
+        {
+            if (!childNode.isChecked)
+            {
+                stack.Push(childNode);
+                continue;
+            }
 
-			if (!currentNode.isChecked)
-				continue;
+            if (childNode.data is PrefabDataHolder childPrefabData && childPrefabData.gameObject != null)
+            {
+                objectsToRecycle.Add(childPrefabData.gameObject);
+            }
+            else if (childNode.data is Transform childTransform && childTransform.gameObject != null)
+            {
+                objectsToRecycle.Add(childTransform.gameObject);
+            }
+            else
+            {
+                stack.Push(childNode);
+            }
+        }
 
-			if (currentNode.data is GameObject go)
-			{
-				Destroy(go);
-				tree.nodes.RemoveWithoutNotify(currentNode);
-			}
-		}
-	}
-
+        // Process current node
+        if (currentNode.isChecked && currentNode.data is GameObject go)
+        {
+            objectsToRecycle.Add(go);
+        }
+    }
+}
 	private List<Node> FindNodesByPartRecursive(Node currentNode, string query){
 	
 		List<Node> matches = new List<Node>();

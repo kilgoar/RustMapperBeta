@@ -225,9 +225,45 @@ public class HierarchyWindow : MonoBehaviour
 		PopulateItemList();
 	}
 	
-	public void PlacePrefab(Vector3 position){
-		if(tree.selectedNode!=null){
-			GenerativeManager.SpawnFeature(selectedNodeItem(), position-PrefabManager.PrefabParent.transform.position, Vector3.zero, Vector3.one, PrefabManager.PrefabParent);
+	public void PlacePrefab(Vector3 position)
+	{
+		if (tree.selectedNode != null)
+		{
+			// Get the selected GeologyItem (assuming selectedNodeItem() returns a GeologyItem)
+			GeologyItem selectedItem = selectedNodeItem();
+			
+			// Define spawn parameters
+			Vector3 offset = position - PrefabManager.PrefabParent.transform.position;
+			Vector3 rotation = Vector3.zero;
+			Vector3 scale = Vector3.one;
+			Transform parent = PrefabManager.PrefabParent;
+
+			// Spawn the prefab
+			GameObject spawnedObject = GenerativeManager.SpawnFeature(
+				selectedItem,
+				offset,
+				rotation,
+				scale,
+				parent
+			);
+
+			// Create an undo action for the spawned prefab
+			if (spawnedObject != null)			{
+				var undoAction = new GeologyItemUndoAction(
+					operationName: $"Placed item {selectedItem.customPrefab ?? selectedItem.prefabID.ToString()}",
+					gameObject: spawnedObject,
+					isAddAction: true
+				);
+
+				// Register the undo action
+				UndoManager.RegisterAction(undoAction);
+			}
+			else			{
+				Debug.LogWarning($"Failed to spawn prefab for GeologyItem: {selectedItem.customPrefab ?? selectedItem.prefabID.ToString()}");
+			}
+
+
+			// Notify that items have changed
 			PrefabManager.NotifyItemsChanged();
 		}
 	}
@@ -364,6 +400,7 @@ public class HierarchyWindow : MonoBehaviour
 
 		Vector2 mousePosition = Mouse.current.position.ReadValue();
 		Ray ray = CameraManager.Instance.cam.ScreenPointToRay(mousePosition);
+		
 		if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, landMask))
 		{
 			// Use the dragged Node directly
@@ -371,8 +408,39 @@ public class HierarchyWindow : MonoBehaviour
 			GeologyItem item = selectedNodeItem();
 			if (item != null)
 			{
-				// Spawn prefab at hit point, same as PlacePrefab
-				GenerativeManager.SpawnFeature(item, hit.point - PrefabManager.PrefabParent.transform.position, Vector3.zero, Vector3.one, PrefabManager.PrefabParent);
+				// Spawn prefab at hit point
+				Vector3 offset = hit.point - PrefabManager.PrefabParent.transform.position;
+				Vector3 rotation = Vector3.zero;
+				Vector3 scale = Vector3.one;
+				Transform parent = PrefabManager.PrefabParent;
+
+				GameObject spawnedObject = GenerativeManager.SpawnFeature(
+					item,
+					offset,
+					rotation,
+					scale,
+					parent
+				);
+
+				// Create an undo action for the spawned prefab
+				if (spawnedObject != null)
+				{
+					var undoAction = new GeologyItemUndoAction(
+						operationName: $"Placed item {item.customPrefab ?? item.prefabID.ToString()}",
+						gameObject: spawnedObject,
+						isAddAction: true
+					);
+
+					// Register the undo action
+					UndoManager.RegisterAction(undoAction);
+				}
+				else
+				{
+					Debug.LogWarning($"Failed to spawn prefab for GeologyItem: {item.customPrefab ?? item.prefabID.ToString()}");
+				}
+
+
+				// Notify that items have changed
 				PrefabManager.NotifyItemsChanged();
 			}
 		}

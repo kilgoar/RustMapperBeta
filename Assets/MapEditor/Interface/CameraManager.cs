@@ -516,36 +516,35 @@ public void InitializeGizmos()
 	
 	public void DeleteSelection()
 	{
-		if(_selectedObjects.Count < 1){ return; }
-		if(_selectedObjects.Count == 1){
-			    
-				DungeonBaseSocket socket = _selectedObjects[0].GetComponent<DungeonBaseSocket>();
-				// Check if the selected object has a user-defined DungeonBaseSocket
-				if (socket != null && socket.isUserDefined)		{
-					socket.Delete(); // Call the Delete method to remove socket data
-				}
+		if (_selectedObjects.Count < 1) { return; }
+		if (_selectedObjects.Count == 1)
+		{
+			DungeonBaseSocket socket = _selectedObjects[0].GetComponent<DungeonBaseSocket>();
+			if (socket != null && socket.isUserDefined)
+			{
+				socket.Delete();
+			}
 		}
-		
+
+		// Register undo action will disable and move items to recycle bin
+		var undoAction = new DeleteSelectionUndoAction("Delete Selection", _selectedObjects.ToList());
+		UndoManager.RegisterAction(undoAction);
+
+
+
 		_workGizmo.Gizmo.SetEnabled(false);
-		// For each object in _selectedObjects, destroy the object
-		foreach (GameObject go in _selectedObjects) // Use ToList() to avoid modifying the collection while iterating
+		/*
+		foreach (GameObject go in _selectedObjects.ToList())
 		{
 			if (go != null)
 			{
-				//first find matching node by data in items window and delete it
-				Node toDestroy = itemTree.FindFirstNodeByDataRecursive(go);
-				if (toDestroy!=null){
-				toDestroy.parentNode.nodes.RemoveWithoutNotify(toDestroy);
-				}
-				UnityEngine.Object.Destroy(go); // Use UnityEngine.Object.Destroy for game objects
-				
+				UnityEngine.Object.DestroyImmediate(go);
 			}
 		}
+		*/
 		_selectedObjects.Clear();
-		
-		itemTree.Rebuild();
 		UpdateGizmoState();
-		PrefabManager.NotifyItemsChanged(false);
+		PrefabManager.NotifyItemsChanged();
 	}
 	
 	public GameObject FindParentWithTag(GameObject hitObject, string tag){

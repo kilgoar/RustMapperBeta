@@ -427,7 +427,7 @@ public static class SettingsManager
 
 		if (string.IsNullOrWhiteSpace(absolutePath) || !Directory.Exists(absolutePath))
 		{
-			Debug.LogWarning($"Invalid path: {absolutePath}");
+			//Debug.LogWarning($"Invalid path: {absolutePath}");
 			return pathsList;
 		}
 

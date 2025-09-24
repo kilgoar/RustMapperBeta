@@ -195,11 +195,10 @@ public class CoroutineManager : MonoBehaviour
     }
 	
 	
-	private void HandleUndoRedo()
+    private void HandleUndoRedo()
     {
-    
-        // Update undo/redo timers when keys are held down
-        if (BindManager.IsPressed("undo"))
+        // Update undo/redo timers only for TerrainUndoAction when keys are held
+        if (BindManager.IsPressed("undo") && UndoManager.IsNextUndoTerrainAction())
         {
             undoTimer += Time.deltaTime;
         }
@@ -208,7 +207,7 @@ public class CoroutineManager : MonoBehaviour
             undoTimer = 0f;
         }
 
-        if (BindManager.IsPressed("redo"))
+        if (BindManager.IsPressed("redo") && UndoManager.IsNextRedoTerrainAction())
         {
             redoTimer += Time.deltaTime;
         }
@@ -217,21 +216,29 @@ public class CoroutineManager : MonoBehaviour
             redoTimer = 0f;
         }
 
-        // Check for undo/redo
+        // Check for undo
         bool shouldUndo = BindManager.WasPressedThisFrame("undo") ||
-                         (BindManager.IsPressed("undo") && undoTimer >= MainScript.Instance.delay);
+                         (BindManager.IsPressed("undo") && UndoManager.IsNextUndoTerrainAction() && undoTimer >= MainScript.Instance.delay);
+
+        // Check for redo
         bool shouldRedo = BindManager.WasPressedThisFrame("redo") ||
-                         (BindManager.IsPressed("redo") && redoTimer >= MainScript.Instance.delay);
+                         (BindManager.IsPressed("redo") && UndoManager.IsNextRedoTerrainAction() && redoTimer >= MainScript.Instance.delay);
 
         if (shouldUndo)
         {
             UndoManager.Undo();
-            undoTimer = 0f; // Reset timer after undo
+            if (UndoManager.IsNextUndoTerrainAction())
+            {
+                undoTimer = 0f; // Reset timer only for continuous TerrainUndoAction
+            }
         }
         else if (shouldRedo)
         {
             UndoManager.Redo();
-            redoTimer = 0f; // Reset timer after redo
+            if (UndoManager.IsNextRedoTerrainAction())
+            {
+                redoTimer = 0f; // Reset timer only for continuous TerrainUndoAction
+            }
         }
     }
 
