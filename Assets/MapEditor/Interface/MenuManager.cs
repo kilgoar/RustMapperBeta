@@ -205,9 +205,21 @@ public class MenuManager : MonoBehaviour, IDragHandler, IPointerDownHandler, IPo
         {
             Compass.Instance.SyncScaleWithMenu();
         }
-
+		CameraManager.Instance.SetGizmoScale(adjustedScale.x*1.666f + .5f);
         SaveMenuState();
     }
+
+	public void SetGizmoScale()	{
+		// Get the current menu scale
+		float menuScale = menuRectTransform.localScale.x; // Use x as menu scale is uniform (x == y)
+
+		// Clamp the menu scale to ensure it's within valid range
+		menuScale = Mathf.Clamp(menuScale, 1f, 3f);
+
+		// Apply the gizmo scale using the same formula as in ScaleMenu
+		float gizmoScale = menuScale * 1.666f + 0.5f;
+		CameraManager.Instance.SetGizmoScale(gizmoScale);
+	}
 
     public void ShowConfirmationPanel()
     {

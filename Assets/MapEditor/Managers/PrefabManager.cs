@@ -143,6 +143,11 @@ public static class PrefabManager
 
     public static Dictionary<string, Transform> PrefabCategories = new Dictionary<string, Transform>();
 	public static Dictionary<string, ItemSettings> ItemBlacklist;
+	
+	private static readonly List<string> StripColliders = new List<string>
+	{
+		"assets/prefabs/deployable/landmine/landmine.prefab",
+	};
 
 	private static readonly List<string> BlockedColliderNames = new List<string>
 	{
@@ -312,20 +317,18 @@ public static class PrefabManager
 				try
 				{
 
-					if (renderer.sharedMaterials != null)
-					{
+					if (renderer.sharedMaterials != null)					{
 						int fixedCount = 0;
 						Material[] materials = renderer.sharedMaterials;
-						for (int j = 0; j < materials.Length; j++)
-						{
+						
+						for (int j = 0; j < materials.Length; j++)					{
 							Material mat = materials[j];
-							if (mat != null)
-							{
+							
+							if (mat != null)							{
 								AssetManager.FixRenderMode(mat);
 								fixedCount++;
 							}
 						}
-						//Debug.Log($"Fixed render mode for {fixedCount} materials on renderer {renderer.name}");
 						continue;
 					}
 							
@@ -389,7 +392,20 @@ public static class PrefabManager
 				continue;
 			}			
 		}
+		
+		Debug.Log(filePath + " testing for stripping colliders");
+		if(StripColliders.Contains(filePath)){
+			Debug.Log("disabling colliders");
+			foreach (var collider in unprocessedColliders)	{
+				if (collider != null)		{
+					collider.enabled = false;
+				}
+			}
+			unprocessedColliders.Clear();
+		}
+		
 		if(unprocessedColliders.Count == 0){
+			Debug.Log("creating colliders");
 			CreateColliders(filters);
 		}
 		ActivateColliders();
@@ -511,14 +527,10 @@ public static class PrefabManager
 						
 							if (BlockedColliderNames.Contains(firstName)  && !string.IsNullOrEmpty(monumentName))
 							{
-								
-								
-								//Debug.LogError($"Interfering collider found: {firstName} at {monumentName}");
 								collider.gameObject.layer = 0; // Set to a layer that won't interact with ray casts at all
 							}
 							else
 							{
-						
 								collider.gameObject.layer = 2; // Set to a layer to de-prioritize volume selections
 							}
 					}
@@ -540,6 +552,11 @@ public static class PrefabManager
 			if (meshFilter != null && meshFilter.sharedMesh != null)
 			{
 				Mesh colliderMesh = meshFilter.sharedMesh;
+
+				if (meshFilter.gameObject.name == "displacement" || meshFilter.gameObject.name == "horseTrigger")     {
+					Debug.Log("displacement mesh skipped");
+					continue;
+				}
 
 				Collider collider;
 				if (colliderMesh.isReadable)

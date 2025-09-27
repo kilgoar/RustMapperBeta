@@ -17,7 +17,7 @@ public static class BindManager
 		}
     }
 	
-	    public static void ResetBind(string bindName)
+	public static void ResetBind(string bindName)
     {
         var bind = binds.Find(b => b.bindName == bindName);
         if (bind.Equals(default(Bind)))
@@ -179,7 +179,10 @@ public static class BindManager
 			
 			new Bind("socketConnect", InputActionType.Button, "<Keyboard>/c", false, false, false),
 			new Bind("socketSelect", InputActionType.Button, "<Keyboard>/g", false, false, false),
-			new Bind("createSocket", InputActionType.Button, "<Keyboard>/v", false, false, false)
+			new Bind("createSocket", InputActionType.Button, "<Keyboard>/v", false, false, false),
+			
+			new Bind("gizmoFine", InputActionType.Button, "<Keyboard>/leftCtrl", false, false, false),
+			new Bind("gizmoVeryFine", InputActionType.Button, "<Keyboard>/leftCtrl", false, false, true)
 		});
 
 		Debug.Log("default bind list created, initializing actions");

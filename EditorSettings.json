@@ -83,12 +83,112 @@
   "geology": {
     "geologyItems": [
       {
-        "customPrefab": "",
-        "prefabID": 3464059523,
+        "customPrefab": "Custom/polygons/cube",
+        "prefabID": 0,
         "emphasis": 1,
         "maximum": 2147483647,
         "sectors": "",
-        "custom": false,
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
+      },
+      {
+        "customPrefab": "Custom/polygons/parkourCube",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
+      },
+      {
+        "customPrefab": "Custom/polygons/parkourdodecahedron",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
+      },
+      {
+        "customPrefab": "Custom/polygons/parkourOctahedron",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
+      },
+      {
+        "customPrefab": "Custom/polygons/parkourOctahedronMetal",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
+      },
+      {
+        "customPrefab": "Custom/polygons/parkourTetrahedron",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
+      },
+      {
+        "customPrefab": "Custom/polygons/parkourTruncIcosa",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
+      },
+      {
+        "customPrefab": "Custom/polygons/parkourTwig",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
+      },
+      {
+        "customPrefab": "Custom/polygons/tetrahedron",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
+      },
+      {
+        "customPrefab": "Custom/polygons/twigdoubletetrahedron",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
+      },
+      {
+        "customPrefab": "Custom/polygons/woodDodecahedron",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
         "minDepth": 0,
         "maxDepth": 2147483647
       }
@@ -96,12 +196,17 @@
     "geologyCollisions": [
       {
         "minMax": true,
-        "radius": 8.0,
-        "layer": 256
+        "radius": 50.0,
+        "layer": 8
       },
       {
         "minMax": true,
-        "radius": 30.0,
+        "radius": 20.0,
+        "layer": 512
+      },
+      {
+        "minMax": false,
+        "radius": 70.0,
         "layer": 512
       }
     ],
@@ -111,9 +216,9 @@
       "layer": 256
     },
     "filename": "Presets/Geology/mars overhang rocks.json",
-    "title": "",
+    "title": "pythagoras fields",
     "density": 132,
-    "frequency": 91,
+    "frequency": 419,
     "floor": 505,
     "ceiling": 1000,
     "biomeIndex": 0,
@@ -122,26 +227,26 @@
     "biomeLayer": 1,
     "colliderLayer": 0,
     "closeColliderLayer": 0,
-    "avoidTopo": false,
-    "flipping": false,
-    "tilting": true,
+    "avoidTopo": true,
+    "flipping": true,
+    "tilting": false,
     "normalizeX": false,
     "normalizeY": true,
     "normalizeZ": false,
     "biomeExclusive": true,
-    "cliffTest": true,
+    "cliffTest": false,
     "overlap": false,
     "closeOverlap": false,
-    "temperate": true,
+    "temperate": false,
     "arid": true,
-    "arctic": true,
-    "tundra": true,
+    "arctic": false,
+    "tundra": false,
     "jungle": false,
     "road": false,
     "monument": false,
     "dither": false,
     "useSeed": false,
-    "slopeRange": true,
+    "slopeRange": false,
     "curveRange": false,
     "heightRange": true,
     "hAscend": false,
@@ -169,34 +274,34 @@
       "z": 1.0
     },
     "rotationsLow": {
-      "x": -52.526516,
-      "y": -76.79119,
-      "z": -39.29123
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
     },
     "rotationsHigh": {
-      "x": 82.41171,
-      "y": 55.94114,
-      "z": 64.7647
+      "x": 0.0,
+      "y": 360.0,
+      "z": 0.0
     },
     "jitterLow": {
-      "x": -6.36764526,
-      "y": -5.57280064,
-      "z": -3.365686
+      "x": -0.18456161,
+      "y": 0.0183773041,
+      "z": 0.1830864
     },
     "jitterHigh": {
-      "x": 5.48039436,
-      "y": 7.57354259,
-      "z": 7.950983
+      "x": 0.5857849,
+      "y": 0.132356882,
+      "z": 0.193626881
     },
     "slideHigh": {
-      "x": 4.745097,
-      "y": 11.0294151,
-      "z": 10.2255058
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
     },
     "slideLow": {
       "x": 0.0,
-      "y": 5.39607525,
-      "z": 1.67353153
+      "y": 0.0,
+      "z": 0.0
     },
     "zOffset": -0.15,
     "colliderDistance": 0.0,
@@ -205,16 +310,16 @@
     "slopeLow": 26.4105377,
     "slopeHigh": 147.507172,
     "heights": {
-      "slopeLow": 49.59922,
-      "slopeHigh": 180.0,
-      "heightMin": 0.0,
+      "slopeLow": 0.0,
+      "slopeHigh": 48.04413,
+      "heightMin": 0.5,
       "heightMax": 1.0,
       "curveMin": -1.08392239,
-      "curveMax": -0.427132368,
+      "curveMax": 1.07678914,
       "slopeWeight": 1.0,
       "curveWeight": 1.0
     },
-    "topologies": 2145905663
+    "topologies": 1139238144
   },
   "replacer": {
     "prefabID0": 0,
@@ -296,42 +401,29 @@
         "z": 0.0
       },
       "scale": {
-        "x": 0.6,
-        "y": 0.6,
+        "x": 0.6719965,
+        "y": 0.6719965,
         "z": 0.0
       }
     },
     {
       "isActive": false,
       "position": {
-        "x": 81.70099,
-        "y": -18.5299683,
+        "x": -259.44397,
+        "y": -9.9552,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6,
-        "y": 0.6,
+        "x": 0.6719965,
+        "y": 0.6719965,
         "z": 0.0
       }
     },
     {
       "isActive": false,
       "position": {
-        "x": -153.5,
-        "y": 32.49997,
-        "z": 0.0
-      },
-      "scale": {
-        "x": 0.6,
-        "y": 0.6,
-        "z": 0.0
-      }
-    },
-    {
-      "isActive": false,
-      "position": {
-        "x": -330.79657,
-        "y": -44.8733826,
+        "x": -66.5,
+        "y": 140.499969,
         "z": 0.0
       },
       "scale": {
@@ -343,20 +435,33 @@
     {
       "isActive": true,
       "position": {
-        "x": -300.468567,
-        "y": 51.5704041,
+        "x": -186.973267,
+        "y": 26.39029,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6,
-        "y": 0.6,
+        "x": 0.6719965,
+        "y": 0.6719965,
         "z": 0.0
       }
     },
     {
       "isActive": false,
       "position": {
-        "x": -84.3999939,
+        "x": 35.7696533,
+        "y": 470.441162,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 0.6719965,
+        "y": 0.6719965,
+        "z": 0.0
+      }
+    },
+    {
+      "isActive": false,
+      "position": {
+        "x": -8.399994,
         "y": 2.1,
         "z": 0.0
       },
@@ -369,8 +474,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 188.5,
-        "y": -4.50003052,
+        "x": 264.5,
+        "y": 197.499969,
         "z": 0.0
       },
       "scale": {
@@ -382,8 +487,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -23.96399,
-        "y": -99.6099854,
+        "x": 56.96399,
+        "y": -5.10998535,
         "z": 0.0
       },
       "scale": {
@@ -408,8 +513,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 144.549988,
-        "y": -92.95001,
+        "x": 220.549988,
+        "y": 109.049988,
         "z": 0.0
       },
       "scale": {
@@ -421,21 +526,21 @@
     {
       "isActive": false,
       "position": {
-        "x": 315.352173,
-        "y": -180.620758,
+        "x": -222.9325,
+        "y": -68.77734,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6,
-        "y": 0.6,
+        "x": 0.6719965,
+        "y": 0.6719965,
         "z": 0.6
       }
     },
     {
-      "isActive": true,
+      "isActive": false,
       "position": {
-        "x": 326.24,
-        "y": -104.809021,
+        "x": 402.24,
+        "y": 97.19098,
         "z": 0.0
       },
       "scale": {
@@ -447,13 +552,13 @@
   ],
   "menuState": {
     "scale": {
-      "x": 1.57199979,
-      "y": 1.57199979,
+      "x": 1.67199647,
+      "y": 1.67199647,
       "z": 1.0
     },
     "position": {
-      "x": 1052.0,
-      "y": 599.0,
+      "x": 982.0,
+      "y": 553.0,
       "z": 0.0
     }
   },
@@ -721,6 +826,22 @@
       "requiresCtrl": false,
       "requiresShift": false,
       "requiresAlt": false
+    },
+    {
+      "bindName": "gizmoFine",
+      "actionType": 1,
+      "primaryInput": "<Keyboard>/leftCtrl",
+      "requiresCtrl": false,
+      "requiresShift": false,
+      "requiresAlt": false
+    },
+    {
+      "bindName": "gizmoVeryFine",
+      "actionType": 1,
+      "primaryInput": "<Keyboard>/leftCtrl",
+      "requiresCtrl": false,
+      "requiresShift": false,
+      "requiresAlt": true
     }
   ]
 }

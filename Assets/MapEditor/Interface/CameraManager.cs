@@ -24,11 +24,12 @@ public class CameraManager : MonoBehaviour
 	public List<InputField> snapFields;
 	public Vector3 position;
 	public bool lockCam;
-	
+	public bool isLocal = false;
 
     public Vector3 movement = new Vector3(0, 0, 0);
     public float movementSpeed = 100f;
     public float rotationSpeed = .25f;
+	private float _lastGizmoSensitivity = 1f; // Default value
     public InputControl<Vector2> mouseMovement;
     public Vector3 globalMove = new Vector3(0, 0, 0);
     public float pitch = 90f;
@@ -251,14 +252,8 @@ public void InitializeGizmos()
 		if (LoadScreen.Instance.isEnabled)
 			return;
 
-		//if (BindManager.IsPressed("altModifier"))
-		//{
-		//	SetGizmoEnabled(false);
-		//}
-		//else
-		//{
+
 			UpdateGizmoState();
-		//}
 
 		// Rotate camera (right click)
 		if (BindManager.IsPressed("rotateCamera"))
@@ -279,7 +274,8 @@ public void InitializeGizmos()
 		if (!AppManager.Instance.IsAnyInputFieldActive())
 		{
 			float sprint = 0.25f; // Default speed
-
+			float gizmoSensitivity = 1f; // Default gizmo sensitivity
+			
 			// Gizmo controls
 			if (BindManager.WasPressedThisFrame("gizmoMove")) SetWorkGizmoId(GizmoId.Move);
 			else if (BindManager.WasPressedThisFrame("gizmoRotate")) SetWorkGizmoId(GizmoId.Rotate);
@@ -306,10 +302,10 @@ public void InitializeGizmos()
 				}
 
 
-			// Movement speed modifiers
+			// Movement speed modifiers and corresponding gizmo sensitivity
 			if (BindManager.IsPressed("moveVerySlow"))
 			{
-				sprint = 0.0375f; // Alt and Shift pressed
+				sprint = 0.0375f; // Alt and Shift pressed		
 			}
 			else if (BindManager.IsPressed("moveFast"))
 			{
@@ -319,6 +315,17 @@ public void InitializeGizmos()
 			{
 				sprint = 0.075f; // Only Alt pressed
 			}
+			
+			if (BindManager.IsPressed("gizmoVeryFine"))
+			{
+				gizmoSensitivity = .01f;
+			}
+			else if (BindManager.IsPressed("gizmoFine"))
+			{
+				gizmoSensitivity = .1f;
+			}
+
+			SetGizmoSensitivity(gizmoSensitivity);
 
 			float currentSpeed = movementSpeed * sprint * Time.deltaTime;
 
@@ -380,6 +387,55 @@ public void InitializeGizmos()
 			AppManager.Instance.UpdateInspector();
 		}
 	}
+	
+	
+private void SetGizmoSensitivity(float gizmoSensitivity)
+{
+    if (_workGizmo == null || !_workGizmo.Gizmo.IsEnabled)
+    {
+        return;
+    }
+
+    // Only update if sensitivity has changed
+    if (!Mathf.Approximately(gizmoSensitivity, _lastGizmoSensitivity))
+    {
+        switch (_workGizmoId)
+        {
+            case GizmoId.Move:
+                MoveGizmo moveGizmo = _workGizmo.Gizmo.GetFirstBehaviourOfType<MoveGizmo>();
+                if (moveGizmo != null)
+                {
+                    moveGizmo.Settings3D.SetDragSensitivity(gizmoSensitivity);
+                }
+                break;
+            case GizmoId.Rotate:
+                RotationGizmo rotationGizmo = _workGizmo.Gizmo.GetFirstBehaviourOfType<RotationGizmo>();
+                if (rotationGizmo != null)
+                {
+                    rotationGizmo.Settings3D.SetDragSensitivity(gizmoSensitivity);
+                }
+                break;
+            case GizmoId.Scale:
+                ScaleGizmo scaleGizmo = _workGizmo.Gizmo.GetFirstBehaviourOfType<ScaleGizmo>();
+                if (scaleGizmo != null)
+                {
+					scaleGizmo.Settings3D.SetDragSensitivity(gizmoSensitivity);
+                }
+                break;
+            case GizmoId.Universal:
+                UniversalGizmo universalGizmo = _workGizmo.Gizmo.GetFirstBehaviourOfType<UniversalGizmo>();
+                if (universalGizmo != null)
+                {
+                    universalGizmo.Settings3D.SetMvDragSensitivity(gizmoSensitivity);
+					universalGizmo.Settings3D.SetRtDragSensitivity(gizmoSensitivity);
+					universalGizmo.Settings3D.SetScDragSensitivity(gizmoSensitivity);
+                }
+                break;
+        }
+		UpdateGizmoState();
+        _lastGizmoSensitivity = gizmoSensitivity; // Update the last known sensitivity
+    }
+}
 	
 	
 	public void UpdateItemsWindow(){
@@ -520,8 +576,7 @@ public void InitializeGizmos()
 		if (_selectedObjects.Count == 1)
 		{
 			DungeonBaseSocket socket = _selectedObjects[0].GetComponent<DungeonBaseSocket>();
-			if (socket != null && socket.isUserDefined)
-			{
+			if (socket != null && socket.isUserDefined)			{
 				socket.Delete();
 			}
 		}
@@ -530,18 +585,8 @@ public void InitializeGizmos()
 		var undoAction = new DeleteSelectionUndoAction("Delete Selection", _selectedObjects.ToList());
 		UndoManager.RegisterAction(undoAction);
 
-
-
 		_workGizmo.Gizmo.SetEnabled(false);
-		/*
-		foreach (GameObject go in _selectedObjects.ToList())
-		{
-			if (go != null)
-			{
-				UnityEngine.Object.DestroyImmediate(go);
-			}
-		}
-		*/
+
 		_selectedObjects.Clear();
 		UpdateGizmoState();
 		PrefabManager.NotifyItemsChanged();
@@ -1008,23 +1053,6 @@ public void SelectPrefab()
                 ItemsWindow.Instance.FocusList(node);
             }
 			
-			/*
-            List<LODMasterMesh> lodMasterMeshes = new List<LODMasterMesh>(hitObject.GetComponentsInChildren<LODMasterMesh>());
-            if (lodMasterMeshes.Count > 0)
-            {
-                List<Renderer> renderers = new List<Renderer>();
-                foreach (var lodMasterMesh in lodMasterMeshes)
-                {
-                    renderers.AddRange(lodMasterMesh.FetchRenderers());
-                }
-                EmissionHighlight(renderers, true);
-            }
-			
-            else
-            {
-                EmissionHighlight(GetRenderers(hitObject), true);
-            }
-			*/
 			EmissionHighlight(GetRenderers(hitObject), true);
             UpdateItemsWindow();
             UpdateGizmoState();
@@ -1261,19 +1289,6 @@ public void DragNodes()
 	{
 		List<Renderer> renderers = new List<Renderer>();
 		
-		//List<LODMasterMesh> lodMasterMeshes = new List<LODMasterMesh>(gameObject.GetComponentsInChildren<LODMasterMesh>());
-		/*		
-		//add renderers from hlod
-		if (lodMasterMeshes.Count > 0)
-			{
-				foreach (var lodMasterMesh in lodMasterMeshes)
-					{
-						renderers.AddRange(lodMasterMesh.FetchRenderers());
-					}					
-				return renderers;
-			}
-		
-		*/
 		//add renderers by recursive traversal (too expensive for large objects)
 		AddRenderersFromChildren(ref renderers, gameObject);
 
@@ -1400,37 +1415,6 @@ public void EmissionHighlight(List<Renderer> selection, bool enable)
     }
 }
 
-	/*
-	// Helper method to undo emission highlight
-	private void EmissionUnhighlight(List<Renderer> selection)
-	{
-		if (selection == null) return;
-
-		foreach (Renderer renderer in selection)
-		{
-			if (renderer == null) continue;
-			
-			Material[] materials = renderer.materials;
-			
-			for (int i = 0; i < materials.Length; i++)
-			{
-				Material material = materials[i];
-				if (material == null) continue;
-
-				// Disable emission for the material
-				material.DisableKeyword("_EMISSION");
-				
-				// Reset emission color to black
-				material.SetColor("_EmissionColor", Color.black);
-
-			}
-
-				renderer.materials = materials;
-
-		}
-	}
-*/
-	
 	private void SetWorkGizmoId(GizmoId gizmoId)
     {
         if (gizmoId == _workGizmoId) return;
@@ -1479,7 +1463,7 @@ public void EmissionHighlight(List<Renderer> selection, bool enable)
 			_objectScaleGizmo == null || _objectUniversalGizmo == null) return;
 
 		// Get the current space from the move gizmo as a reference (assume they’re all synced)
-		bool isLocal = _objectMoveGizmo.TransformSpace == GizmoSpace.Local;
+		isLocal = _objectMoveGizmo.TransformSpace == GizmoSpace.Local;
 		
 		// Toggle to the opposite space
 		GizmoSpace newSpace = isLocal ? GizmoSpace.Global : GizmoSpace.Local;
@@ -1495,8 +1479,12 @@ public void EmissionHighlight(List<Renderer> selection, bool enable)
 		{
 			_workGizmo.RefreshPositionAndRotation();
 		}
-
-		Debug.Log($"Gizmo space switched to {newSpace}");
+		
+	    if (InspectorWindow.Instance != null && _selectedObjects.Count > 0)
+		{
+			GameObject lastSelected = _selectedObjects[^1]; // Get the last selected object
+			InspectorWindow.Instance.RetrievePrefabData(lastSelected);
+		}
 	}
 	
 		
@@ -1650,24 +1638,19 @@ public void UpdateSnapSettings()
     {
         case GizmoId.Move:
             MoveGizmo moveGizmo = _workGizmo.Gizmo.GetFirstBehaviourOfType<MoveGizmo>();
-            if (moveGizmo != null)
-            {
+            if (moveGizmo != null)            {
                 moveGizmo.SetSnapEnabled(true);
 
                     moveGizmo.Settings3D.SetXSnapStep(moveSnap);
                     moveGizmo.Settings3D.SetYSnapStep(moveSnap);
                     moveGizmo.Settings3D.SetZSnapStep(moveSnap);
-
-
             }
             break;
 
         case GizmoId.Rotate:
             RotationGizmo rotationGizmo = _workGizmo.Gizmo.GetFirstBehaviourOfType<RotationGizmo>();
-            if (rotationGizmo != null)
-            {
-                rotationGizmo.SetSnapEnabled(true);
-
+            if (rotationGizmo != null)            {				
+					rotationGizmo.SetSnapEnabled(true);
                     rotationGizmo.Settings3D.SetAxisSnapStep(0, rotateSnap);
                     rotationGizmo.Settings3D.SetAxisSnapStep(1, rotateSnap);
                     rotationGizmo.Settings3D.SetAxisSnapStep(2, rotateSnap);
@@ -1681,8 +1664,6 @@ public void UpdateSnapSettings()
             if (scaleGizmo != null)
             {
 				scaleGizmo.SetSnapEnabled(true);
-
-
                     scaleGizmo.Settings3D.SetXSnapStep(scaleSnap);
                     scaleGizmo.Settings3D.SetYSnapStep(scaleSnap);
                     scaleGizmo.Settings3D.SetZSnapStep(scaleSnap);
@@ -1716,10 +1697,63 @@ public void UpdateSnapSettings()
 	
 
 }
+
+public void SetGizmoScale(float scale)
+{
+    if (scale <= 0f)
+    {
+        Debug.LogWarning("Gizmo scale must be greater than zero. Ignoring request.");
+        return;
+    }
+
+    // Apply scale to Move Gizmo
+    if (_objectMoveGizmo != null)    {
+        MoveGizmo moveGizmo = _objectMoveGizmo.Gizmo.GetFirstBehaviourOfType<MoveGizmo>();
+        if (moveGizmo != null)
+        {
+            moveGizmo.LookAndFeel3D.SetScale(scale);
+        }
+    }
+
+    // Apply scale to Rotation Gizmo
+    if (_objectRotationGizmo != null)    {
+        RotationGizmo rotationGizmo = _objectRotationGizmo.Gizmo.GetFirstBehaviourOfType<RotationGizmo>();
+        if (rotationGizmo != null)
+        {
+            rotationGizmo.LookAndFeel3D.SetScale(scale);
+        }
+    }
+
+    // Apply scale to Scale Gizmo
+    if (_objectScaleGizmo != null)    {
+        ScaleGizmo scaleGizmo = _objectScaleGizmo.Gizmo.GetFirstBehaviourOfType<ScaleGizmo>();
+        if (scaleGizmo != null)
+        {
+            scaleGizmo.LookAndFeel3D.SetScale(scale);
+        }
+    }
+
+    // Apply scale to Universal Gizmo
+    if (_objectUniversalGizmo != null)    {
+        UniversalGizmo universalGizmo = _objectUniversalGizmo.Gizmo.GetFirstBehaviourOfType<UniversalGizmo>();
+        if (universalGizmo != null)        {
+            universalGizmo.LookAndFeel3D.SetMvScale(scale);
+			universalGizmo.LookAndFeel3D.SetRtScale(scale);
+			universalGizmo.LookAndFeel3D.SetScScale(scale);  ///Sc-Sc-Sc-SCombo breaker
+        }
+    }
+
+    // Refresh the active gizmo to apply changes immediately
+    if (_workGizmo != null && _workGizmo.Gizmo.IsEnabled)    {
+        _workGizmo.RefreshPositionAndRotation();
+    }
+
+    //Debug.Log($"Gizmo scale set to {scale} for all gizmos.");
+}
+
     private float ParseSnapValue(string text)
     {
-        if (string.IsNullOrEmpty(text) || !float.TryParse(text, out float value) || value <= 0f)
-        {
+        if (string.IsNullOrEmpty(text) || !float.TryParse(text, out float value) || value <= 0f)        {
             return 0f; // Return 0 to disable snapping
         }
         return value;

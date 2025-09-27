@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.IO;
 using System.Collections;
 using System.Collections.Generic;
@@ -15,8 +16,21 @@ public class InspectorWindow : MonoBehaviour
     public Text footer, selection;
     public Button findInBreaker, saveCustom, applyTerrain;
 	
+	public Button mirrorScaleXButton;
+	public Button mirrorScaleYButton;
+	public Button mirrorScaleZButton;
+	public Button rotateXPlus90Button;
+	public Button rotateXMinus90Button;
+	public Button rotateYPlus90Button;
+	public Button rotateYMinus90Button;
+	public Button rotateZPlus90Button;
+	public Button rotateZMinus90Button;
+	
+	public enum Axis { X, Y, Z }
+	public enum RotationDirection { Plus90, Minus90 }
+	
 	public GameObject socketPanel;
-	public Toggle male, female, horizontal, vertical;
+	public Toggle male, female, horizontal, vertical, collidersEnabled;
 	
     public List<InputField> prefabDataFields = new List<InputField>();
     public List<InputField> snapFields = new List<InputField>();
@@ -105,6 +119,22 @@ public class InspectorWindow : MonoBehaviour
 					UpdateSocketType(_lastProcessedSelection, true, false);
 				}
 			});
+			
+			
+			// Add listeners for mirror scale buttons
+			mirrorScaleXButton.onClick.AddListener(() => MirrorRotations(CameraManager.Instance._selectedObjects, Axis.X));
+			mirrorScaleYButton.onClick.AddListener(() => MirrorRotations(CameraManager.Instance._selectedObjects, Axis.Y));
+			mirrorScaleZButton.onClick.AddListener(() => MirrorRotations(CameraManager.Instance._selectedObjects, Axis.Z));
+
+			// Add listeners for rotation buttons
+			rotateXPlus90Button.onClick.AddListener(() => Rotate90(CameraManager.Instance._selectedObjects, Axis.X, RotationDirection.Plus90));
+			rotateXMinus90Button.onClick.AddListener(() => Rotate90(CameraManager.Instance._selectedObjects, Axis.X, RotationDirection.Minus90));
+			rotateYPlus90Button.onClick.AddListener(() => Rotate90(CameraManager.Instance._selectedObjects, Axis.Y, RotationDirection.Plus90));
+			rotateYMinus90Button.onClick.AddListener(() => Rotate90(CameraManager.Instance._selectedObjects, Axis.Y, RotationDirection.Minus90));
+			rotateZPlus90Button.onClick.AddListener(() => Rotate90(CameraManager.Instance._selectedObjects, Axis.Z, RotationDirection.Plus90));
+			rotateZMinus90Button.onClick.AddListener(() => Rotate90(CameraManager.Instance._selectedObjects, Axis.Z, RotationDirection.Minus90));
+			
+			collidersEnabled.onValueChanged.AddListener(isOn => UpdateColliderStates(isOn));
 	}
   
     public void RetrieveSocketData(GameObject go)
@@ -299,49 +329,7 @@ public class InspectorWindow : MonoBehaviour
         }
     }
     
-    public void SetSelection(GameObject go)
-    {
-        if (go == null)
-        {
-            DefaultPrefabData();
-            _lastProcessedSelection = null;
-            return;
-        }
-        RetrievePrefabData(go);
-		RetrieveSocketData(go);
-        _lastProcessedSelection = go;
-        UpdateTransformSnapshot(go); // Store initial transform data
-		CameraManager.Instance.UpdateSnapSettings();
-    }
     
-    public void UpdateData()
-    {
-        var selectedObjects = CameraManager.Instance._selectedObjects;
-        if (selectedObjects.Count > 0)
-        {
-            GameObject lastSelected = selectedObjects[^1];
-            if (lastSelected != _lastProcessedSelection)
-            {
-                // New selection, update UI and snapshot
-                SetSelection(lastSelected);
-            }
-            else
-            {
-                // Same object, check for transform changes
-                if (HasTransformChanged(lastSelected))
-                {
-                    RetrievePrefabData(lastSelected); // Refresh UI
-                    UpdateTransformSnapshot(lastSelected); // Update snapshot
-                }
-            }
-        }
-        else if (_lastProcessedSelection != null)
-        {
-            // No selection, clear UI
-            DefaultPrefabData();
-            _lastProcessedSelection = null;
-        }
-    }
     
     private bool HasTransformChanged(GameObject go)
     {
@@ -402,109 +390,150 @@ public class InspectorWindow : MonoBehaviour
         }
     }
     
-    public void RetrievePrefabData(GameObject go)
+public void RetrievePrefabData(GameObject go)
+{
+    DestroyListeners();
+
+    PrefabDataHolder prefabHolder = go.GetComponent<PrefabDataHolder>();
+    bool isCollection = go.CompareTag("Collection");
+    saveCustom.interactable = isCollection;
+    applyTerrain.interactable = (go.GetComponent<TerrainPlacement>() != null || go.GetComponentInChildren<AddToHeightMap>() != null);
+
+    // Determine whether to use local or global transform based on CameraManager.isLocal
+    bool useLocal = CameraManager.Instance.isLocal;
+    Transform transform = go.transform;
+
+    // Set the coordinate mode indicator
+    string coordinateMode = useLocal ? "(Local)" : "(Global)";
+
+    if (prefabHolder != null && !isCollection)
     {
-        DestroyListeners();
+        PrefabData data = prefabHolder.prefabData;
+        prefabHolder.UpdatePrefabData();
 
-        PrefabDataHolder prefabHolder = go.GetComponent<PrefabDataHolder>();
-        bool isCollection = go.CompareTag("Collection");
-        saveCustom.interactable = isCollection;
-        applyTerrain.interactable = (go.GetComponent<TerrainPlacement>() != null || go.GetComponentInChildren<AddToHeightMap>() != null);
-        
-        if (prefabHolder != null && !isCollection)
+        // Use local or global transform data based on isLocal
+        Vector3 position = useLocal ? transform.localPosition : transform.position;
+        Vector3 rotation = useLocal ? transform.localEulerAngles : transform.eulerAngles;
+        Vector3 scale = transform.localScale;
+
+        prefabDataFields[0].text = position.x.ToString("F3");
+        prefabDataFields[1].text = position.y.ToString("F3");
+        prefabDataFields[2].text = position.z.ToString("F3");
+
+        prefabDataFields[3].text = rotation.x.ToString("F3");
+        prefabDataFields[4].text = rotation.y.ToString("F3");
+        prefabDataFields[5].text = rotation.z.ToString("F3");
+
+        prefabDataFields[6].text = scale.x.ToString("F3");
+        prefabDataFields[7].text = scale.y.ToString("F3");
+        prefabDataFields[8].text = scale.z.ToString("F3");
+
+        prefabDataFields[9].text = data.category;
+        prefabDataFields[10].text = data.id.ToString();
+
+        if (AssetManager.IDLookup.TryGetValue(data.id, out string name))
         {
-            PrefabData data = prefabHolder.prefabData;
-            prefabHolder.UpdatePrefabData();
-
-            prefabDataFields[0].text = data.position.x.ToString("F3");
-            prefabDataFields[1].text = data.position.y.ToString("F3");
-            prefabDataFields[2].text = data.position.z.ToString("F3");
-
-            prefabDataFields[3].text = data.rotation.x.ToString("F3");
-            prefabDataFields[4].text = data.rotation.y.ToString("F3");
-            prefabDataFields[5].text = data.rotation.z.ToString("F3");
-
-            prefabDataFields[6].text = data.scale.x.ToString("F3");
-            prefabDataFields[7].text = data.scale.y.ToString("F3");
-            prefabDataFields[8].text = data.scale.z.ToString("F3");
-
-            prefabDataFields[9].text = data.category;
-            prefabDataFields[10].text = data.id.ToString();
-			
-			if (AssetManager.IDLookup.TryGetValue(data.id, out string name))
-			{
-				// Extract just the file name without path or extension
-				string fileName = Path.GetFileNameWithoutExtension(name);
-				selection.text = fileName;
-			}
-            else
-            {
-                selection.text = data.id.ToString();
-            }
+            // Extract just the file name without path or extension
+            string fileName = Path.GetFileNameWithoutExtension(name);
+            selection.text = $"{fileName} {coordinateMode}";
         }
         else
         {
-            Transform transform = go.transform;
-            prefabDataFields[0].text = transform.localPosition.x.ToString("F3");
-            prefabDataFields[1].text = transform.localPosition.y.ToString("F3");
-            prefabDataFields[2].text = transform.localPosition.z.ToString("F3");
-
-            Vector3 rotation = transform.eulerAngles;
-            prefabDataFields[3].text = rotation.x.ToString("F3");
-            prefabDataFields[4].text = rotation.y.ToString("F3");
-            prefabDataFields[5].text = rotation.z.ToString("F3");
-            
-            prefabDataFields[6].text = transform.localScale.x.ToString("F3");
-            prefabDataFields[7].text = transform.localScale.y.ToString("F3");
-            prefabDataFields[8].text = transform.localScale.z.ToString("F3");
-
-            prefabDataFields[9].text = isCollection ? go.name : string.Empty;
-            prefabDataFields[10].text = isCollection ? string.Empty : go.name;
-            selection.text = isCollection ? go.name : string.Empty;
+            selection.text = $"{data.id} {coordinateMode}";
         }
-
-        CreateListeners(go);
     }
-    
-    public void SendPrefabData(GameObject go)
+    else
     {
-        Vector3 position = new Vector3(
-            float.Parse(prefabDataFields[0].text),
-            float.Parse(prefabDataFields[1].text),
-            float.Parse(prefabDataFields[2].text));
+        // Use local or global transform data based on isLocal
+        Vector3 position = useLocal ? transform.localPosition : transform.position;
+        Vector3 rotation = useLocal ? transform.localEulerAngles : transform.eulerAngles;
+        Vector3 scale = transform.localScale;
 
-        Vector3 rotation = new Vector3(
-            float.Parse(prefabDataFields[3].text),
-            float.Parse(prefabDataFields[4].text),
-            float.Parse(prefabDataFields[5].text));
+        prefabDataFields[0].text = position.x.ToString("F3");
+        prefabDataFields[1].text = position.y.ToString("F3");
+        prefabDataFields[2].text = position.z.ToString("F3");
 
-        Vector3 scale = new Vector3(
-            float.Parse(prefabDataFields[6].text),
-            float.Parse(prefabDataFields[7].text),
-            float.Parse(prefabDataFields[8].text));
+        prefabDataFields[3].text = rotation.x.ToString("F3");
+        prefabDataFields[4].text = rotation.y.ToString("F3");
+        prefabDataFields[5].text = rotation.z.ToString("F3");
 
-        PrefabDataHolder holder = go.GetComponent<PrefabDataHolder>();
-        if (holder != null && !go.CompareTag("Collection"))
-        {
-            PrefabData data = holder.prefabData;
-            data.position = new VectorData(position.x, position.y, position.z);
-            data.rotation = new VectorData(rotation.x, rotation.y, rotation.z);
-            data.scale = new VectorData(scale.x, scale.y, scale.z);
-            data.category = prefabDataFields[9].text;
-            data.id = uint.Parse(prefabDataFields[10].text);
-            holder.CastPrefabData();
-        }
-        else if (go.CompareTag("Collection") || go.CompareTag("Untagged")) //untagged is for sockets
-        {
-            go.transform.localPosition = position;
-            go.transform.rotation = Quaternion.Euler(rotation);
-            go.transform.localScale = scale;
-            go.name = prefabDataFields[9].text;
-        }
+        prefabDataFields[6].text = scale.x.ToString("F3");
+        prefabDataFields[7].text = scale.y.ToString("F3");
+        prefabDataFields[8].text = scale.z.ToString("F3");
 
-        CameraManager.Instance.UpdateGizmoState();
-        UpdateTransformSnapshot(go); // Update snapshot after changes
+        prefabDataFields[9].text = isCollection ? go.name : string.Empty;
+        prefabDataFields[10].text = isCollection ? string.Empty : go.name;
+        selection.text = isCollection ? $"{go.name} {coordinateMode}" : coordinateMode;
     }
+
+    CreateListeners(go);
+}
+
+public void SendPrefabData(GameObject go)
+{
+    Vector3 position = new Vector3(
+        float.Parse(prefabDataFields[0].text),
+        float.Parse(prefabDataFields[1].text),
+        float.Parse(prefabDataFields[2].text));
+
+    Vector3 rotation = new Vector3(
+        float.Parse(prefabDataFields[3].text),
+        float.Parse(prefabDataFields[4].text),
+        float.Parse(prefabDataFields[5].text));
+
+    Vector3 scale = new Vector3(
+        float.Parse(prefabDataFields[6].text),
+        float.Parse(prefabDataFields[7].text),
+        float.Parse(prefabDataFields[8].text));
+
+    PrefabDataHolder holder = go.GetComponent<PrefabDataHolder>();
+    bool useLocal = CameraManager.Instance.isLocal;
+
+    if (holder != null && !go.CompareTag("Collection"))
+    {
+        PrefabData data = holder.prefabData;
+        data.position = new VectorData(position.x, position.y, position.z);
+        data.rotation = new VectorData(rotation.x, rotation.y, rotation.z);
+        data.scale = new VectorData(scale.x, scale.y, scale.z);
+        data.category = prefabDataFields[9].text;
+        data.id = uint.Parse(prefabDataFields[10].text);
+        holder.CastPrefabData();
+
+        // Apply transform based on isLocal
+        Transform transform = go.transform;
+        if (useLocal)
+        {
+            transform.localPosition = position;
+            transform.localRotation = Quaternion.Euler(rotation);
+        }
+        else
+        {
+            transform.position = position;
+            transform.rotation = Quaternion.Euler(rotation);
+        }
+        transform.localScale = scale; // Scale is always local
+    }
+    else if (go.CompareTag("Collection") || go.CompareTag("Untagged")) // Untagged is for sockets
+    {
+        // Apply transform based on isLocal
+        Transform transform = go.transform;
+        if (useLocal)
+        {
+            transform.localPosition = position;
+            transform.localRotation = Quaternion.Euler(rotation);
+        }
+        else
+        {
+            transform.position = position;
+            transform.rotation = Quaternion.Euler(rotation);
+        }
+        transform.localScale = scale; // Scale is always local
+        go.name = prefabDataFields[9].text;
+    }
+
+    CameraManager.Instance.UpdateGizmoState();
+    UpdateTransformSnapshot(go); // Update snapshot after changes
+}
 	
     
     private void UpdatePrefabData(GameObject go, int index, float value)
@@ -533,20 +562,303 @@ public class InspectorWindow : MonoBehaviour
                 break;
         }
     }
+	
+public void MirrorRotations(List<GameObject> objects, Axis axis)
+{
+    //Debug.Log("mirroring rotation " + axis);
+    if (objects == null || objects.Count == 0) return;
 
-    public void DefaultPrefabData()
+    // Determine which UI field to update based on axis
+    int fieldIndex = axis switch
     {
-        DestroyListeners();
-        DestroySocketListeners();
-        for (int i = 0; i < prefabDataFields.Count; i++)
-        {
-            prefabDataFields[i].text = string.Empty;
-        }
-        socketPanel.SetActive(false);
-        _lastPosition = Vector3.zero;
-        _lastRotation = Vector3.zero;
-        _lastScale = Vector3.zero;
-        _lastCategory = string.Empty;
-        _lastId = 0;
+        Axis.X => 3, // prefabDataFields[3] for X rotation
+        Axis.Y => 4, // prefabDataFields[4] for Y rotation
+        Axis.Z => 5, // prefabDataFields[5] for Z rotation
+        _ => -1 // Should not occur
+    };
+
+    if (fieldIndex == -1) return;
+
+    // Get the current rotation value from the UI field (or default to 0 if empty/invalid)
+    float currentValue = 0f;
+    if (_lastProcessedSelection != null && !string.IsNullOrEmpty(prefabDataFields[fieldIndex].text))
+    {
+        float.TryParse(prefabDataFields[fieldIndex].text, out currentValue);
     }
+
+    // Calculate new rotation value by multiplying by -1
+    float newValue = -currentValue;
+
+    // Update the UI field for the targeted axis
+    if (_lastProcessedSelection != null)
+    {
+        prefabDataFields[fieldIndex].text = newValue.ToString("F3");
+    }
+
+    // Apply the updated rotation to all selected objects
+    foreach (GameObject go in objects)
+    {
+        if (go == null) continue;
+
+        // Update the rotation data for the object
+        Transform transform = go.transform;
+        bool useLocal = CameraManager.Instance.isLocal;
+        Vector3 rotation = useLocal ? transform.localEulerAngles : transform.eulerAngles;
+
+        // Modify only the targeted axis
+        switch (axis)
+        {
+            case Axis.X:
+                rotation.x = newValue;
+                break;
+            case Axis.Y:
+                rotation.y = newValue;
+                break;
+            case Axis.Z:
+                rotation.z = newValue;
+                break;
+        }
+
+        // Apply the rotation
+        if (useLocal)
+        {
+            transform.localRotation = Quaternion.Euler(rotation);
+        }
+        else
+        {
+            transform.rotation = Quaternion.Euler(rotation);
+        }
+
+        // Update UI and data for the last processed selection
+        if (go == _lastProcessedSelection)
+        {
+            // Since we already set the field value, call SendPrefabData to sync PrefabDataHolder and snapshot
+            SendPrefabData(go);
+        }
+        else
+        {
+            // For other objects, update their PrefabDataHolder if applicable
+            PrefabDataHolder holder = go.GetComponent<PrefabDataHolder>();
+            if (holder != null && !go.CompareTag("Collection"))
+            {
+                PrefabData data = holder.prefabData;
+                data.rotation = new VectorData(rotation.x, rotation.y, rotation.z);
+                holder.CastPrefabData();
+            }
+            UpdateTransformSnapshot(go); // Update snapshot for consistency
+        }
+    }
+    CameraManager.Instance.UpdateGizmoState();
+}
+
+// Rotate by +90 or -90 degrees along the specified axis by updating UI fields
+public void Rotate90(List<GameObject> objects, Axis axis, RotationDirection direction)
+{
+    //Debug.Log("rotating " + axis + " " + direction);
+    if (objects == null || objects.Count == 0) return;
+
+    // Determine which UI field to update based on axis
+    int fieldIndex = axis switch
+    {
+        Axis.X => 3, // prefabDataFields[3] for X rotation
+        Axis.Y => 4, // prefabDataFields[4] for Y rotation
+        Axis.Z => 5, // prefabDataFields[5] for Z rotation
+        _ => -1 // Should not occur
+    };
+
+    if (fieldIndex == -1) return;
+
+    // Get the current rotation value from the UI field (or default to 0 if empty/invalid)
+    float currentValue = 0f;
+    if (_lastProcessedSelection != null && !string.IsNullOrEmpty(prefabDataFields[fieldIndex].text))
+    {
+        float.TryParse(prefabDataFields[fieldIndex].text, out currentValue);
+    }
+
+    // Calculate new rotation value
+    float angleChange = (direction == RotationDirection.Plus90) ? 90f : -90f;
+    float newValue = currentValue + angleChange;
+
+    // Update the UI field for the targeted axis
+    if (_lastProcessedSelection != null)
+    {
+        prefabDataFields[fieldIndex].text = newValue.ToString("F3");
+    }
+
+    // Apply the updated rotation to all selected objects
+    foreach (GameObject go in objects)
+    {
+        if (go == null) continue;
+
+        // Update the rotation data for the object
+        Transform transform = go.transform;
+        bool useLocal = CameraManager.Instance.isLocal;
+        Vector3 rotation = useLocal ? transform.localEulerAngles : transform.eulerAngles;
+
+        // Modify only the targeted axis
+        switch (axis)
+        {
+            case Axis.X:
+                rotation.x = newValue;
+                break;
+            case Axis.Y:
+                rotation.y = newValue;
+                break;
+            case Axis.Z:
+                rotation.z = newValue;
+                break;
+        }
+
+        // Apply the rotation
+        if (useLocal)
+        {
+            transform.localRotation = Quaternion.Euler(rotation);
+        }
+        else
+        {
+            transform.rotation = Quaternion.Euler(rotation);
+        }
+
+        // Update UI and data for the last processed selection
+        if (go == _lastProcessedSelection)
+        {
+            // Since we already set the field value, call SendPrefabData to sync PrefabDataHolder and snapshot
+            SendPrefabData(go);
+        }
+        else
+        {
+            // For other objects, update their PrefabDataHolder if applicable
+            PrefabDataHolder holder = go.GetComponent<PrefabDataHolder>();
+            if (holder != null && !go.CompareTag("Collection"))
+            {
+                PrefabData data = holder.prefabData;
+                data.rotation = new VectorData(rotation.x, rotation.y, rotation.z);
+                holder.CastPrefabData();
+            }
+            UpdateTransformSnapshot(go); // Update snapshot for consistency
+        }
+    }
+    CameraManager.Instance.UpdateGizmoState();
+}
+
+
+// New method to update collider states
+private void UpdateColliderStates(bool enable)
+{
+    var selectedObjects = CameraManager.Instance._selectedObjects;
+    if (selectedObjects == null || selectedObjects.Count == 0) return;
+
+    foreach (GameObject go in selectedObjects)
+    {
+        if (go == null) continue;
+
+        // Get all colliders in the object and its children
+        Collider[] colliders = go.GetComponentsInChildren<Collider>();
+        foreach (Collider collider in colliders)  {
+            collider.enabled = enable;
+        }
+    }
+
+    // Update UI to reflect the new state
+    if (_lastProcessedSelection != null)   {
+        RetrieveColliderState(_lastProcessedSelection);
+    }
+}
+
+// New method to retrieve and update the collider toggle state
+public void RetrieveColliderState(GameObject go)
+{
+    if (go == null)
+    {
+        collidersEnabled.SetIsOnWithoutNotify(false);
+        return;
+    }
+
+    var selectedObjects = CameraManager.Instance._selectedObjects;
+    bool anyColliderEnabled = false;
+
+    // Check all selected objects for any enabled colliders
+    foreach (GameObject selected in selectedObjects)
+    {
+        if (selected == null) continue;
+        Collider[] colliders = selected.GetComponentsInChildren<Collider>();
+        if (colliders.Any(collider => collider.enabled))
+        {
+            anyColliderEnabled = true;
+            break;
+        }
+    }
+
+    // Update toggle state without triggering the listener
+    collidersEnabled.SetIsOnWithoutNotify(anyColliderEnabled);
+}
+
+// Update SetSelection to include collider state retrieval
+public void SetSelection(GameObject go)
+{
+    if (go == null)
+    {
+        DefaultPrefabData();
+        _lastProcessedSelection = null;
+        collidersEnabled.SetIsOnWithoutNotify(false); // Disable toggle when no selection
+        return;
+    }
+    RetrievePrefabData(go);
+    RetrieveSocketData(go);
+    RetrieveColliderState(go); // Add collider state retrieval
+    _lastProcessedSelection = go;
+    UpdateTransformSnapshot(go);
+    CameraManager.Instance.UpdateSnapSettings();
+}
+
+// Update UpdateData to refresh collider state when necessary
+public void UpdateData()
+{
+    var selectedObjects = CameraManager.Instance._selectedObjects;
+    if (selectedObjects.Count > 0)
+    {
+        GameObject lastSelected = selectedObjects[^1];
+        if (lastSelected != _lastProcessedSelection)
+        {
+            // New selection, update UI and snapshot
+            SetSelection(lastSelected);
+        }
+        else
+        {
+            // Same object, check for transform changes
+            if (HasTransformChanged(lastSelected))
+            {
+                RetrievePrefabData(lastSelected);
+                UpdateTransformSnapshot(lastSelected);
+            }
+            RetrieveColliderState(lastSelected); // Refresh collider toggle state
+        }
+    }
+    else if (_lastProcessedSelection != null)
+    {
+        // No selection, clear UI
+        DefaultPrefabData();
+        _lastProcessedSelection = null;
+        collidersEnabled.SetIsOnWithoutNotify(false); // Disable toggle when no selection
+    }
+}
+
+// Update DefaultPrefabData to reset collider toggle
+public void DefaultPrefabData()
+{
+    DestroyListeners();
+    DestroySocketListeners();
+    for (int i = 0; i < prefabDataFields.Count; i++)
+    {
+        prefabDataFields[i].text = string.Empty;
+    }
+    socketPanel.SetActive(false);
+    collidersEnabled.SetIsOnWithoutNotify(false); // Reset collider toggle
+    selection.text = CameraManager.Instance.isLocal ? "(Local)" : "(Global)";
+    _lastPosition = Vector3.zero;
+    _lastRotation = Vector3.zero;
+    _lastScale = Vector3.zero;
+    _lastCategory = string.Empty;
+    _lastId = 0;
+}
 }

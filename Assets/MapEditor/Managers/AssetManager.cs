@@ -1743,7 +1743,14 @@ public static IEnumerator SetBundleReferences((int parent, int bundle) ID)
 		Shader standardTerrain  = Shader.Find("Custom/Rust/StandardTerrain");
 		Shader coreFoliageBillboard = Shader.Find("Custom/CoreFoliageBillboard");
 		Shader cliffShader = Shader.Find("Custom/NatureCliff");
-		Shader cliffShaderLOD = Shader.Find("Custom/NatureCliff_LOD");
+		Shader cliffShaderLOD = Shader.Find("Custom/NatureCliff_LOD");	
+		Shader transparentShader = Shader.Find("Custom/Rust/Nothing");
+		
+		if (mat.shader.name.Contains("Custom/FoliageDisplace"))
+		{
+			mat.shader = transparentShader; // Visually hides the material
+			mat.mainTextureScale = new Vector2(0f, 0f); 
+		}	
 		
 		if (mat.shader.name.Contains("Nature/Cliff_LOD"))
 		{

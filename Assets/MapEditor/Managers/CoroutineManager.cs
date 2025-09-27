@@ -109,6 +109,11 @@ public class CoroutineManager : MonoBehaviour
 
     public bool OverUI()   //hover (tooltip) timer + short circuiting clicks over UI
     {
+		
+		if(CameraManager.Instance._workGizmo.Gizmo.HoverInfo.IsHovered){
+			return true;
+		}
+		
         // Reset timer if not over UI
         if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
         {

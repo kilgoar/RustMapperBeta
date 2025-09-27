@@ -203,7 +203,7 @@ public class AppManager : MonoBehaviour
 		}
 		DeactivateWindow(6);
 		DeactivateWindow(9);
-		
+		MenuManager.Instance.SetGizmoScale();
 		Debug.Log("Window states loaded successfully.");
 	}
 	
@@ -826,7 +826,7 @@ public void ActivateWindow(int index)
 			}
 		}
 
-		// Optionally scale associated RecycleTrees if they're active
+		// scale associated RecycleTrees if they're active
 		for (int i = 0; i < RecycleTrees.Count; i++)
 		{
 			if (i < windowPanels.Count && windowPanels[i].activeInHierarchy && RecycleTrees[i] != null)
@@ -958,7 +958,7 @@ public void OnWindowToggle(Toggle windowToggle, GameObject windowPanel)
         }
 
         // Instantiate the window 
-        TemplateWindow newWindow = Instantiate(templateWindowPrefab, uiCanvas.transform);
+        TemplateWindow newWindow = Instantiate(templateWindowPrefab, uiCanvas.transform, false);
         RectTransform windowRect = newWindow.GetComponent<RectTransform>();
 
         //  (empties the template of sub templates)
@@ -1275,7 +1275,21 @@ public void OnWindowToggle(Toggle windowToggle, GameObject windowPanel)
         return newInputField;
     }
 
- 
+    public GameObject CreateItemView(Transform parent, Rect rect)
+    {       
+	
+		if (templateWindowPrefab == null || templateWindowPrefab.itemView == null)			{
+				Debug.LogError("failed to find template window");
+				return null;
+			}
+			
+			// Instantiate from template
+			GameObject newItemView = Instantiate(templateWindowPrefab.itemView, parent);
+			RectTransform viewRect = newItemView.GetComponent<RectTransform>();
+			viewRect.anchoredPosition = new Vector2(rect.x, rect.y);
+			viewRect.sizeDelta = new Vector2(rect.width, rect.height);
 
+				return newItemView;
+    }
 
 }

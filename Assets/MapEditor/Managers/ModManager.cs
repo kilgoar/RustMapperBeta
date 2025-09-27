@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Security.Cryptography;
@@ -9,6 +10,8 @@ using UnityEngine.UI;
 using RustMapEditor.Variables;
 using UIRecycleTreeNamespace;
 using Dummiesman;
+
+
 
 public static class ModManager
 {
@@ -702,6 +705,44 @@ public static void ButtonClickMethod(){
 	Debug.Log("button click log entry");
 }
 
+[ConsoleCommand("CreateTestWindow")]
+public static TemplateWindow CreateTestWindow()
+{
+    if (AppManager.Instance == null)
+    {
+        Debug.LogError("AppManager.Instance is not initialized. Cannot create test window.");
+        return null;
+    }
+
+    // Create the test window
+    TemplateWindow testWindow = AppManager.Instance.CreateWindow(
+        titleText: "Test Window",
+        rect: new Rect(300, -150, 800, 800),
+        iconPath: Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "HarmonyMods", "testIcon.png")
+    );
+
+    if (testWindow != null)
+    {
+        // Instantiate the test configuration
+        TestConfig config = new TestConfig();
+        
+        // Build the UI with the test configuration
+        testWindow.Build(config);
+        
+        // Apply skinning
+        SkinGameObject(testWindow.gameObject);
+        
+        Debug.Log("Test window created and configured with TestConfig.");
+    }
+    else
+    {
+        Debug.LogError("Failed to create test window.");
+    }
+
+    return testWindow;
+}
+
+
 [ConsoleCommand("Sample code for programmatic window creation")]
 public static TemplateWindow CreateSampleWindow()
 {
@@ -787,6 +828,8 @@ public static TemplateWindow CreateSampleWindow()
 	SkinGameObject(sampleWindow.gameObject);
     return sampleWindow;
 }
+	
+
 	
     public static void ClearModdingData()
     {

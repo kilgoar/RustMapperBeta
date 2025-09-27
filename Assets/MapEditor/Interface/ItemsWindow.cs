@@ -15,7 +15,7 @@ public class ItemsWindow : MonoBehaviour
 	public Text footer;
     public UIRecycleTree tree;
 	public InputField query;
-	public Button deleteChecked, checkAll, uncheckAll, findInBreaker, saveCustom, applyTerrain;
+	public Button deleteChecked, checkAll, uncheckAll, findInBreaker, saveCustom, applyTerrain, refresh;
 	private int currentMatchIndex = 0; 
 	private List<Node> matchingNodes = new List<Node>();
 	public List<InputField> prefabDataFields = new List<InputField>();
@@ -23,6 +23,8 @@ public class ItemsWindow : MonoBehaviour
 	
 	public static ItemsWindow Instance { get; private set; }
 	
+	public Dropdown sortDropdown; // Assign in Unity Inspector
+	private UIRecycleTreeNamespace.SortMode currentSortMode = SortMode.MostRecent; // Default to Most Recent
 
     private void Awake()
     {
@@ -273,18 +275,35 @@ public class ItemsWindow : MonoBehaviour
         //applyTerrain.interactable = false;
 	
 
-		saveCustom.onClick.AddListener(() =>
-		{
-			if (CameraManager.Instance._selectedObjects.Count > 0)
-			{
+		saveCustom.onClick.AddListener(() =>		{
+			if (CameraManager.Instance._selectedObjects.Count > 0)			{
 				SaveCollection(CameraManager.Instance._selectedObjects[^1]);
 			}
-			else
-			{
+			else		{
 				Debug.LogWarning("No object selected to save as a collection.");
 			}
 		});
 		
+		if (sortDropdown != null)		{
+			// Clear existing options
+			sortDropdown.ClearOptions();
+
+			// Add sort mode options
+			List<string> options = new List<string>		{
+				"Most Recent",
+				"Least Recent",
+				"Camera Distance"
+			};
+			sortDropdown.AddOptions(options);
+
+			// Set default value
+			sortDropdown.value = (int)SortMode.MostRecent;
+
+			// Add listener for dropdown changes
+			sortDropdown.onValueChanged.AddListener(OnSortModeChanged);
+		}
+		
+		refresh.onClick.AddListener(Refresh);
 	}
 	
 	private void ApplyTerrain()
@@ -516,10 +535,18 @@ public void PopulateList()
 		//Debug.Log("populating paths");
         BuildTreeRecursive(child, null, transformToNodeMap, currentQuery);
     }
+	
+	tree.nodes.SortRecursive(currentSortMode, CameraManager.Instance.cam.transform.position);
 
     CheckSelection();
     tree.Rebuild();
 }
+
+public void Refresh() {
+    PopulateList();
+    CheckSelection();
+}
+
 
 private bool BuildTreeRecursive(Transform current, Node parentNode, Dictionary<Transform, Node> transformToNodeMap, string query)
 {
@@ -1193,9 +1220,16 @@ private void DeleteCheckedNodesStack(Node rootNode, List<GameObject> objectsToRe
 		tree.FocusOn(nextMatch);
 	}
 		
+	private void OnSortModeChanged(int value)
+	{
+		currentSortMode = (SortMode)value;
+		PopulateList(); // Rebuild the list with the new sort mode
+	}
+		
 	private void OnQuery(string query)
 	{
 		PopulateList();
 	}
+	
 
 }
