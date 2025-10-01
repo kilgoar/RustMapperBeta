@@ -39,6 +39,7 @@ public class TestConfig
         new TestItem { Name = "Item2", Value = 2.0f, Enabled = false }
     };
 
+	[Sync]  //this tag causes a call to refresh all UI element values after button executes
     public void ResetValues()
     {
         Debug.Log("Resetting configuration values");
@@ -51,6 +52,7 @@ public class TestConfig
         Items.Clear();
     }
 
+	[Sync]
     [RustMapperButton("Apply Changes")]
     public void ApplyChanges()
     {

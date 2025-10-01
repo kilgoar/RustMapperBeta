@@ -18,9 +18,9 @@ public class CoroutineManager : MonoBehaviour
     public InputAction mouseLeftClick;
     public int heightTool;
 	public int landMask = 1 << 10; // "Land" layer
-	public int socketMask = 1 << 13; // "Land" layer
-	public int prefabMask = 1 << 3; // "Land" layer
-	public int waterMask = 1 << 4; // "Land" layer
+	public int socketMask = 1 << 13; //sockets
+	public int prefabMask = 1 << 3; //prefabs
+	public int waterMask = 1 << 4; //water
 	public RaycastHit hit;
 	private float prefabPlacementTimer = 0f;
 	private float prefabPlacementInterval = 0.05f;
@@ -31,9 +31,16 @@ public class CoroutineManager : MonoBehaviour
 	private float paintBrushTimer = 0f;
     private float paintBrushInterval = 0.1f;
 	
+	private bool selectPrefabDownOverUI = false; // For selectPrefab (drag-select)	
+	private bool isFrustumMode = true;
 	private bool mouseDownOverUI = false;	
 	private float uiHoverTimer = 0f; // New timer for UI hover
     private float uiHoverThreshold = 1f; // 1-second threshold for tooltip
+	
+	private CubeSelector cubeSelector; // Reference to CubeSelector component
+	private bool isDragging; // Flag to track if dragging is occurring
+	private Vector2 dragStartScreenPos; // Screen position where drag started
+	private readonly float dragThreshold = 5f; // Pixel threshold to consider a drag
 	
     public static CoroutineManager Instance
     {
@@ -60,6 +67,11 @@ public class CoroutineManager : MonoBehaviour
         _instance = this;
         _isInitialized = true;
         cam = CameraManager.Instance.cam;
+		
+		var go = new GameObject("CubeSelector");
+		cubeSelector = go.AddComponent<CubeSelector>();
+		cubeSelector.Initialize(cam, prefabMask);
+		DontDestroyOnLoad(go);
     }
 
     private void Start()
@@ -164,6 +176,17 @@ public class CoroutineManager : MonoBehaviour
 			mouseDownOverUI = OverUI();
 		}
 		
+	    // Check if selectPrefab was just pressed and set the selectPrefabDownOverUI flag
+		if (BindManager.WasPressedThisFrame("selectPrefab"))
+		{
+			selectPrefabDownOverUI = OverUI();
+		}
+		
+		if (BindManager.WasReleasedThisFrame("selectPrefab"))
+		{
+			cubeSelector.EndSelection();
+		}
+		
 		// Reset the flag when the mouse button is released
 		if (BindManager.WasReleasedThisFrame("paintBrush"))
 		{
@@ -179,7 +202,7 @@ public class CoroutineManager : MonoBehaviour
 		HandleUndoRedo();
 		
         if (!OverUI()){
-				
+
 				switch (currentStyle)
 				{
 					case 0: // disabled
@@ -273,83 +296,151 @@ public void ItemStylusMode()
 {
     if (BindManager.WasPressedThisFrame("rotateCamera")) return;
 
-    // Check for Alt + Shift + Left Mouse Button
+    // Handle placePrefabFluid (dragging while holding selectPrefab)
     if (BindManager.IsPressed("placePrefabFluid"))
     {
         if (HierarchyWindow.Instance != null && HierarchyWindow.Instance.gameObject.activeSelf)
         {
-            // Update timer
             prefabPlacementTimer += Time.deltaTime;
-
-            // Place prefab if timer exceeds interval
             if (prefabPlacementTimer >= prefabPlacementInterval)
             {
                 if (Physics.Raycast(cam.ScreenPointToRay(Mouse.current.position.ReadValue()), out var hit, Mathf.Infinity, landMask))
                 {
                     HierarchyWindow.Instance.PlacePrefab(hit.point);
                 }
-                prefabPlacementTimer = 0f; // Reset timer
+                prefabPlacementTimer = 0f;
             }
         }
+        return; // Exit early to prioritize placePrefabFluid
     }
-    // Reset timer when left mouse button is released
-    else if (BindManager.WasReleasedThisFrame("placePrefab"))
+    else if (BindManager.WasReleasedThisFrame("placePrefabFluid") || BindManager.WasReleasedThisFrame("placePrefab"))
     {
-        prefabPlacementTimer = 0f;
+        prefabPlacementTimer = 0f; // Reset timer when either placePrefabFluid or placePrefab is released
     }
 
-    if (BindManager.WasPressedThisFrame("selectPrefab") && RTGizmosEngine.Get.HoveredGizmo == null)
+    // Toggle between cube and frustum selection modes
+    if (BindManager.WasPressedThisFrame("toggle3d"))
     {
-        if (BindManager.IsPressed("placePrefab"))
+        isFrustumMode = !isFrustumMode;
+    }
+
+    // Handle selection (single-click, cube, or frustum selection) with "selectPrefab"
+    if (BindManager.IsPressed("selectPrefab") && RTGizmosEngine.Get.HoveredGizmo == null)
+    {
+        Vector2 currentScreenPos = Mouse.current.position.ReadValue();
+
+        if (BindManager.WasPressedThisFrame("selectPrefab"))
         {
-            if (HierarchyWindow.Instance != null && HierarchyWindow.Instance.gameObject.activeSelf)
+            if (selectPrefabDownOverUI)
             {
-                if (Physics.Raycast(cam.ScreenPointToRay(Mouse.current.position.ReadValue()), out hit, Mathf.Infinity, landMask))
+                isDragging = false;
+                return;
+            }
+
+            // Store initial mouse position to detect dragging
+            dragStartScreenPos = currentScreenPos;
+            isDragging = false; // Reset dragging state
+
+            // Handle legacy placePrefab action on initial press
+            if (BindManager.IsPressed("placePrefab"))
+            {
+                if (HierarchyWindow.Instance != null && HierarchyWindow.Instance.gameObject.activeSelf)
                 {
-                    HierarchyWindow.Instance.PlacePrefab(hit.point);
+                    if (Physics.Raycast(cam.ScreenPointToRay(currentScreenPos), out var hit, Mathf.Infinity, landMask))
+                    {
+                        HierarchyWindow.Instance.PlacePrefab(hit.point);
+                    }
+                }
+                return;
+            }
+
+			if (BindManager.IsPressed("socketConnect"))
+			{
+				Debug.LogError("doing socket connection");
+				Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+				if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, socketMask))			{
+
+					GameObject hitObject = hit.collider.gameObject;
+					DungeonBaseSocket socket = hitObject.transform.parent.GetComponent<DungeonBaseSocket>();
+					
+					if (socket != null)				{
+						SocketManager.Connect(socket);
+					}
+				}
+				else{
+					Debug.Log("unselecting socket");
+					SocketManager.Unselect();
+				}
+				return;
+			}
+            if (BindManager.IsPressed("socketSelect"))
+            {
+                Ray ray = cam.ScreenPointToRay(currentScreenPos);
+                if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, socketMask))
+                {
+                    CameraManager.Instance.Unselect();
+                    GameObject hitObject = hit.collider.gameObject;
+                    CameraManager.Instance.SelectPrefab(hitObject.transform.parent.gameObject);
+                }
+                return;
+            }
+            if (BindManager.IsPressed("createSocket"))
+            {
+                Ray ray = cam.ScreenPointToRay(currentScreenPos);
+                if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, prefabMask))
+                {
+                    CameraManager.Instance.Unselect();
+                    SocketManager.AddSocket(hit);
+                }
+                return;
+            }
+        }
+        else
+        {
+            // Check if mouse has moved enough to be considered a drag
+            if (Vector2.Distance(dragStartScreenPos, currentScreenPos) > dragThreshold)
+            {
+                if (selectPrefabDownOverUI)
+                {
+                    isDragging = false;
+                    return;
+                }
+                isDragging = true;
+                // Start or update selection based on mode
+                if (!cubeSelector.IsSelecting)
+                {
+                    cubeSelector.StartSelection(currentScreenPos);
+                }
+                float scrollDelta = Mouse.current.scroll.y.ReadValue();
+                if (isFrustumMode)
+                {
+                    cubeSelector.UpdateFrustumVisualization(currentScreenPos);
+                    cubeSelector.UpdateObjectsInFrustum(currentScreenPos);
+                }
+                else
+                {
+                    cubeSelector.UpdateSelection(currentScreenPos, scrollDelta);
                 }
             }
         }
-		if (BindManager.IsPressed("socketConnect"))
-		{
-			Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
-			if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, socketMask))			{
-
-				GameObject hitObject = hit.collider.gameObject;
-				DungeonBaseSocket socket = hitObject.transform.parent.GetComponent<DungeonBaseSocket>();
-				
-				if (socket != null)				{
-					SocketManager.Connect(socket);
-				}
-			}
-			else{
-				SocketManager.Unselect();
-			}
-			return;
-		}
-		if (BindManager.IsPressed("socketSelect"))
-		{
-			Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
-			if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, socketMask))			{
-				CameraManager.Instance.Unselect();
-				GameObject hitObject = hit.collider.gameObject;
-				CameraManager.Instance.SelectPrefab(hitObject.transform.parent.gameObject);
-			}
-			return;
-		}
-		if (BindManager.IsPressed("createSocket"))
-		{
-			Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
-			if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, prefabMask))			{
-				CameraManager.Instance.Unselect();
-				SocketManager.AddSocket(hit);
-			}
-			return;
-		}
-		SocketManager.Clear();
-        CameraManager.Instance.SelectPrefab();
+    }
+    
+	if (BindManager.WasPressedThisFrame("selectPrefab") && RTGizmosEngine.Get.HoveredGizmo == null)
+    {
+        if (isDragging)
+        {
+            cubeSelector.EndSelection();
+            isDragging = false;
+        }
+        else
+        {
+                SocketManager.Clear();
+                CameraManager.Instance.SelectPrefab();
+        }
+        cubeSelector.Hide();
     }
 }
+
 
 public void PaintBrushMode()
 {

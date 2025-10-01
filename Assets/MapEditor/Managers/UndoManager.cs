@@ -21,7 +21,7 @@ public static class UndoManager
     public static void RegisterAction(IUndoAction action)
     {
         totalMemoryUsage += action.EstimateMemoryUsage();
-        Debug.Log($"Registered action '{action.OperationName}'. Total memory: {(totalMemoryUsage / (1024f * 1024f)):F2} MB");
+        //Debug.Log($"Registered action '{action.OperationName}'. Total memory: {(totalMemoryUsage / (1024f * 1024f)):F2} MB");
 
         undoStack.Add(action);
         redoStack.Clear();
@@ -33,7 +33,7 @@ public static class UndoManager
             totalMemoryUsage -= oldestAction.EstimateMemoryUsage();
             undoStack.RemoveAt(0);
             oldestAction.OnRemoved();
-            Debug.Log($"Removed oldest action '{oldestAction.OperationName}'. New total: {(totalMemoryUsage / (1024f * 1024f)):F2} MB");
+            //Debug.Log($"Removed oldest action '{oldestAction.OperationName}'. New total: {(totalMemoryUsage / (1024f * 1024f)):F2} MB");
         }
 
         OnStateStackChanged?.Invoke(); // Notify listeners of state stack change

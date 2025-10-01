@@ -1799,7 +1799,7 @@ public static IEnumerator SetBundleReferences((int parent, int bundle) ID)
 		
 		if (mat.shader.name.Equals("Standard (Specular setup)") ||mat.shader.name.Equals("Rust/Standard") || mat.shader.name.Equals("Rust/Standard + Wind") || mat.shader.name.Equals("Rust/Standard Cloth")
 			|| mat.shader.name.Equals("Rust/Standard Particle") || mat.shader.name.Equals("Rust/Standard Snow Area") || mat.shader.name.Equals("Rust/Standard Wire") || mat.shader.name.Equals("Rust/Standard + Specular Glare") 
-			|| mat.shader.name.Equals("Rust/Standard Packed Mask Blend")	|| mat.shader.name.Equals("Rust/Standard Cloth (Specular setup)"))	{
+			|| mat.shader.name.Equals("Rust/Standard Packed Mask Blend")	|| mat.shader.name.Equals("Rust/Standard Cloth (Specular setup)") || mat.shader.name.Equals("Custom/StandardWithDecal"))	{
 			mat.shader = standardShader;
 			yield break;
 		}

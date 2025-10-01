@@ -19,6 +19,11 @@ public class InspectorWindow : MonoBehaviour
 	public Button mirrorScaleXButton;
 	public Button mirrorScaleYButton;
 	public Button mirrorScaleZButton;
+	
+	public Button mirrorPositionXButton;
+	public Button mirrorPositionYButton;
+	public Button mirrorPositionZButton;
+	
 	public Button rotateXPlus90Button;
 	public Button rotateXMinus90Button;
 	public Button rotateYPlus90Button;
@@ -125,6 +130,10 @@ public class InspectorWindow : MonoBehaviour
 			mirrorScaleXButton.onClick.AddListener(() => MirrorRotations(CameraManager.Instance._selectedObjects, Axis.X));
 			mirrorScaleYButton.onClick.AddListener(() => MirrorRotations(CameraManager.Instance._selectedObjects, Axis.Y));
 			mirrorScaleZButton.onClick.AddListener(() => MirrorRotations(CameraManager.Instance._selectedObjects, Axis.Z));
+			
+			mirrorPositionXButton.onClick.AddListener(() => MirrorPositions(CameraManager.Instance._selectedObjects, Axis.X));
+			mirrorPositionYButton.onClick.AddListener(() => MirrorPositions(CameraManager.Instance._selectedObjects, Axis.Y));
+			mirrorPositionZButton.onClick.AddListener(() => MirrorPositions(CameraManager.Instance._selectedObjects, Axis.Z));
 
 			// Add listeners for rotation buttons
 			rotateXPlus90Button.onClick.AddListener(() => Rotate90(CameraManager.Instance._selectedObjects, Axis.X, RotationDirection.Plus90));
@@ -412,7 +421,7 @@ public void RetrievePrefabData(GameObject go)
         prefabHolder.UpdatePrefabData();
 
         // Use local or global transform data based on isLocal
-        Vector3 position = useLocal ? transform.localPosition : transform.position;
+        Vector3 position = transform.localPosition;
         Vector3 rotation = useLocal ? transform.localEulerAngles : transform.eulerAngles;
         Vector3 scale = transform.localScale;
 
@@ -445,7 +454,7 @@ public void RetrievePrefabData(GameObject go)
     else
     {
         // Use local or global transform data based on isLocal
-        Vector3 position = useLocal ? transform.localPosition : transform.position;
+        Vector3 position = transform.localPosition;
         Vector3 rotation = useLocal ? transform.localEulerAngles : transform.eulerAngles;
         Vector3 scale = transform.localScale;
 
@@ -508,7 +517,7 @@ public void SendPrefabData(GameObject go)
         }
         else
         {
-            transform.position = position;
+            transform.localPosition = position;
             transform.rotation = Quaternion.Euler(rotation);
         }
         transform.localScale = scale; // Scale is always local
@@ -524,7 +533,7 @@ public void SendPrefabData(GameObject go)
         }
         else
         {
-            transform.position = position;
+            transform.localPosition = position;
             transform.rotation = Quaternion.Euler(rotation);
         }
         transform.localScale = scale; // Scale is always local
@@ -563,12 +572,71 @@ public void SendPrefabData(GameObject go)
         }
     }
 	
+public void MirrorYAndZRotations(List<GameObject> objects)
+{
+    //Debug.Log("mirroring Y and Z rotations");
+    if (objects == null || objects.Count == 0) return;
+
+    // UI field indices for Y and Z rotations
+    int[] fieldIndices = new int[] { 4, 5 }; // prefabDataFields[4] for Y, [5] for Z
+
+    // Apply mirrored Y and Z rotations to all selected objects
+    foreach (GameObject go in objects)
+    {
+        if (go == null) continue;
+
+        // Get the current rotation for this specific object
+        Transform transform = go.transform;
+        bool useLocal = CameraManager.Instance.isLocal;
+        Vector3 rotation = useLocal ? transform.localEulerAngles : transform.eulerAngles;
+
+        // Negate Y and Z rotations
+        float newYValue = -rotation.y;
+        float newZValue = -rotation.z;
+        rotation.y = newYValue;
+        rotation.z = newZValue;
+
+        // Apply the rotation
+        if (useLocal)
+        {
+            transform.localRotation = Quaternion.Euler(rotation);
+        }
+        else
+        {
+            transform.rotation = Quaternion.Euler(rotation);
+        }
+
+        // Update UI and data for the last processed selection
+        if (go == _lastProcessedSelection)
+        {
+            // Update the UI fields for Y and Z rotations
+            prefabDataFields[fieldIndices[0]].text = newYValue.ToString("F3"); // Y rotation
+            prefabDataFields[fieldIndices[1]].text = newZValue.ToString("F3"); // Z rotation
+            // Call SendPrefabData to sync PrefabDataHolder and snapshot
+            SendPrefabData(go);
+        }
+        else
+        {
+            // For other objects, update their PrefabDataHolder if applicable
+            PrefabDataHolder holder = go.GetComponent<PrefabDataHolder>();
+            if (holder != null && !go.CompareTag("Collection"))
+            {
+                PrefabData data = holder.prefabData;
+                data.rotation = new VectorData(rotation.x, rotation.y, rotation.z);
+                holder.CastPrefabData();
+            }
+            UpdateTransformSnapshot(go); // Update snapshot for consistency
+        }
+    }
+    CameraManager.Instance.UpdateGizmoState();
+}
+	
 public void MirrorRotations(List<GameObject> objects, Axis axis)
 {
     //Debug.Log("mirroring rotation " + axis);
     if (objects == null || objects.Count == 0) return;
 
-    // Determine which UI field to update based on axis
+    // Determine which UI field to update for _lastProcessedSelection
     int fieldIndex = axis switch
     {
         Axis.X => 3, // prefabDataFields[3] for X rotation
@@ -579,42 +647,30 @@ public void MirrorRotations(List<GameObject> objects, Axis axis)
 
     if (fieldIndex == -1) return;
 
-    // Get the current rotation value from the UI field (or default to 0 if empty/invalid)
-    float currentValue = 0f;
-    if (_lastProcessedSelection != null && !string.IsNullOrEmpty(prefabDataFields[fieldIndex].text))
-    {
-        float.TryParse(prefabDataFields[fieldIndex].text, out currentValue);
-    }
-
-    // Calculate new rotation value by multiplying by -1
-    float newValue = -currentValue;
-
-    // Update the UI field for the targeted axis
-    if (_lastProcessedSelection != null)
-    {
-        prefabDataFields[fieldIndex].text = newValue.ToString("F3");
-    }
-
-    // Apply the updated rotation to all selected objects
+    // Apply mirrored rotation to all selected objects
     foreach (GameObject go in objects)
     {
         if (go == null) continue;
 
-        // Update the rotation data for the object
+        // Get the current rotation for this specific object
         Transform transform = go.transform;
         bool useLocal = CameraManager.Instance.isLocal;
         Vector3 rotation = useLocal ? transform.localEulerAngles : transform.eulerAngles;
 
-        // Modify only the targeted axis
+        // Negate the rotation for the targeted axis
+        float newValue = 0f;
         switch (axis)
         {
             case Axis.X:
+                newValue = -rotation.x;
                 rotation.x = newValue;
                 break;
             case Axis.Y:
+                newValue = -rotation.y;
                 rotation.y = newValue;
                 break;
             case Axis.Z:
+                newValue = -rotation.z;
                 rotation.z = newValue;
                 break;
         }
@@ -632,7 +688,9 @@ public void MirrorRotations(List<GameObject> objects, Axis axis)
         // Update UI and data for the last processed selection
         if (go == _lastProcessedSelection)
         {
-            // Since we already set the field value, call SendPrefabData to sync PrefabDataHolder and snapshot
+            // Update the UI field for the targeted axis
+            prefabDataFields[fieldIndex].text = newValue.ToString("F3");
+            // Call SendPrefabData to sync PrefabDataHolder and snapshot
             SendPrefabData(go);
         }
         else
@@ -643,6 +701,84 @@ public void MirrorRotations(List<GameObject> objects, Axis axis)
             {
                 PrefabData data = holder.prefabData;
                 data.rotation = new VectorData(rotation.x, rotation.y, rotation.z);
+                holder.CastPrefabData();
+            }
+            UpdateTransformSnapshot(go); // Update snapshot for consistency
+        }
+    }
+    CameraManager.Instance.UpdateGizmoState();
+}
+
+public void MirrorPositions(List<GameObject> objects, Axis axis)
+{
+    //Debug.Log("mirroring position " + axis);
+    if (objects == null || objects.Count == 0) return;
+
+    // Determine which UI field to update for _lastProcessedSelection
+    int fieldIndex = axis switch
+    {
+        Axis.X => 0, // prefabDataFields[0] for X position
+        Axis.Y => 1, // prefabDataFields[1] for Y position
+        Axis.Z => 2, // prefabDataFields[2] for Z position
+        _ => -1 // Should not occur
+    };
+
+    if (fieldIndex == -1) return;
+
+    // Apply mirrored position to all selected objects
+    foreach (GameObject go in objects)
+    {
+        if (go == null) continue;
+
+        // Get the current position for this specific object
+        Transform transform = go.transform;
+        bool useLocal = CameraManager.Instance.isLocal;
+        Vector3 position = useLocal ? transform.localPosition : transform.position;
+
+        // Negate the position for the targeted axis
+        float newValue = 0f;
+        switch (axis)
+        {
+            case Axis.X:
+                newValue = -position.x;
+                position.x = newValue;
+                break;
+            case Axis.Y:
+                newValue = -position.y;
+                position.y = newValue;
+                break;
+            case Axis.Z:
+                newValue = -position.z;
+                position.z = newValue;
+                break;
+        }
+
+        // Apply the position
+        if (useLocal)
+        {
+            transform.localPosition = position;
+        }
+        else
+        {
+            transform.position = position;
+        }
+
+        // Update UI and data for the last processed selection
+        if (go == _lastProcessedSelection)
+        {
+            // Update the UI field for the targeted axis
+            prefabDataFields[fieldIndex].text = newValue.ToString("F3");
+            // Call SendPrefabData to sync PrefabDataHolder and snapshot
+            SendPrefabData(go);
+        }
+        else
+        {
+            // For other objects, update their PrefabDataHolder if applicable
+            PrefabDataHolder holder = go.GetComponent<PrefabDataHolder>();
+            if (holder != null && !go.CompareTag("Collection"))
+            {
+                PrefabData data = holder.prefabData;
+                data.position = new VectorData(position.x, position.y, position.z);
                 holder.CastPrefabData();
             }
             UpdateTransformSnapshot(go); // Update snapshot for consistency

@@ -961,9 +961,6 @@ public void OnWindowToggle(Toggle windowToggle, GameObject windowPanel)
         TemplateWindow newWindow = Instantiate(templateWindowPrefab, uiCanvas.transform, false);
         RectTransform windowRect = newWindow.GetComponent<RectTransform>();
 
-        //  (empties the template of sub templates)
-        CleanUpNonEssentialChildren(newWindow);
-
         // Configure the remaining essential components
         newWindow.title.text = titleText;
         windowRect.anchoredPosition = new Vector2(rect.x, rect.y);

@@ -76,6 +76,62 @@ public class RendererLOD : LODComponent
     {
         // Empty constructor, no initialization here
     }
+	
+	public void Build(LODGroup lodGroup)
+    {
+        if (lodGroup == null)
+        {
+            Debug.LogWarning($"LODGroup is null for {gameObject.name}.");
+            return;
+        }
+
+        // Get LOD data from LODGroup
+        LOD[] lods = lodGroup.GetLODs();
+        if (lods == null || lods.Length == 0)
+        {
+            Debug.LogWarning($"LODGroup on {gameObject.name} has no LOD levels to convert.");
+            lodGroup.enabled = false; // Disable even if invalid
+            return;
+        }
+		
+		float fovRad = CameraManager.Instance.cam.fieldOfView * Mathf.Deg2Rad;
+		float heightFactor = 2.0f * Mathf.Tan(fovRad / 2.0f);
+		Renderer firstRenderer = lods[0].renderers[0];
+		float objectHeight = firstRenderer.bounds.size.y;
+		
+		// Create LOD states based on screen relative heights, approximated to distance thresholds
+		List<State> lodStates = new List<State>();
+		for (int i = 0; i < lods.Length; i++)
+		{
+			LOD lod = lods[i];
+			if (lod.renderers == null || lod.renderers.Length == 0) continue;
+
+			// Calculate world-space distance from screenRelativeTransitionHeight
+			float screenRelativeHeight = lod.screenRelativeTransitionHeight;
+			float approximatedDistance = (objectHeight / screenRelativeHeight / heightFactor);
+
+			State state = new State
+			{
+				distance = approximatedDistance,
+				renderer = lod.renderers[0], 
+				meshFilter = lod.renderers[0].GetComponent<MeshFilter>(),
+				shadowCastingMode = lod.renderers[0].shadowCastingMode,
+				receiveShadows = lod.renderers[0].receiveShadows
+			};
+			state.CacheMaterials(); // Cache initial materials
+			lodStates.Add(state);
+		}
+
+        // Sort states by distance (ascending) to match CalculateLODLevel logic
+        lodStates.Sort((a, b) => a.distance.CompareTo(b.distance));
+
+        // Assign states to this component
+        States = lodStates.ToArray();
+		if (States.Length > 0) { States[0].Show(); }
+        // Disable the original LODGroup
+        lodGroup.enabled = false;
+        Debug.Log($"Initialized RendererLOD on {gameObject.name} from LODGroup with {States.Length} LOD states.");
+    }
 
     public void SetMaterials(Material[] materials) 
     {
@@ -123,28 +179,6 @@ public class RendererLOD : LODComponent
         return null;
     }
 	
-	/*
-    protected override int CalculateLODLevel(float distance)
-    {
-		if(States!= null){
-			if (States.Length == 0) return 0;
-			
-			if (distance >= States[States.Length - 1].distance)
-			{
-				return States.Length - 1;  
-			}
-			for (int i = 0; i < States.Length - 1; i++)
-			{
-				if (distance >= States[i].distance && distance < States[i + 1].distance)
-				{
-					return i;  
-				}
-			}
-		}
-        return -1; // This should not occur due to the previous checks
-    }
-	*/
-	
 	protected override int CalculateLODLevel(float distance)
 	{
 		distance *= LODBias;
@@ -155,12 +189,8 @@ public class RendererLOD : LODComponent
 		}
 
 		// Check each state range
-		for (int i = 0; i < States.Length; i++)
-		{
-			// Define the upper bound (use infinity for the last state)
+		for (int i = 0; i < States.Length; i++)		{
 			float maxDistance = (i + 1 < States.Length) ? States[i + 1].distance : float.MaxValue;
-
-			// If distance is in the range [States[i].distance, States[i+1].distance)
 			if (distance >= States[i].distance && distance < maxDistance)
 			{
 				return i;

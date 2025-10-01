@@ -72,6 +72,211 @@ namespace RustMapEditor.Variables
         long EstimateMemoryUsage();
     }
 	
+public class SelectionUndoAction : IUndoAction
+{
+    private readonly string _operationName;
+    private readonly List<GameObject> _beforeSelectedObjects;
+    private readonly List<GameObject> _afterSelectedObjects;
+    private readonly GameObject _beforeSelectedRoad;
+    private readonly GameObject _afterSelectedRoad;
+    private readonly CameraManager _cameraManager;
+
+    public SelectionUndoAction(string operationName, List<GameObject> beforeSelectedObjects, List<GameObject> afterSelectedObjects, GameObject beforeSelectedRoad, GameObject afterSelectedRoad)
+    {
+        _operationName = operationName;
+        _cameraManager = CameraManager.Instance;
+        _beforeSelectedObjects = new List<GameObject>(beforeSelectedObjects ?? new List<GameObject>());
+        _afterSelectedObjects = new List<GameObject>(afterSelectedObjects ?? new List<GameObject>());
+        _beforeSelectedRoad = beforeSelectedRoad;
+        _afterSelectedRoad = afterSelectedRoad;
+    }
+
+    public string OperationName => _operationName;
+
+    public void Undo()
+    {
+        _cameraManager._suppressUndoCreation = true; // Suppress undo creation
+        try
+        {
+            // Clear current selection
+            _cameraManager.Unselect();
+
+            // Restore previous selection
+            if (_beforeSelectedObjects.Count > 0)
+            {
+                _cameraManager.Select(_beforeSelectedObjects);
+            }
+
+            // Restore previous road selection
+            if (_beforeSelectedRoad != null)
+            {
+                _cameraManager._selectedRoad = _beforeSelectedRoad;
+                _cameraManager.ShowRoad(_beforeSelectedRoad);
+                // Select the first node if available
+                NodeCollection nodeCollection = _beforeSelectedRoad.GetComponent<NodeCollection>();
+                if (nodeCollection != null)
+                {
+                    Transform firstNode = nodeCollection.GetFirstNode();
+                    if (firstNode != null)
+                    {
+                        _cameraManager._selectedObjects.Add(firstNode.gameObject);
+                        _cameraManager.EmissionHighlight(_cameraManager.GetRenderers(firstNode.gameObject), true);
+                    }
+                }
+                if (PathWindow.Instance != null)
+                {
+                    PathWindow.Instance.SetSelection(_beforeSelectedRoad);
+                }
+            }
+
+            // Update UI and gizmo
+            _cameraManager.UpdateItemsWindow();
+            _cameraManager.UpdateGizmoState();
+            _cameraManager.NotifySelectionChanged(); // This won't create a new undo action due to the flag
+        }
+        finally
+        {
+            _cameraManager._suppressUndoCreation = false; // Reset the flag
+        }
+    }
+
+    public void Redo()
+    {
+        _cameraManager._suppressUndoCreation = true; // Suppress undo creation
+        try
+        {
+            // Clear current selection
+            _cameraManager.Unselect();
+
+            // Restore new selection
+            if (_afterSelectedObjects.Count > 0)
+            {
+                _cameraManager.Select(_afterSelectedObjects);
+            }
+
+            // Restore new road selection
+            if (_afterSelectedRoad != null)
+            {
+                _cameraManager._selectedRoad = _afterSelectedRoad;
+                _cameraManager.ShowRoad(_afterSelectedRoad);
+                // Select the first node if available
+                NodeCollection nodeCollection = _afterSelectedRoad.GetComponent<NodeCollection>();
+                if (nodeCollection != null)
+                {
+                    Transform firstNode = nodeCollection.GetFirstNode();
+                    if (firstNode != null)
+                    {
+                        _cameraManager._selectedObjects.Add(firstNode.gameObject);
+                        _cameraManager.EmissionHighlight(_cameraManager.GetRenderers(firstNode.gameObject), true);
+                    }
+                }
+                if (PathWindow.Instance != null)
+                {
+                    PathWindow.Instance.SetSelection(_afterSelectedRoad);
+                }
+            }
+
+            // Update UI and gizmo
+            _cameraManager.UpdateItemsWindow();
+            _cameraManager.UpdateGizmoState();
+            _cameraManager.NotifySelectionChanged(); // This won't create a new undo action due to the flag
+        }
+        finally
+        {
+            _cameraManager._suppressUndoCreation = false; // Reset the flag
+        }
+    }
+
+    public void OnRemoved()
+    {
+        // No specific cleanup needed for selection state
+    }
+
+    public long EstimateMemoryUsage()
+    {
+        return (_beforeSelectedObjects.Count + _afterSelectedObjects.Count + 2) * 1024;
+    }
+}
+	
+	public class UndoCreateGameObjects : IUndoAction
+	{
+		private readonly string _operationName;
+		private readonly List<GameObject> _createdObjects; // Duplicated objects
+		private readonly GameObject _recycleParent; // Temporary parent for hidden objects
+		private readonly List<Transform> _originalParents; // Original parents of duplicated objects
+
+		public UndoCreateGameObjects(string operationName, List<GameObject> createdObjects)
+		{
+			_operationName = operationName;
+			_createdObjects = new List<GameObject>(createdObjects);
+			_recycleParent = new GameObject(operationName + "_RecycleParent");
+			_recycleParent.SetActive(false); // Keep recycle parent hidden
+			_originalParents = new List<Transform>();
+
+			// Store original parents
+			foreach (GameObject go in _createdObjects)
+			{
+				if (go != null)
+				{
+					_originalParents.Add(go.transform.parent);
+				}
+			}
+		}
+
+		public string OperationName => _operationName;
+
+		public void Undo()
+		{
+			// Hide and reparent duplicated objects to recycle parent
+			foreach (GameObject go in _createdObjects)
+			{
+				if (go != null)
+				{
+					go.SetActive(false);
+					go.transform.SetParent(_recycleParent.transform, false);
+				}
+			}
+			PrefabManager.NotifyItemsChanged();
+		}
+
+		public void Redo()
+		{
+			// Restore duplicated objects to their original parents and activate
+			for (int i = 0; i < _createdObjects.Count; i++)
+			{
+				if (_createdObjects[i] != null)
+				{
+					_createdObjects[i].SetActive(true);
+					_createdObjects[i].transform.SetParent(_originalParents[i], false);
+				}
+			}
+			PrefabManager.NotifyItemsChanged();
+		}
+
+		public void OnRemoved()
+		{
+			// Clean up duplicated objects and recycle parent
+			foreach (GameObject go in _createdObjects)
+			{
+				if (go != null)
+				{
+					UnityEngine.Object.DestroyImmediate(go);
+				}
+			}
+			_createdObjects.Clear();
+			if (_recycleParent != null)
+			{
+				UnityEngine.Object.DestroyImmediate(_recycleParent);
+			}
+		}
+
+		public long EstimateMemoryUsage()
+		{
+			// Rough estimate: 1KB per object plus 1KB for recycle parent
+			return (_createdObjects.Count + 1) * 1024;
+		}
+	}
+	
 	public class DeleteSelectionUndoAction : IUndoAction
 	{
 		private readonly string _operationName;

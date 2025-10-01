@@ -146,7 +146,8 @@ public static class PrefabManager
 	
 	private static readonly List<string> StripColliders = new List<string>
 	{
-		"assets/prefabs/deployable/landmine/landmine.prefab",
+		"assets/prefabs/deployable/",
+		"assets/prefabs/building/",
 	};
 
 	private static readonly List<string> BlockedColliderNames = new List<string>
@@ -339,6 +340,17 @@ public static class PrefabManager
 				}
 			}
 			
+			if (component is LODGroup lodGroup)
+			{
+				lock(lodComponents)
+				{				
+					RendererLOD newLOD = go.AddComponent<RendererLOD>();
+					newLOD.Build(lodGroup);
+					lodComponents.Add(newLOD);
+				}
+				continue;
+			}
+			
 			if (component is LODComponent lodComponent)			{
 				lock (lodComponents)
 				{
@@ -393,10 +405,9 @@ public static class PrefabManager
 			}			
 		}
 		
-		Debug.Log(filePath + " testing for stripping colliders");
-		if(StripColliders.Contains(filePath)){
-			Debug.Log("disabling colliders");
-			foreach (var collider in unprocessedColliders)	{
+		if (StripColliders.Any(term => filePath.Contains(term)))
+		{
+			foreach (var collider in unprocessedColliders)		{
 				if (collider != null)		{
 					collider.enabled = false;
 				}
@@ -405,7 +416,6 @@ public static class PrefabManager
 		}
 		
 		if(unprocessedColliders.Count == 0){
-			Debug.Log("creating colliders");
 			CreateColliders(filters);
 		}
 		ActivateColliders();
@@ -2307,6 +2317,37 @@ public static class PrefabManager
 		createPrefab(mark, 1724395471, location, rotation, scale);
 		
 		NotifyItemsChanged();
+	}
+	
+	[ConsoleCommand("fix_negative_scaling")]
+	public static void FixNegativeScaling()
+	{
+		// Ensure CurrentMapPrefabs array is not null
+		if (CurrentMapPrefabs == null)
+		{
+			Debug.LogError("CurrentMapPrefabs array is null\n");
+			return;
+		}
+
+		int count = 0;
+
+		// Iterate through all prefabs and apply absolute value to scale
+		foreach (PrefabDataHolder prefab in CurrentMapPrefabs)
+		{
+			if (prefab != null && prefab.prefabData != null && prefab.gameObject != null)
+			{
+				VectorData scale = prefab.prefabData.scale;
+				scale.x = Mathf.Abs(scale.x);
+				scale.y = Mathf.Abs(scale.y);
+				scale.z = Mathf.Abs(scale.z);
+				prefab.prefabData.scale = scale;
+				// Sync GameObject transform to updated prefabData
+				prefab.gameObject.transform.localScale = new Vector3(scale.x, scale.y, scale.z);
+				count++;
+			}
+		}
+
+		Debug.LogError($"{count} prefabs processed for scale normalization\n");
 	}
 	
 	public static uint GetPalette(int index)

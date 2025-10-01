@@ -44,6 +44,11 @@ public class CameraManager : MonoBehaviour
 	public float lastUpdateTime = 0f;
 	public float updateFrequency = .3f;
 	
+	private Vector2 fixedCursorPos;
+	
+	public bool _suppressUndoCreation = false;
+		
+	private bool isRotating = false;
 	private bool wasMoving = false;
 	private ObjectTransformGizmo _objectMoveGizmo;
     private ObjectTransformGizmo _objectRotationGizmo;
@@ -63,7 +68,10 @@ public class CameraManager : MonoBehaviour
 	
 	public delegate void SelectionChangedHandler();
     public event SelectionChangedHandler OnSelectionChanged;
-
+	
+    private List<GameObject> _previousSelectedObjects = new List<GameObject>();
+    private GameObject _previousSelectedRoad;
+	
     FilePreset settings;
 	
 	public static CameraManager Instance { get; private set; }
@@ -79,6 +87,9 @@ public class CameraManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
+		
+		_previousSelectedObjects = new List<GameObject>();
+        _previousSelectedRoad = null;
     }
 
     void Start()
@@ -255,21 +266,33 @@ public void InitializeGizmos()
 
 			UpdateGizmoState();
 
-		// Rotate camera (right click)
-		if (BindManager.IsPressed("rotateCamera"))
-		{
-			mouseMovement = Mouse.current.delta;
+        // Rotate camera (right click)
+        if (BindManager.IsPressed("rotateCamera"))
+        {
+            // Capture cursor position on first frame of rotation
+            if (!isRotating)
+            {
+                fixedCursorPos = Mouse.current.position.ReadValue();
+                isRotating = true;
+            }
 
-			pitch -= mouseMovement.ReadValue().y * rotationSpeed;
-			yaw += mouseMovement.ReadValue().x * rotationSpeed;
-			if (pitch > 89f || pitch < -89f)
-			{
-				cam.transform.rotation *= Quaternion.Euler(pitch, yaw, 0f);
-			}
+            //Cursor.visible = true;
+            Mouse.current.WarpCursorPosition(fixedCursorPos);
 
-			Quaternion dutchlessTilt = Quaternion.Euler(pitch, yaw, 0f);
-			cam.transform.rotation = dutchlessTilt;
-		}
+            // Perform camera rotation
+            mouseMovement = Mouse.current.delta;
+            pitch -= mouseMovement.ReadValue().y * rotationSpeed;
+            yaw += mouseMovement.ReadValue().x * rotationSpeed;
+            
+            // Apply rotation
+            Quaternion dutchlessTilt = Quaternion.Euler(pitch, yaw, 0f);
+            cam.transform.rotation = dutchlessTilt;
+        }
+        else
+        {
+            //Cursor.visible = true;
+            isRotating = false;
+        }
 
 		if (!AppManager.Instance.IsAnyInputFieldActive())
 		{
@@ -284,19 +307,18 @@ public void InitializeGizmos()
 			else if (BindManager.WasPressedThisFrame("gizmoToggleSpace")) ToggleGizmoSpace();
 			else if (BindManager.WasPressedThisFrame("transparencyToggle")) FadeSelection();
 
-
-				if (BindManager.WasPressedThisFrame("duplicate"))
-				{
-					DuplicateSelection();
-					return;
+				if(BindManager.WasPressedThisFrame("mirrorDuplicate")){
+					DuplicateMirrorSelection(); return;
 				}
-				if (BindManager.WasPressedThisFrame("createParent"))
-				{
+				else if (BindManager.WasPressedThisFrame("duplicate"))			{
+					DuplicateSelection();	return;
+				}
+				
+				if (BindManager.WasPressedThisFrame("createParent"))			{
 					CreateParent();
 					return;
 				}
-				if (BindManager.WasPressedThisFrame("flatten"))
-				{
+				if (BindManager.WasPressedThisFrame("flatten"))			{
 					Flatten();
 					return;
 				}
@@ -554,21 +576,93 @@ private void SetGizmoSensitivity(float gizmoSensitivity)
 		
 	public void DuplicateSelection()
 	{
+		List<GameObject> newObjects = new List<GameObject>();
 		
-		foreach (GameObject go in _selectedObjects)
+		List<GameObject> topLevelObjects = _selectedObjects
+			.Where(go => go != null && !_selectedObjects.Contains(go.transform.parent?.gameObject))
+			.ToList();
+		// Duplicate all selected objects and collect them
+		foreach (GameObject go in topLevelObjects)
 		{
 			if (go != null)
 			{
-				// Create new object copying the original
 				GameObject newObject = Instantiate(go, go.transform.position, go.transform.rotation);
-				// Maintain the same parent as original
-				newObject.transform.parent = go.transform.parent;
-				Unselect (newObject); //unselect new objects
+				newObject.transform.SetParent(go.transform.parent, true);
+				newObjects.Add(newObject);
 			}
 		}
-		
-		
+
+		// Register undo action
+		if (newObjects.Count > 0)
+		{
+			var undoAction = new UndoCreateGameObjects("Duplicate Selection", newObjects);
+			UndoManager.RegisterAction(undoAction);
+		}
+
+		// Set duplicated objects as last siblings for hierarchy clarity
+		foreach (GameObject go in newObjects)
+		{
+			if (go != null)
+			{
+				go.transform.SetAsLastSibling();
+			}
+		}
+
+		// Select the new objects
+		Select(newObjects);
 	}
+	
+	public void DuplicateMirrorSelection()
+	{
+		List<GameObject> newObjects = new List<GameObject>();
+		    // Filter for top-level objects (no parents in _selectedObjects)
+		List<GameObject> topLevelObjects = _selectedObjects
+			.Where(go => go != null && !_selectedObjects.Contains(go.transform.parent?.gameObject))
+			.ToList();
+		
+		// Store the original isLocal state to restore it later
+		bool originalIsLocal = isLocal;
+		isLocal = true; // Force local space for mirroring to match manual workflow
+		
+		// Duplicate all selected objects
+		foreach (GameObject go in topLevelObjects)
+		{
+			if (go != null)
+			{
+				// Instantiate with world position and rotation
+				GameObject newObject = Instantiate(go, go.transform.position, go.transform.rotation);
+				// Parent with worldPositionStays = true to preserve world position
+				newObject.transform.SetParent(go.transform.parent, true);
+				newObjects.Add(newObject);
+			}
+		}
+
+		// Apply mirroring and register undo action
+		if (newObjects.Count > 0)
+		{
+			InspectorWindow.Instance?.MirrorPositions(newObjects, InspectorWindow.Axis.X);
+			InspectorWindow.Instance?.MirrorYAndZRotations(newObjects);
+			
+			var undoAction = new UndoCreateGameObjects("Duplicate Mirror Selection", newObjects);
+			UndoManager.RegisterAction(undoAction);
+			
+			// Select the new objects to update the UI and gizmo
+			Select(newObjects);
+		}
+		
+		// Restore original isLocal state
+		isLocal = originalIsLocal;
+		
+		// Set duplicated objects as last siblings for hierarchy clarity
+		foreach (GameObject go in newObjects)
+		{
+			if (go != null)
+			{
+				go.transform.SetAsLastSibling();
+			}
+		}
+	}
+	
 	
 	public void DeleteSelection()
 	{
@@ -742,11 +836,70 @@ public void SelectPath()
 		NotifySelectionChanged();
 	}
 
-	public void NotifySelectionChanged()
+public void NotifySelectionChanged()
+{
+    Debug.Log("NotifySelectionChanged called");
+
+    // Check if there’s an actual change in selection
+    bool hasSelectionChanged = false;
+
+    // Handle unselecting as a valid state change
+    if (_selectedObjects.Count == 0 && _previousSelectedObjects.Count > 0)
     {
-        OnSelectionChanged?.Invoke();
+        hasSelectionChanged = true; // Unselecting objects
+    }
+    else if (_selectedRoad == null && _previousSelectedRoad != null)
+    {
+        hasSelectionChanged = true; // Unselecting road
+    }
+    else
+    {
+        // Compare counts and last item for non-empty selections
+        if (_selectedObjects.Count != _previousSelectedObjects.Count)
+        {
+            hasSelectionChanged = true;
+        }
+        else if (_selectedObjects.Count > 0 && _previousSelectedObjects.Count > 0)
+        {
+            // Compare the last item in both lists
+            GameObject lastSelected = _selectedObjects[_selectedObjects.Count - 1];
+            GameObject lastPrevious = _previousSelectedObjects[_previousSelectedObjects.Count - 1];
+            if (lastSelected != lastPrevious)
+            {
+                hasSelectionChanged = true;
+            }
+        }
+        // Check if selected road has changed
+        if (_selectedRoad != _previousSelectedRoad)
+        {
+            hasSelectionChanged = true;
+        }
     }
 
+    // Create undo action only if there’s a change and not suppressed
+    if (hasSelectionChanged && !_suppressUndoCreation)
+    {
+        var undoAction = new SelectionUndoAction(
+            "Change Selection",
+            _previousSelectedObjects.ToList(), // Clone to avoid reference issues
+            _selectedObjects.ToList(),        // Clone to avoid reference issues
+            _previousSelectedRoad,
+            _selectedRoad
+        );
+        UndoManager.RegisterAction(undoAction);
+    }
+
+    // Update previous selection state only if there was a change
+    if (hasSelectionChanged)
+    {
+        _previousSelectedObjects = new List<GameObject>(_selectedObjects); // Clone the list
+        _previousSelectedRoad = _selectedRoad;
+    }
+
+    // Trigger the selection changed event
+    OnSelectionChanged?.Invoke();
+}
+	
 	public void SelectRoad(GameObject roadObject, GameObject nodeObject = null){
 			
 			Unselect();
@@ -1232,6 +1385,7 @@ public void DragNodes()
 		}
 		UpdateItemsWindow();
 		UpdateGizmoState();
+		NotifySelectionChanged();
 	}
 	
 	public void UnselectChecked(GameObject obj)
@@ -1282,7 +1436,7 @@ public void DragNodes()
 			PathWindow.Instance.UpdateData(); // Ensure UI reflects the no-selection state
 		}
 		
-		OnSelectionChanged?.Invoke();
+		NotifySelectionChanged();
 	}
 
 	public List<Renderer> GetRenderers(GameObject gameObject)

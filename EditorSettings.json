@@ -397,7 +397,7 @@
       "isActive": false,
       "position": {
         "x": -22.2200317,
-        "y": -22.769989,
+        "y": -19.1040955,
         "z": 0.0
       },
       "scale": {
@@ -409,8 +409,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -259.44397,
-        "y": -9.9552,
+        "x": -337.05603,
+        "y": 16.0448,
         "z": 0.0
       },
       "scale": {
@@ -422,21 +422,21 @@
     {
       "isActive": false,
       "position": {
-        "x": -66.5,
-        "y": 140.499969,
+        "x": -131.5,
+        "y": -94.4991455,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6,
-        "y": 0.6,
+        "x": 0.6719965,
+        "y": 0.6719965,
         "z": 0.0
       }
     },
     {
       "isActive": true,
       "position": {
-        "x": -186.973267,
-        "y": 26.39029,
+        "x": -314.473267,
+        "y": 23.89029,
         "z": 0.0
       },
       "scale": {
@@ -448,8 +448,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 35.7696533,
-        "y": 470.441162,
+        "x": -468.5,
+        "y": 288.941162,
         "z": 0.0
       },
       "scale": {
@@ -461,7 +461,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -8.399994,
+        "x": -8.400024,
         "y": 2.1,
         "z": 0.0
       },
@@ -475,7 +475,7 @@
       "isActive": false,
       "position": {
         "x": 264.5,
-        "y": 197.499969,
+        "y": 249.999969,
         "z": 0.0
       },
       "scale": {
@@ -487,13 +487,13 @@
     {
       "isActive": false,
       "position": {
-        "x": 56.96399,
-        "y": -5.10998535,
+        "x": -46.15802,
+        "y": -128.724426,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6,
-        "y": 0.6,
+        "x": 0.6719965,
+        "y": 0.6719965,
         "z": 0.0
       }
     },
@@ -505,16 +505,16 @@
         "z": 0.0
       },
       "scale": {
-        "x": 0.6,
-        "y": 0.6,
-        "z": 1.0
+        "x": 0.6719965,
+        "y": 0.6719965,
+        "z": 0.0
       }
     },
     {
       "isActive": false,
       "position": {
         "x": 220.549988,
-        "y": 109.049988,
+        "y": 161.549988,
         "z": 0.0
       },
       "scale": {
@@ -526,8 +526,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -222.9325,
-        "y": -68.77734,
+        "x": 270.537,
+        "y": -259.091431,
         "z": 0.0
       },
       "scale": {
@@ -537,15 +537,15 @@
       }
     },
     {
-      "isActive": false,
+      "isActive": true,
       "position": {
-        "x": 402.24,
-        "y": 97.19098,
+        "x": 356.4433,
+        "y": -36.7727356,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6,
-        "y": 0.6,
+        "x": 0.6719965,
+        "y": 0.6719965,
         "z": 0.0
       }
     }
@@ -557,8 +557,8 @@
       "z": 1.0
     },
     "position": {
-      "x": 982.0,
-      "y": 553.0,
+      "x": 1146.0,
+      "y": 629.0,
       "z": 0.0
     }
   },
@@ -700,6 +700,14 @@
       "requiresAlt": false
     },
     {
+      "bindName": "mirrorDuplicate",
+      "actionType": 1,
+      "primaryInput": "<Keyboard>/d",
+      "requiresCtrl": true,
+      "requiresShift": true,
+      "requiresAlt": false
+    },
+    {
       "bindName": "createParent",
       "actionType": 1,
       "primaryInput": "<Keyboard>/a",
@@ -727,6 +735,14 @@
       "bindName": "selectPrefab",
       "actionType": 1,
       "primaryInput": "<Mouse>/leftButton",
+      "requiresCtrl": false,
+      "requiresShift": false,
+      "requiresAlt": false
+    },
+    {
+      "bindName": "toggle3d",
+      "actionType": 1,
+      "primaryInput": "<Mouse>/middleButton",
       "requiresCtrl": false,
       "requiresShift": false,
       "requiresAlt": false

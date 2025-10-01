@@ -27,12 +27,15 @@ public class TemplateWindow : UIBuilder
 
     public void Build(object target)
     {
+
         if (target == null)
         {
             Debug.LogError("Target object is null. Cannot build UI.");
             return;
         }
-
+		
+		EnableTemplates(true);
+		
         targetObject = target;
         Type type = targetObject.GetType();
         title.text = type.Name;
@@ -272,8 +275,10 @@ public class TemplateWindow : UIBuilder
         }
 
         Debug.Log($"Generated UI with {elementCount} elements for {type.Name}");
+		EnableTemplates(false);
     }
 
+/*
     private void Update()
     {
         if (targetObject == null) return;
@@ -334,6 +339,7 @@ public class TemplateWindow : UIBuilder
             }
         }
     }
+	*/
 
     // Non-binding UI creation methods
     public Button CreateButton(Transform parent, Rect rect, string text = "", UnityAction onClick = null)
@@ -423,4 +429,92 @@ public class TemplateWindow : UIBuilder
         newInputField.text = text;
         return newInputField;
     }
+	
+	public void SyncWindow()
+    {
+        if (targetObject == null)
+        {
+            Debug.LogWarning("Cannot sync window: targetObject is null.");
+            return;
+        }
+
+        foreach (var pair in fieldToUIElement)
+        {
+            FieldInfo field = pair.Key;
+            Component uiElement = pair.Value;
+
+            try
+            {
+                if (uiElement is Text text && field.FieldType == typeof(string) && 
+                    (field.IsInitOnly || field.IsLiteral || field.GetCustomAttribute<System.Runtime.CompilerServices.IsReadOnlyAttribute>() != null))
+                {
+                    string currentValue = (string)field.GetValue(targetObject) ?? "";
+                    if (text.text != currentValue)
+                    {
+                        text.text = currentValue;
+                        Debug.Log($"Synced Text for {field.Name} to: {currentValue}");
+                    }
+                }
+                else if (uiElement is InputField inputField)
+                {
+                    string currentValue = null;
+                    if (field.FieldType == typeof(string))
+                        currentValue = (string)field.GetValue(targetObject) ?? "";
+                    else if (field.FieldType == typeof(int))
+                        currentValue = ((int)field.GetValue(targetObject)).ToString();
+                    else if (field.FieldType == typeof(uint))
+                        currentValue = ((uint)field.GetValue(targetObject)).ToString();
+                    else if (field.FieldType == typeof(float))
+                        currentValue = ((float)field.GetValue(targetObject)).ToString("F2");
+
+                    if (currentValue != null && inputField.text != currentValue)
+                    {
+                        inputField.text = currentValue;
+                        Debug.Log($"Synced InputField for {field.Name} to: {currentValue}");
+                    }
+                }
+                else if (uiElement is Toggle toggle && field.FieldType == typeof(bool))
+                {
+                    bool currentValue = (bool)field.GetValue(targetObject);
+                    if (toggle.isOn != currentValue)
+                    {
+                        toggle.isOn = currentValue;
+                        Debug.Log($"Synced Toggle for {field.Name} to: {currentValue}");
+                    }
+                }
+                else if (uiElement is Dropdown dropdown && field.FieldType.IsEnum)
+                {
+                    object currentValue = field.GetValue(targetObject);
+                    string[] enumNames = Enum.GetNames(field.FieldType);
+                    int index = Array.IndexOf(enumNames, currentValue.ToString());
+                    if (index >= 0 && dropdown.value != index)
+                    {
+                        dropdown.value = index;
+                        Debug.Log($"Synced Dropdown for {field.Name} to: {currentValue}");
+                    }
+                }
+                else if (uiElement is Vector3Field vector3Field && field.FieldType == typeof(Vector3))
+                {
+                    Vector3 currentValue = (Vector3)field.GetValue(targetObject);
+                    Vector3 uiValue = vector3Field.GetVector3();
+                    if (currentValue != uiValue)
+                    {
+                        vector3Field.SetVector3(currentValue);
+                        Debug.Log($"Synced Vector3Field for {field.Name} to: {currentValue}");
+                    }
+                }
+                else if (uiElement is ListView listView && field.FieldType.IsGenericType && 
+                         field.FieldType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    listView.SyncList();
+                    Debug.Log($"Synced ListView for {field.Name}");
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error syncing UI for {field.Name}: {e.Message}");
+            }
+        }
+    }
+	
 }

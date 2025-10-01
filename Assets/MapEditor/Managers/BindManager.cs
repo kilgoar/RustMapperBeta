@@ -159,11 +159,16 @@ public static class BindManager
 			new Bind("transparencyToggle", InputActionType.Button, "<Keyboard>/f", false, false, false),
 			// Selection controls
 			new Bind("duplicate", InputActionType.Button, "<Keyboard>/d", true, false, false),
+			new Bind("mirrorDuplicate", InputActionType.Button, "<Keyboard>/d", true, true, false),
 			new Bind("createParent", InputActionType.Button, "<Keyboard>/a", true, false, false),
 			new Bind("flatten", InputActionType.Button, "<Keyboard>/f", true, false, false),
 			new Bind("delete", InputActionType.Button, "<Keyboard>/delete", false, false, false),
+			
 			new Bind("selectPrefab", InputActionType.Button, "<Mouse>/leftButton", false, false, false),
+			new Bind("toggle3d", InputActionType.Button, "<Mouse>/middleButton", false, false, false),
 			new Bind("multiSelect", InputActionType.Button, "<Keyboard>/leftShift", false, false, false),
+			
+			
 			// Prefab and path placement
 			new Bind("placePrefab", InputActionType.Button, "<Mouse>/leftButton", false, false, true),
 			new Bind("placePrefabFluid", InputActionType.Button, "<Mouse>/leftButton", false, true, true),

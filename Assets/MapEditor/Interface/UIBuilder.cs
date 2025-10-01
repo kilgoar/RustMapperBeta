@@ -33,6 +33,9 @@ public class RustMapperButton : Attribute    {
     }
 }
 
+[AttributeUsage(AttributeTargets.Method)]
+public class Sync : Attribute {		}
+
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
 public class HorizontalGroup : Attribute    {    }
 
@@ -66,6 +69,7 @@ public abstract class UIBuilder : MonoBehaviour
         }
         Text newText = Instantiate(label, parent, false);
         newText.text = text;
+		newText.gameObject.SetActive(true);
         return newText;
     }
 	
@@ -81,6 +85,7 @@ public abstract class UIBuilder : MonoBehaviour
 
         // Instantiate ListView from the child component
         ListView newListView = Instantiate(listView.gameObject, parent, false).GetComponent<ListView>();
+		
         object listValue = field.GetValue(target);
 
         if (listValue != null)
@@ -105,9 +110,8 @@ public abstract class UIBuilder : MonoBehaviour
             Debug.LogError($"{GetType().Name}'s inputField field is not assigned.");
             return null;
         }
-
         InputField newInputField = Instantiate(inputField, parent, false);
-
+		
         // Set initial value and content type
         if (field.FieldType == typeof(string))
         {
@@ -317,7 +321,6 @@ public abstract class UIBuilder : MonoBehaviour
         return newVector3Field;
     }
 
-    // Create and bind a Button
     protected Button CreateAndBindButton(Transform parent, MethodInfo method, object target, string labelText)
     {
         if (button == null)
@@ -339,6 +342,13 @@ public abstract class UIBuilder : MonoBehaviour
             {
                 method.Invoke(target, null);
                 Debug.Log($"Invoked method: {method.Name}");
+
+                // Check if the method has the [Sync] attribute and if this is a TemplateWindow
+                if (method.GetCustomAttribute<Sync>() != null && this is TemplateWindow templateWindow)
+                {
+                    templateWindow.SyncWindow();
+                    Debug.Log($"SyncWindow called after invoking {method.Name}");
+                }
             }
             catch (Exception e)
             {
@@ -348,4 +358,32 @@ public abstract class UIBuilder : MonoBehaviour
 
         return newButton;
     }
+	
+	// Enable or disable all template UI elements
+	public void EnableTemplates(bool isEnabled)
+	{
+		// Array of all template UI elements
+		GameObject[] templates = new GameObject[]
+		{
+			horizontalContainer,
+			templateToggle != null ? templateToggle.gameObject : null,
+			label != null ? label.gameObject : null,
+			button != null ? button.gameObject : null,
+			buttonbright != null ? buttonbright.gameObject : null,
+			slider != null ? slider.gameObject : null,
+			dropdown != null ? dropdown.gameObject : null,
+			vector3Fields != null ? vector3Fields.gameObject : null,
+			inputField != null ? inputField.gameObject : null,
+			listView != null ? listView.gameObject : null
+		};
+
+		// Set active state for each non-null template
+		foreach (var template in templates)
+		{
+			if (template != null)
+			{
+				template.SetActive(isEnabled);
+			}
+		}
+	}
 }

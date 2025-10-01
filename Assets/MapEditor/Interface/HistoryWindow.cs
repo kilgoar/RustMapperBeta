@@ -62,20 +62,20 @@ public void PopulateList()
     }
 
     tree.nodes.Clear();
-    Debug.Log("PopulateList: Cleared tree nodes.");
+    //Debug.Log("PopulateList: Cleared tree nodes.");
 
     // Get undo and redo stacks
     var undoStack = UndoManager.GetUndoStack().ToList();
     var redoStack = UndoManager.GetRedoStack().ToList();
-    Debug.Log($"Undo stack count: {undoStack.Count}, Redo stack count: {redoStack.Count}");
-    Debug.Log($"Undo stack: {string.Join(", ", undoStack.Select(a => a.OperationName))}");
-    Debug.Log($"Redo stack: {string.Join(", ", redoStack.Select(a => a.OperationName))}");
+    //Debug.Log($"Undo stack count: {undoStack.Count}, Redo stack count: {redoStack.Count}");
+    //Debug.Log($"Undo stack: {string.Join(", ", undoStack.Select(a => a.OperationName))}");
+    //Debug.Log($"Redo stack: {string.Join(", ", redoStack.Select(a => a.OperationName))}");
 
     // Combine actions in chronological order (newest first)
     var allActions = new List<IUndoAction>();
     allActions.AddRange(redoStack); // Redo stack (assumed newest first)
     allActions.AddRange(undoStack.AsEnumerable().Reverse()); // Undo stack, reversed to put newest first
-    Debug.Log($"All actions (newest first): {string.Join(", ", allActions.Select(a => a.OperationName))}");
+    //Debug.Log($"All actions (newest first): {string.Join(", ", allActions.Select(a => a.OperationName))}");
 
     // Group actions by OperationName
     var groupedActions = new List<Node>();
@@ -107,14 +107,14 @@ public void PopulateList()
         actionNode.styleIndex = redoStack.Contains(action) ? 1 : 0;
         tree.AddNodeNameReference(actionNode);
         currentGroupNode.nodes.AddWithoutNotify(actionNode);
-        Debug.Log($"Added node: {actionNode.name} (styleIndex: {actionNode.styleIndex})");
+        //Debug.Log($"Added node: {actionNode.name} (styleIndex: {actionNode.styleIndex})");
         actionIndex--;
 
         // Set focusNode to the most recent undo action
         if (undoStack.Count > 0 && action == undoStack[undoStack.Count - 1])
         {
             focusNode = actionNode;
-            Debug.Log($"Set focusNode to most recent undo: {focusNode.name} (index {i})");
+            //Debug.Log($"Set focusNode to most recent undo: {focusNode.name} (index {i})");
         }
     }
 
@@ -128,7 +128,7 @@ public void PopulateList()
     if (focusNode == null && groupedActions.Count > 0)
     {
         focusNode = groupedActions[0].nodes.FirstOrDefault();
-        Debug.Log($"FocusNode null, set to most recent node: {(focusNode != null ? focusNode.name : "None")}");
+        //Debug.Log($"FocusNode null, set to most recent node: {(focusNode != null ? focusNode.name : "None")}");
     }
 
     // Add grouped nodes to the tree (newest groups at the top)
@@ -136,16 +136,16 @@ public void PopulateList()
     {
         tree.nodes.AddWithoutNotify(groupNode);
     }
-    Debug.Log($"Tree nodes (before rebuild): {string.Join(", ", tree.nodes.Select(n => n.name))}");
+    //Debug.Log($"Tree nodes (before rebuild): {string.Join(", ", tree.nodes.Select(n => n.name))}");
 
 
     tree.Rebuild();
-    Debug.Log($"Tree rebuilt with nodes: {string.Join(", ", tree.nodes.Select(n => n.name))}");
+    //Debug.Log($"Tree rebuilt with nodes: {string.Join(", ", tree.nodes.Select(n => n.name))}");
 
     // Focus on the node
     if (focusNode != null)
     {
-        Debug.Log($"Focusing on node: {focusNode.name}");
+        //Debug.Log($"Focusing on node: {focusNode.name}");
         tree.FocusOn(focusNode);
     }
     else
