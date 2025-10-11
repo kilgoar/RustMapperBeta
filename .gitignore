@@ -13,6 +13,8 @@ Library/*
 /Assets/EasyRoads3D scenes/**/*
 /Assets/Runtime Transform Gizmos/**/*
 /Assets/Live Terrain Editor/**/*
+/Assets/MapEditor/Interface/CodeflingAuth.cs
+/Assets/MapEditor/Interface/CodeflingAuth.cs.meta
 *.log
 *.info
 *.log

@@ -63,8 +63,11 @@ public class AppManager : MonoBehaviour
         SettingsManager.RuntimeInit();
 		Debug.Log("settings manager loaded");
 		BindManager.RuntimeInit();
-
+		
+	
 		AssetManager.RuntimeInit();
+		
+
 				
 		Debug.Log("settings loaded");
 		Debug.Log("initializing rustmapper build: " + DebugManager.Instance.buildId);
@@ -81,7 +84,6 @@ public class AppManager : MonoBehaviour
 		Debug.Log("map manager initialized");
 		SocketManager.LoadSocketData();
 		Debug.Log("sockets initialized");
-		
     }
 
 	private void Start()

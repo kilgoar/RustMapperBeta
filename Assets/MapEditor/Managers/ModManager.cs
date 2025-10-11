@@ -12,7 +12,6 @@ using UIRecycleTreeNamespace;
 using Dummiesman;
 
 
-
 public static class ModManager
 {
     public static List<WorldSerialization.MapData> moddingData = new List<WorldSerialization.MapData>();
@@ -23,6 +22,52 @@ public static class ModManager
         "npcspawnpoints", "bradleypathpoints", "anchorpaths", "mappassword",
 		"buildingblocks", "oceanpathpoints"
     };
+	
+	    // Static instance of CodeflingAuth
+    private static CodeflingAuth _codeflingAuth;
+
+    // Property to access the CodeflingAuth instance, initializing it if necessary
+    private static CodeflingAuth CodeflingAuthInstance
+    {
+        get
+        {
+            if (_codeflingAuth == null)
+            {
+                _codeflingAuth = new CodeflingAuth();
+                Debug.Log("Initialized CodeflingAuth instance.");
+            }
+            return _codeflingAuth;
+        }
+    }
+
+    [ConsoleCommand("AuthCodefling")]
+    public static void AuthCodefling()
+    {
+        try
+        {
+            // Trigger the login process using the CodeflingAuth instance
+            CodeflingAuthInstance.Login();
+            Debug.Log("Codefling login process started. Check console for authentication URL and status.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Failed to start Codefling login: {ex.Message}");
+        }
+    }
+	
+	[ConsoleCommand("CodeflingInfo")]
+    public static void CodeflingInfo()
+    {
+        try
+        {
+            // Trigger the login process using the CodeflingAuth instance
+            CodeflingAuthInstance.PrintAccountInfo();            
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Failed to retrieve info: {ex.Message}");
+        }
+    }
 	
 	public static void LoadObj(string path)
 	{
@@ -178,6 +223,65 @@ public static Texture2D LoadTexture(string filePath)
         return null;
     }
 }
+
+        [ConsoleCommand("InspectClass")]
+        public static void InspectClass(string className)
+        {
+            // Check if the class name is provided and valid
+            if (string.IsNullOrEmpty(className))
+            {
+                Debug.LogError("InspectClass: Please provide a class name. Usage: InspectClass <ClassName>");
+                return;
+            }
+
+            // Retrieve the class definition from FlexComponentManager
+            Type type = FC.FlexComponentManager.GetClassDefinition(className);
+            if (type == null)
+            {
+                Debug.LogError($"InspectClass: Class '{className}' not found in ClassDefinitions.");
+                return;
+            }
+
+            // Log class header
+            Debug.Log($"Inspecting Class: {className} (Full Name: {type.FullName})");
+
+            // Fields
+            Debug.Log("Fields:");
+            FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            if (fields.Length == 0)
+            {
+                Debug.Log("  None");
+            }
+            else
+            {
+                foreach (FieldInfo field in fields)
+                {
+                    string access = field.IsPublic ? "public" : field.IsPrivate ? "private" : "protected";
+                    string staticMod = field.IsStatic ? "static" : "";
+                    Debug.Log($"  {access} {staticMod} {field.FieldType.FullName} {field.Name}");
+                }
+            }
+
+            // Methods
+            Debug.Log("Methods:");
+            MethodInfo[] methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            if (methods.Length == 0)
+            {
+                Debug.Log("  None");
+            }
+            else
+            {
+                foreach (MethodInfo method in methods)
+                {
+                    string access = method.IsPublic ? "public" : method.IsPrivate ? "private" : "protected";
+                    string staticMod = method.IsStatic ? "static" : "";
+                    string returnType = method.ReturnType.FullName ?? "void";
+                    string parameters = string.Join(", ", Array.ConvertAll(method.GetParameters(), p => $"{p.ParameterType.FullName} {p.Name}"));
+                    Debug.Log($"  {access} {staticMod} {returnType} {method.Name}({parameters})");
+                }
+            }
+        }
+
 [ConsoleCommand("LoadSkin")]
 public static void LoadSkin(string path)
 {

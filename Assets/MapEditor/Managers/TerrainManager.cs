@@ -175,6 +175,7 @@ public static class TerrainManager
 
 	public static void OnBundlesLoaded()
 	{
+
 		try
 		{
 			Debug.Log("Setting terrain layers");

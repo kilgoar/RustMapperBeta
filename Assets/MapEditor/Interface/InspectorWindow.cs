@@ -814,6 +814,7 @@ public void Rotate90(List<GameObject> objects, Axis axis, RotationDirection dire
     // Calculate new rotation value
     float angleChange = (direction == RotationDirection.Plus90) ? 90f : -90f;
     float newValue = currentValue + angleChange;
+	newValue = (newValue % 360f); 
 
     // Update the UI field for the targeted axis
     if (_lastProcessedSelection != null)

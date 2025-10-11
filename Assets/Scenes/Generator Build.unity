@@ -88569,7 +88569,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1260166841}
   m_HandleRect: {fileID: 1260166840}
   m_Direction: 2
-  m_Value: 1
+  m_Value: 0
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -101390,6 +101390,7 @@ MonoBehaviour:
   currentTime: 0
   lastUpdateTime: 0
   updateFrequency: 0.3
+  _suppressUndoCreation: 0
   _selectedObjects: []
   _selectedRoad: {fileID: 0}
   _workGizmoId: 0
@@ -110182,7 +110183,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1183450241
 RectTransform:
   m_ObjectHideFlags: 0
@@ -127461,7 +127462,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1390838652
 RectTransform:
   m_ObjectHideFlags: 0

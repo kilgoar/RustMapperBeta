@@ -19,7 +19,7 @@
     "newHeight": 0.5,
     "newBiome": 2,
     "newSplat": 16,
-    "startupSkin": "D:\\Users\\kilgoar\\Desktop\\rustmapper2023\\Custom\\Skins\\darkmode.png",
+    "startupSkin": "D:\\Users\\kilgoar\\Desktop\\rustmapper2023\\Custom\\Skins\\cabinet.png",
     "recentFiles": [
       "E:\\Program Files (x86)\\Steam\\steamapps\\common\\Rust\\maps\\proceduralmap.4500.1195662783.271_0c7c46c7b1ccd56690f4c7b32215696a.map",
       "E:\\generatortest.map",
@@ -83,106 +83,6 @@
   "geology": {
     "geologyItems": [
       {
-        "customPrefab": "Custom/polygons/cube",
-        "prefabID": 0,
-        "emphasis": 1,
-        "maximum": 2147483647,
-        "sectors": "",
-        "custom": true,
-        "minDepth": 0,
-        "maxDepth": 2147483647
-      },
-      {
-        "customPrefab": "Custom/polygons/parkourCube",
-        "prefabID": 0,
-        "emphasis": 1,
-        "maximum": 2147483647,
-        "sectors": "",
-        "custom": true,
-        "minDepth": 0,
-        "maxDepth": 2147483647
-      },
-      {
-        "customPrefab": "Custom/polygons/parkourdodecahedron",
-        "prefabID": 0,
-        "emphasis": 1,
-        "maximum": 2147483647,
-        "sectors": "",
-        "custom": true,
-        "minDepth": 0,
-        "maxDepth": 2147483647
-      },
-      {
-        "customPrefab": "Custom/polygons/parkourOctahedron",
-        "prefabID": 0,
-        "emphasis": 1,
-        "maximum": 2147483647,
-        "sectors": "",
-        "custom": true,
-        "minDepth": 0,
-        "maxDepth": 2147483647
-      },
-      {
-        "customPrefab": "Custom/polygons/parkourOctahedronMetal",
-        "prefabID": 0,
-        "emphasis": 1,
-        "maximum": 2147483647,
-        "sectors": "",
-        "custom": true,
-        "minDepth": 0,
-        "maxDepth": 2147483647
-      },
-      {
-        "customPrefab": "Custom/polygons/parkourTetrahedron",
-        "prefabID": 0,
-        "emphasis": 1,
-        "maximum": 2147483647,
-        "sectors": "",
-        "custom": true,
-        "minDepth": 0,
-        "maxDepth": 2147483647
-      },
-      {
-        "customPrefab": "Custom/polygons/parkourTruncIcosa",
-        "prefabID": 0,
-        "emphasis": 1,
-        "maximum": 2147483647,
-        "sectors": "",
-        "custom": true,
-        "minDepth": 0,
-        "maxDepth": 2147483647
-      },
-      {
-        "customPrefab": "Custom/polygons/parkourTwig",
-        "prefabID": 0,
-        "emphasis": 1,
-        "maximum": 2147483647,
-        "sectors": "",
-        "custom": true,
-        "minDepth": 0,
-        "maxDepth": 2147483647
-      },
-      {
-        "customPrefab": "Custom/polygons/tetrahedron",
-        "prefabID": 0,
-        "emphasis": 1,
-        "maximum": 2147483647,
-        "sectors": "",
-        "custom": true,
-        "minDepth": 0,
-        "maxDepth": 2147483647
-      },
-      {
-        "customPrefab": "Custom/polygons/twigdoubletetrahedron",
-        "prefabID": 0,
-        "emphasis": 1,
-        "maximum": 2147483647,
-        "sectors": "",
-        "custom": true,
-        "minDepth": 0,
-        "maxDepth": 2147483647
-      },
-      {
         "customPrefab": "Custom/polygons/woodDodecahedron",
         "prefabID": 0,
         "emphasis": 1,
@@ -191,34 +91,28 @@
         "custom": true,
         "minDepth": 0,
         "maxDepth": 2147483647
-      }
-    ],
-    "geologyCollisions": [
-      {
-        "minMax": true,
-        "radius": 50.0,
-        "layer": 8
       },
       {
-        "minMax": true,
-        "radius": 20.0,
-        "layer": 512
-      },
-      {
-        "minMax": false,
-        "radius": 70.0,
-        "layer": 512
+        "customPrefab": "Custom/Monuments/awesometest.monument",
+        "prefabID": 0,
+        "emphasis": 1,
+        "maximum": 2147483647,
+        "sectors": "",
+        "custom": true,
+        "minDepth": 0,
+        "maxDepth": 2147483647
       }
     ],
+    "geologyCollisions": [],
     "newCollisions": {
       "minMax": true,
       "radius": 50.0,
       "layer": 256
     },
     "filename": "Presets/Geology/mars overhang rocks.json",
-    "title": "pythagoras fields",
+    "title": "",
     "density": 132,
-    "frequency": 419,
+    "frequency": 732,
     "floor": 505,
     "ceiling": 1000,
     "biomeIndex": 0,
@@ -234,13 +128,13 @@
     "normalizeY": true,
     "normalizeZ": false,
     "biomeExclusive": true,
-    "cliffTest": false,
+    "cliffTest": true,
     "overlap": false,
     "closeOverlap": false,
-    "temperate": false,
+    "temperate": true,
     "arid": true,
-    "arctic": false,
-    "tundra": false,
+    "arctic": true,
+    "tundra": true,
     "jungle": false,
     "road": false,
     "monument": false,
@@ -312,7 +206,7 @@
     "heights": {
       "slopeLow": 0.0,
       "slopeHigh": 48.04413,
-      "heightMin": 0.5,
+      "heightMin": 0.0,
       "heightMax": 1.0,
       "curveMin": -1.08392239,
       "curveMax": 1.07678914,
@@ -409,8 +303,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -337.05603,
-        "y": 16.0448,
+        "x": -176.05603,
+        "y": 0.9552002,
         "z": 0.0
       },
       "scale": {
@@ -422,8 +316,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -131.5,
-        "y": -94.4991455,
+        "x": -46.9261475,
+        "y": -41.4991455,
         "z": 0.0
       },
       "scale": {
@@ -435,8 +329,8 @@
     {
       "isActive": true,
       "position": {
-        "x": -314.473267,
-        "y": 23.89029,
+        "x": -314.973267,
+        "y": -2.41958618,
         "z": 0.0
       },
       "scale": {
@@ -448,8 +342,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -468.5,
-        "y": 288.941162,
+        "x": -468.0,
+        "y": 252.941162,
         "z": 0.0
       },
       "scale": {
@@ -461,7 +355,7 @@
     {
       "isActive": false,
       "position": {
-        "x": -8.400024,
+        "x": -7.90002441,
         "y": 2.1,
         "z": 0.0
       },
@@ -474,8 +368,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 264.5,
-        "y": 249.999969,
+        "x": 265.0,
+        "y": 213.999969,
         "z": 0.0
       },
       "scale": {
@@ -487,8 +381,8 @@
     {
       "isActive": false,
       "position": {
-        "x": -46.15802,
-        "y": -128.724426,
+        "x": -45.65802,
+        "y": -164.724426,
         "z": 0.0
       },
       "scale": {
@@ -513,8 +407,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 220.549988,
-        "y": 161.549988,
+        "x": 221.049988,
+        "y": 125.549988,
         "z": 0.0
       },
       "scale": {
@@ -526,8 +420,8 @@
     {
       "isActive": false,
       "position": {
-        "x": 270.537,
-        "y": -259.091431,
+        "x": 272.537,
+        "y": -158.5914,
         "z": 0.0
       },
       "scale": {
@@ -537,10 +431,10 @@
       }
     },
     {
-      "isActive": true,
+      "isActive": false,
       "position": {
-        "x": 356.4433,
-        "y": -36.7727356,
+        "x": 166.9433,
+        "y": -80.7727356,
         "z": 0.0
       },
       "scale": {
@@ -557,8 +451,8 @@
       "z": 1.0
     },
     "position": {
-      "x": 1146.0,
-      "y": 629.0,
+      "x": 1054.0,
+      "y": 610.0,
       "z": 0.0
     }
   },

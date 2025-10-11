@@ -8,29 +8,60 @@ public class CubeSelector : MonoBehaviour
     private Vector2 startScreenPos; // Starting screen position of the drag
     private Vector3 startPoint; // Starting world point on the camera plane
     private Vector3 endPoint; // Current world point on the camera plane
-    private float cubeDepth = 15f; // Depth of the cube, adjusted by scroll wheel
-    private readonly float minCubeDepth = 5f; // Minimum depth
-    private readonly float maxCubeDepth = 300f; // Maximum depth
-    private readonly float scrollSensitivity = 10f; // Scroll wheel sensitivity
-    private readonly float planeDistance = 10f; // Distance of virtual plane from camera
+    private float cubeDepth = 1f; // Depth of the cube, adjusted by scroll wheel
+    private readonly float minCubeDepth = .5f; // Minimum depth
+    private readonly float maxCubeDepth = 5f; // Maximum depth
+    private readonly float scrollSensitivity = 4f; // Scroll wheel sensitivity
+    private readonly float planeDistance = .5f; // Distance of virtual plane from camera
     private Camera cam; // Reference to the main camera
     private int prefabMask; // Layer mask for prefabs
     private List<GameObject> cubeSelectedObjects = new List<GameObject>(); // Objects selected by the cube
     private List<GameObject> preservedSelections = new List<GameObject>(); // Pre-existing selections
 
-	private void Awake()
-	{
-		// Initialize selection cube
-		selectionCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-		selectionCube.name = "SelectionCube";
-		selectionCube.SetActive(false);
-		var renderer = selectionCube.GetComponent<Renderer>();
-		renderer.material = new Material(Shader.Find("Custom/Wireframe")); // Use wireframe shader
-		renderer.material.SetColor("_WireColor", AppManager.Instance.color4); // Set wireframe color
-		renderer.material.SetColor("_InteriorColor", AppManager.Instance.color4); // Set wireframe color
-		renderer.material.SetFloat("_WireThickness", 3f); // Set wireframe thickness
-		Destroy(selectionCube.GetComponent<Collider>()); // Remove collider to avoid raycast interference
-	}
+private void Awake()
+{
+    // Initialize selection cube
+    selectionCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+    selectionCube.name = "SelectionCube";
+    selectionCube.SetActive(false);
+    var renderer = selectionCube.GetComponent<Renderer>();
+    
+    // Load the new shader and texture
+    renderer.material = new Material(Shader.Find("Custom/Wireframe"));
+    
+    // Load the texture from Resources
+    Texture2D texture = Resources.Load<Texture2D>("Textures/selectbox");
+    if (texture == null)
+    {
+        Debug.LogError("Failed to load texture at Resources/Textures/selectbox.png");
+    }
+    else
+    {
+        renderer.material.SetTexture("_MainTex", texture);
+        
+        // Define border sizes in pixels and convert to UV space
+        int textureWidth = texture.width; // 256
+        int textureHeight = texture.height; // 256
+        float borderLeftPixels = 5f;
+        float borderRightPixels = 5f;
+        float borderTopPixels = 5f;
+        float borderBottomPixels = 5f;
+
+        float sliceLeft = borderLeftPixels / textureWidth;
+        float sliceRight = borderRightPixels / textureWidth;
+        float sliceTop = borderTopPixels / textureHeight;
+        float sliceBottom = borderBottomPixels / textureHeight;
+
+        // Set material properties
+        renderer.material.SetColor("_WireColor", AppManager.Instance.color4);
+        renderer.material.SetFloat("_SliceLeft", sliceLeft);
+        renderer.material.SetFloat("_SliceRight", sliceRight);
+        renderer.material.SetFloat("_SliceTop", sliceTop);
+        renderer.material.SetFloat("_SliceBottom", sliceBottom);
+    }
+    
+    Destroy(selectionCube.GetComponent<Collider>()); // Remove collider to avoid raycast interference
+}
 
     public void Initialize(Camera camera, int prefabLayerMask)
     {
@@ -132,7 +163,7 @@ public class CubeSelector : MonoBehaviour
 		float height = Mathf.Abs(Vector3.Dot(delta, camUp));
 
 		// Set rectangle scale with fixed depth
-		Vector3 scale = new Vector3(width, height, .01f);
+		Vector3 scale = new Vector3(width, height, .001f);
 		if (scale.x < 0.01f) scale.x = 0.01f; // Prevent zero scale
 		if (scale.y < 0.01f) scale.y = 0.01f;
 

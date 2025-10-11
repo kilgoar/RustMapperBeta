@@ -17,6 +17,7 @@ using System.Reflection;
 using System.Threading;
 using Newtonsoft.Json;
 using UnityEngine.SceneManagement;
+using FC;
 
 [Serializable]
 public class AssetScene
@@ -1731,6 +1732,7 @@ public static IEnumerator SetBundleReferences((int parent, int bundle) ID)
 
 		Shader developerShader = Shader.Find("Developer/LocalCoordDiffuse");
 		Shader standardShader = Shader.Find("Custom/Rust/Standard");
+		Shader standardOpaqueShader = Shader.Find("Custom/Rust/StandardOpaque");
 		Shader standardFourShader = Shader.Find("Custom/Rust/StandardBlend4Way");
 		Shader specularShader = Shader.Find("Standard (Specular setup)");
 		Shader decalShader = Shader.Find("Legacy Shaders/Decal");
@@ -1795,9 +1797,11 @@ public static IEnumerator SetBundleReferences((int parent, int bundle) ID)
 			yield break;
 		}
 		
+		if(mat.shader.name.Equals("Rust/Standard")){
+			mat.shader = standardOpaqueShader;
+		}
 		
-		
-		if (mat.shader.name.Equals("Standard (Specular setup)") ||mat.shader.name.Equals("Rust/Standard") || mat.shader.name.Equals("Rust/Standard + Wind") || mat.shader.name.Equals("Rust/Standard Cloth")
+		if (mat.shader.name.Equals("Standard (Specular setup)") || mat.shader.name.Equals("Rust/Standard + Wind") || mat.shader.name.Equals("Rust/Standard Cloth")
 			|| mat.shader.name.Equals("Rust/Standard Particle") || mat.shader.name.Equals("Rust/Standard Snow Area") || mat.shader.name.Equals("Rust/Standard Wire") || mat.shader.name.Equals("Rust/Standard + Specular Glare") 
 			|| mat.shader.name.Equals("Rust/Standard Packed Mask Blend")	|| mat.shader.name.Equals("Rust/Standard Cloth (Specular setup)") || mat.shader.name.Equals("Custom/StandardWithDecal"))	{
 			mat.shader = standardShader;

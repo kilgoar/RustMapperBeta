@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using static WorldSerialization;
 using System.IO;
 using System;
@@ -148,6 +149,7 @@ public static class PrefabManager
 	{
 		"assets/prefabs/deployable/",
 		"assets/prefabs/building/",
+		"assets/prefabs/misc/",
 	};
 
 	private static readonly List<string> BlockedColliderNames = new List<string>
@@ -322,8 +324,18 @@ public static class PrefabManager
 						int fixedCount = 0;
 						Material[] materials = renderer.sharedMaterials;
 						
+
+						
+						
 						for (int j = 0; j < materials.Length; j++)					{
+							
 							Material mat = materials[j];
+							
+							
+							//string test= "innertube";
+							//if(filePath.Contains(test)){
+							//	Debug.Log(mat.shader.name + " - " + test + "original shaders ");
+							//}
 							
 							if (mat != null)							{
 								AssetManager.FixRenderMode(mat);
@@ -402,7 +414,8 @@ public static class PrefabManager
 			{
 				Entities[go] = true;
 				continue;
-			}			
+			}
+			
 		}
 		
 		if (StripColliders.Any(term => filePath.Contains(term)))

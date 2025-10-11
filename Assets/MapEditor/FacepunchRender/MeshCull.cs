@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public class MeshCull : LODComponent
 {
     // Public Fields
-	private float cullDistance=25f; // Distance at which to cull the mesh
+	private float cullDistance=75f; // Distance at which to cull the mesh
     
 	private Renderer meshCullRenderer;
 
@@ -22,6 +22,9 @@ public class MeshCull : LODComponent
 		
 	protected override void Start() {
 		HideObject();
+		
+		float distance = Vector3.Distance(transform.position, CameraManager.Instance.position);
+		CheckLOD(distance);
 	}
 
 

@@ -39,7 +39,11 @@ public class RendererLOD : LODComponent
 
         hasInitialized = true;
 		ClearLODs(); //hide all LODs
-        RefreshLOD(); // Start with the correct LOD
+        
+		float distance = Vector3.Distance(transform.position, CameraManager.Instance.position);
+		int newLevel = CalculateLODLevel(distance);
+		States[newLevel].Show();
+        currentLODLevel = newLevel;
     }
 	
 	protected override void CheckLOD(float distance)
@@ -85,18 +89,32 @@ public class RendererLOD : LODComponent
             return;
         }
 
+		lodGroup.enabled = false; // Disable even if invalid
+
         // Get LOD data from LODGroup
         LOD[] lods = lodGroup.GetLODs();
         if (lods == null || lods.Length == 0)
         {
             Debug.LogWarning($"LODGroup on {gameObject.name} has no LOD levels to convert.");
-            lodGroup.enabled = false; // Disable even if invalid
             return;
         }
 		
 		float fovRad = CameraManager.Instance.cam.fieldOfView * Mathf.Deg2Rad;
 		float heightFactor = 2.0f * Mathf.Tan(fovRad / 2.0f);
-		Renderer firstRenderer = lods[0].renderers[0];
+		
+		Renderer firstRenderer = null;
+		foreach (var lod in lods)		{
+			if (lod.renderers != null && lod.renderers.Length > 0 && lod.renderers[0] != null)			{
+				firstRenderer = lod.renderers[0];
+				break;
+			}
+		}
+		
+	    if (firstRenderer == null)		{
+			Debug.LogWarning($"No valid renderers found in LODGroup for {gameObject.name}.");
+			return;
+		}
+		
 		float objectHeight = firstRenderer.bounds.size.y;
 		
 		// Create LOD states based on screen relative heights, approximated to distance thresholds
@@ -104,7 +122,11 @@ public class RendererLOD : LODComponent
 		for (int i = 0; i < lods.Length; i++)
 		{
 			LOD lod = lods[i];
-			if (lod.renderers == null || lod.renderers.Length == 0) continue;
+			
+			if (lod.renderers == null || lod.renderers.Length == 0 || lod.renderers[0] == null)			{
+				Debug.LogWarning($"LOD level {i} in {gameObject.name} has no valid renderers. Skipping.");
+				continue;
+			}
 
 			// Calculate world-space distance from screenRelativeTransitionHeight
 			float screenRelativeHeight = lod.screenRelativeTransitionHeight;
@@ -118,9 +140,21 @@ public class RendererLOD : LODComponent
 				shadowCastingMode = lod.renderers[0].shadowCastingMode,
 				receiveShadows = lod.renderers[0].receiveShadows
 			};
+			
+	        if (state.meshFilter == null)			{
+				Debug.LogWarning($"Renderer at LOD level {i} in {gameObject.name} has no MeshFilter. Skipping.");
+				continue;
+			}
+			
 			state.CacheMaterials(); // Cache initial materials
 			lodStates.Add(state);
 		}
+		
+		
+		if (lodStates.Count == 0)		{
+				Debug.LogWarning($"No valid LOD states created for {gameObject.name}.");
+				return;
+			}
 
         // Sort states by distance (ascending) to match CalculateLODLevel logic
         lodStates.Sort((a, b) => a.distance.CompareTo(b.distance));
@@ -128,8 +162,6 @@ public class RendererLOD : LODComponent
         // Assign states to this component
         States = lodStates.ToArray();
 		if (States.Length > 0) { States[0].Show(); }
-        // Disable the original LODGroup
-        lodGroup.enabled = false;
         Debug.Log($"Initialized RendererLOD on {gameObject.name} from LODGroup with {States.Length} LOD states.");
     }
 
@@ -198,7 +230,7 @@ public class RendererLOD : LODComponent
 		}
 
 		// If distance is less than the first state's distance
-		return -1;
+		return 0;
 	}
 
     [Serializable]

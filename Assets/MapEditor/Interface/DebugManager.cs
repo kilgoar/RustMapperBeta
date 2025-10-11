@@ -82,10 +82,12 @@ public class DebugManager : MonoBehaviour
         if (logWriter == null) return;
 
 		// Suppress spammy messages with ordinal comparison
+		
 		if (logString.StartsWith(SuppressedPrefix, StringComparison.Ordinal) || logString.StartsWith(SuppressedPrefix1, StringComparison.Ordinal) || logString.StartsWith(SuppressedPrefix2, StringComparison.Ordinal))
 		{
 			return;
 		}
+		
 	
         try
         {

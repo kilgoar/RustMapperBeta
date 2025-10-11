@@ -3396,7 +3396,7 @@ public static void EntityDumpMap()
                 }
 
                 // Load ray data for the selected prefab
-                List<PrefabData> rayList = GetRayDataFromPrefab(prefabPath);
+                List<PrefabData> rayList = GetRayDataFromPrefab(ResolveRayTemplateFile(prefabPath, selectedItem.custom));
 
                 // Perform terrain collision test
                 if (!PrefabManager.inTerrain(new PrefabData("f", 261440689, position, Quaternion.Euler(fRotate), rScale), rayList))
@@ -3510,6 +3510,25 @@ public static void EntityDumpMap()
 		PrefabManager.NotifyItemsChanged();
 		UnityEngine.Object.DestroyImmediate(dummy);
 		
+	}
+
+	public static string ResolveRayTemplateFile(string geoItem, bool custom)
+	{
+		Debug.Log(geoItem + " resolving ray template");
+		
+		string fileName = geoItem;
+		string rayName = "";
+		if (custom)
+		{
+			fileName = Path.GetFileNameWithoutExtension(geoItem) + "rays.prefab";
+			rayName = Path.Combine(SettingsManager.AppDataPath(), "Presets", "Geology", fileName);
+			Debug.Log("ray template expected at:" + rayName);
+			return rayName;
+		}
+		
+		Debug.Log("ray template at:" + rayName);
+		rayName = Path.Combine(SettingsManager.AppDataPath(), "Presets", "Geology", geoItem);
+		return rayName;
 	}
 
 	public static List<PrefabData> GetRayDataFromPrefab(string prefabPath)

@@ -2,10 +2,12 @@ Shader "Custom/Wireframe"
 {
     Properties
     {
+        _MainTex ("Texture", 2D) = "white" {}
         _WireColor ("Wireframe Color", Color) = (0, 0.5, 1, 1)
-        _InteriorColor ("Interior Color", Color) = (0, 0.5, 1, 0.3)
-        _WireThickness ("Wireframe Thickness", Range(0, 10)) = 5
-        _Transparency ("Transparency", Range(0, 1)) = 0.02 // Controls interior transparency
+        _SliceLeft ("Slice Left", Range(0, 0.5)) = 0.1
+        _SliceRight ("Slice Right", Range(0, 0.5)) = 0.1
+        _SliceTop ("Slice Top", Range(0, 0.5)) = 0.1
+        _SliceBottom ("Slice Bottom", Range(0, 0.5)) = 0.1
     }
     SubShader
     {
@@ -15,78 +17,131 @@ Shader "Custom/Wireframe"
         Pass
         {
             Blend SrcAlpha OneMinusSrcAlpha
-            ZWrite Off // Disable Z-write to allow back faces to show through
-            ZTest LEqual // Keep depth test but allow overlap
-            Cull Off // Render both front and back faces
+            ZWrite Off
+            ZTest LEqual
+            Cull Off
 
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma geometry geom
             #include "UnityCG.cginc"
 
             struct appdata
             {
                 float4 vertex : POSITION;
+                float2 uv : TEXCOORD0;
+                float3 normal : NORMAL;
             };
 
-            struct v2g
-            {
-                float4 vertex : POSITION;
-            };
-
-            struct g2f
+            struct v2f
             {
                 float4 vertex : SV_POSITION;
-                float3 bary : TEXCOORD0;
+                float2 uv : TEXCOORD0;
+                float3 normal : TEXCOORD1;
             };
 
-            v2g vert (appdata v)
+            sampler2D _MainTex;
+            float4 _MainTex_ST;
+            fixed4 _WireColor;
+            float _SliceLeft;
+            float _SliceRight;
+            float _SliceTop;
+            float _SliceBottom;
+
+            v2f vert (appdata v)
             {
-                v2g o;
-                o.vertex = v.vertex;
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.uv = v.uv;
+                o.normal = v.normal; // Pass normal to determine face
                 return o;
             }
 
-            [maxvertexcount(3)]
-            void geom(triangle v2g IN[3], inout TriangleStream<g2f> triStream)
+            // Adjust UVs based on cube face (determined by normal)
+            float2 AdjustUVForFace(float2 uv, float3 normal)
             {
-                g2f o;
-                // Vertex 1
-                o.vertex = UnityObjectToClipPos(IN[0].vertex);
-                o.bary = float3(1, 0, 0);
-                triStream.Append(o);
-                // Vertex 2
-                o.vertex = UnityObjectToClipPos(IN[1].vertex);
-                o.bary = float3(0, 1, 0);
-                triStream.Append(o);
-                // Vertex 3
-                o.vertex = UnityObjectToClipPos(IN[2].vertex);
-                o.bary = float3(0, 0, 1);
-                triStream.Append(o);
-
-                triStream.RestartStrip();
+                float2 adjustedUV = uv;
+                float3 absNormal = abs(normal);
+                
+                // Determine dominant normal axis to identify face
+                if (absNormal.x > absNormal.y && absNormal.x > absNormal.z)
+                {
+                    // X-face (+X or -X)
+                    adjustedUV = normal.x > 0 ? float2(uv.x, uv.y) : float2(1.0 - uv.x, uv.y);
+                }
+                else if (absNormal.y > absNormal.x && absNormal.y > absNormal.z)
+                {
+                    // Y-face (+Y or -Y)
+                    adjustedUV = normal.y > 0 ? float2(uv.x, uv.y) : float2(uv.x, 1.0 - uv.y);
+                }
+                else
+                {
+                    // Z-face (+Z or -Z)
+                    adjustedUV = normal.z > 0 ? float2(uv.x, uv.y) : float2(1.0 - uv.x, uv.y);
+                }
+                
+                return adjustedUV;
             }
 
-            float _WireThickness;
-            fixed4 _WireColor;
-            fixed4 _InteriorColor;
-            float _Transparency;
-
-            fixed4 frag (g2f i) : SV_Target
+            // 9-slice UV remapping function
+            float2 SliceUV(float2 uv, float sliceLeft, float sliceRight, float sliceTop, float sliceBottom)
             {
-                float3 barys = i.bary;
-                float3 deltas = fwidth(barys); // Screen-space derivatives
-                float3 thickness = deltas * _WireThickness * 2.0; // Scale thickness
-                barys = smoothstep(float3(0, 0, 0), thickness, barys);
-                float minBary = min(barys.x, min(barys.y, barys.z));
+                float2 slicedUV = uv;
+                float u = uv.x;
+                float v = uv.y;
 
-                // Adjust interior color with transparency
-                fixed4 interior = _InteriorColor;
-                interior.a = _Transparency;
+                // Define texture regions
+                float leftBorder = sliceLeft;
+                float rightBorder = 1.0 - sliceRight;
+                float bottomBorder = sliceBottom;
+                float topBorder = 1.0 - sliceTop;
 
-                // Draw wireframe if close to an edge, else shaded interior
-                return lerp(interior, _WireColor, 1.0 - smoothstep(0.0, 0.2, minBary));
+                // Map UVs to texture regions
+                // Corners (a, c, g, i) - no scaling
+                if (u < leftBorder)
+                {
+                    slicedUV.x = u; // Left side (a, g)
+                }
+                else if (u > rightBorder)
+                {
+                    slicedUV.x = u; // Right side (c, i)
+                }
+                else
+                {
+                    // Middle (b, e, h) - scale horizontally
+                    slicedUV.x = sliceLeft + (u - leftBorder) / (rightBorder - leftBorder) * (1.0 - sliceLeft - sliceRight);
+                }
+
+                if (v < bottomBorder)
+                {
+                    slicedUV.y = v; // Bottom side (g, h, i)
+                }
+                else if (v > topBorder)
+                {
+                    slicedUV.y = v; // Top side (a, b, c)
+                }
+                else
+                {
+                    // Middle (d, e, f) - scale vertically
+                    slicedUV.y = sliceBottom + (v - bottomBorder) / (topBorder - bottomBorder) * (1.0 - sliceTop - sliceBottom);
+                }
+
+                return slicedUV;
+            }
+
+            fixed4 frag (v2f i) : SV_Target
+            {
+                // Adjust UVs based on cube face
+                float2 faceUV = AdjustUVForFace(i.uv, normalize(i.normal));
+
+                // Apply 9-slice UV transformation
+                float2 slicedUV = SliceUV(faceUV, _SliceLeft, _SliceRight, _SliceTop, _SliceBottom);
+
+                // Sample the texture
+                fixed4 texColor = tex2D(_MainTex, slicedUV);
+
+                // Apply wire color with texture's alpha
+                return texColor * _WireColor;
             }
             ENDCG
         }
