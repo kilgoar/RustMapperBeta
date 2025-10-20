@@ -15,7 +15,7 @@ public class SettingsWindow : MonoBehaviour
     public Slider prefabRender;
     public InputField directoryField;
 	public Dropdown SkinDropdown;
-    public Toggle assetLoadToggle;
+    public Toggle assetLoadToggle, tooltipToggle;
     public UIRecycleTree tree;
     public Text footer;
 	public string[] skinPaths;
@@ -153,6 +153,7 @@ public class SettingsWindow : MonoBehaviour
         prefabRender.value = settings.prefabRenderDistance;
         directoryField.text = settings.rustDirectory;
         assetLoadToggle.isOn = settings.loadbundleonlaunch;
+		tooltipToggle.isOn = settings.tooltip;
         //styleToggle.isOn = settings.terrainTextureSet;
 		LoadSkins();
         LoadDriveList();
@@ -193,6 +194,7 @@ public class SettingsWindow : MonoBehaviour
         prefabRender.onValueChanged.AddListener(CameraChange);
         directoryField.onEndEdit.AddListener(DirectoryChange);
         assetLoadToggle.onValueChanged.AddListener(AssetLoader);
+		tooltipToggle.onValueChanged.AddListener(TooltipChanged);
         //styleToggle.onValueChanged.AddListener(StyleChange);
         //styleToggle.onValueChanged.AddListener(ToggleStyle);
         tree.onNodeExpandStateChanged.AddListener(OnExpand);
@@ -221,6 +223,12 @@ public class SettingsWindow : MonoBehaviour
 		
 		ModManager.LoadSkin(currentSkinPath);
 		
+	}
+	
+	public void TooltipChanged(bool value){
+		settings.tooltip = value;
+		SettingsManager.application = settings;
+		SettingsManager.SaveSettings();
 	}
 	
 	public void LoadSkins(){

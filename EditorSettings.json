@@ -14,19 +14,22 @@
     "waterTransparency": 0.0,
     "loadbundleonlaunch": false,
     "terrainTextureSet": false,
+    "tooltip": false,
     "loadBatch": 128,
     "newSize": 1000,
     "newHeight": 0.5,
     "newBiome": 2,
     "newSplat": 16,
-    "startupSkin": "D:\\Users\\kilgoar\\Desktop\\rustmapper2023\\Custom\\Skins\\cabinet.png",
+    "startupSkin": "D:\\Users\\kilgoar\\Desktop\\rustmapper2023\\Custom\\Skins\\darkmode.png",
     "recentFiles": [
+      "E:\\marstest.map",
+      "E:\\proceduralmaptest2.map",
+      "E:\\proceduralmaptest.map",
       "E:\\Program Files (x86)\\Steam\\steamapps\\common\\Rust\\maps\\proceduralmap.4500.1195662783.271_0c7c46c7b1ccd56690f4c7b32215696a.map",
       "E:\\generatortest.map",
       "E:\\downloads\\WaterTreatmentVariantShowcase.map",
       "E:\\downloads\\WaterTreatmentVariantShowcaseFix.map",
       "E:\\pathstest.map",
-      "E:\\marstest.map",
       "E:\\downloads\\Sloped Test Map BXR2.map",
       "E:\\rails.map",
       "E:\\downloads\\FP_WaterTreatment_1_V7.monument"
@@ -157,6 +160,12 @@
     "presetMenu": true,
     "jitterMenu": true,
     "preview": true,
+    "snapXtransMax": false,
+    "snapYtransMax": false,
+    "snapZtransMax": false,
+    "snapXtransMin": false,
+    "snapYtransMin": false,
+    "snapZtransMin": false,
     "scalesLow": {
       "x": 1.0,
       "y": 1.0,
@@ -189,12 +198,12 @@
     },
     "slideHigh": {
       "x": 0.0,
-      "y": 0.0,
+      "y": 0.04746437,
       "z": 0.0
     },
     "slideLow": {
       "x": 0.0,
-      "y": 0.0,
+      "y": -0.171382427,
       "z": 0.0
     },
     "zOffset": -0.15,
@@ -290,86 +299,86 @@
     {
       "isActive": false,
       "position": {
-        "x": -22.2200317,
-        "y": -19.1040955,
+        "x": 6.46,
+        "y": -8.86,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6719965,
-        "y": 0.6719965,
+        "x": 0.6,
+        "y": 0.6,
         "z": 0.0
       }
     },
     {
       "isActive": false,
       "position": {
-        "x": -176.05603,
-        "y": 0.9552002,
+        "x": 0.0,
+        "y": -5.399994,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6719965,
-        "y": 0.6719965,
-        "z": 0.0
+        "x": 0.6,
+        "y": 0.6,
+        "z": 1.0
       }
     },
     {
       "isActive": false,
       "position": {
-        "x": -46.9261475,
-        "y": -41.4991455,
+        "x": -108.5,
+        "y": 5.49996948,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6719965,
-        "y": 0.6719965,
-        "z": 0.0
-      }
-    },
-    {
-      "isActive": true,
-      "position": {
-        "x": -314.973267,
-        "y": -2.41958618,
-        "z": 0.0
-      },
-      "scale": {
-        "x": 0.6719965,
-        "y": 0.6719965,
-        "z": 0.0
+        "x": 0.6,
+        "y": 0.6,
+        "z": 1.0
       }
     },
     {
       "isActive": false,
       "position": {
-        "x": -468.0,
-        "y": 252.941162,
+        "x": -5.392578,
+        "y": 5.64,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6719965,
-        "y": 0.6719965,
-        "z": 0.0
+        "x": 0.6,
+        "y": 0.6,
+        "z": 1.0
       }
     },
     {
       "isActive": false,
       "position": {
-        "x": -7.90002441,
+        "x": -203.096008,
+        "y": 256.669678,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6,
+        "z": 1.0
+      }
+    },
+    {
+      "isActive": false,
+      "position": {
+        "x": -39.3999939,
         "y": 2.1,
         "z": 0.0
       },
       "scale": {
         "x": 0.6,
         "y": 0.6,
-        "z": 0.0
+        "z": 1.0
       }
     },
     {
       "isActive": false,
       "position": {
-        "x": 265.0,
-        "y": 213.999969,
+        "x": 75.5,
+        "y": 43.49997,
         "z": 0.0
       },
       "scale": {
@@ -381,14 +390,14 @@
     {
       "isActive": false,
       "position": {
-        "x": -45.65802,
-        "y": -164.724426,
+        "x": -9.5,
+        "y": -63.50003,
         "z": 0.0
       },
       "scale": {
-        "x": 0.6719965,
-        "y": 0.6719965,
-        "z": 0.0
+        "x": 0.6,
+        "y": 0.6,
+        "z": 1.0
       }
     },
     {
@@ -399,16 +408,55 @@
         "z": 0.0
       },
       "scale": {
-        "x": 0.6719965,
-        "y": 0.6719965,
-        "z": 0.0
+        "x": 0.6,
+        "y": 0.6,
+        "z": 1.0
       }
     },
     {
       "isActive": false,
       "position": {
-        "x": 221.049988,
-        "y": 125.549988,
+        "x": 18.5,
+        "y": -36.50003,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6,
+        "z": 1.0
+      }
+    },
+    {
+      "isActive": false,
+      "position": {
+        "x": -12.8925781,
+        "y": -113.132935,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6,
+        "z": 1.0
+      }
+    },
+    {
+      "isActive": false,
+      "position": {
+        "x": 10.2099915,
+        "y": -48.8999939,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 0.6,
+        "y": 0.6,
+        "z": 1.0
+      }
+    },
+    {
+      "isActive": true,
+      "position": {
+        "x": 153.0,
+        "y": -113.5,
         "z": 0.0
       },
       "scale": {
@@ -416,43 +464,17 @@
         "y": 0.6,
         "z": 0.0
       }
-    },
-    {
-      "isActive": false,
-      "position": {
-        "x": 272.537,
-        "y": -158.5914,
-        "z": 0.0
-      },
-      "scale": {
-        "x": 0.6719965,
-        "y": 0.6719965,
-        "z": 0.6
-      }
-    },
-    {
-      "isActive": false,
-      "position": {
-        "x": 166.9433,
-        "y": -80.7727356,
-        "z": 0.0
-      },
-      "scale": {
-        "x": 0.6719965,
-        "y": 0.6719965,
-        "z": 0.0
-      }
     }
   ],
   "menuState": {
     "scale": {
-      "x": 1.67199647,
-      "y": 1.67199647,
+      "x": 1.56800592,
+      "y": 1.56800592,
       "z": 1.0
     },
     "position": {
-      "x": 1054.0,
-      "y": 610.0,
+      "x": 943.0,
+      "y": 608.0,
       "z": 0.0
     }
   },

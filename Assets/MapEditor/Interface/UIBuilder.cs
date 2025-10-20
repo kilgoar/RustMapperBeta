@@ -16,6 +16,59 @@ public class BeginWindow : Attribute
     }
 }
 
+[AttributeUsage(AttributeTargets.Method)]
+public class OnWindowEnable : Attribute { }
+
+[AttributeUsage(AttributeTargets.Method)]
+public class OnWindowDisable : Attribute { }
+
+[AttributeUsage(AttributeTargets.Field)]
+public class OnBind : Attribute
+{
+    public string Method { get; }
+    public OnBind(string method)
+    {
+        Method = method;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Field)]
+public class SliderUIElement : Attribute
+{
+    public float Min { get; }
+    public float Max { get; }
+    public bool Whole { get; }
+    public string Label { get; } // Optional label override
+
+    public SliderUIElement(float min = 0f, float max = 1f, bool whole = false, string label = null)
+    {
+        Min = min;
+        Max = max;
+        Whole = whole;
+        Label = label;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Field)]
+public class RangeSlideMin : Attribute
+{
+    public float Min { get; }
+    public float Max { get; }
+    public bool Whole { get; }
+    public string Label { get; } // UI title/label
+
+    public RangeSlideMin(float min = 0f, float max = 1f, bool whole = false, string label = null)
+    {
+        Min = min;
+        Max = max;
+        Whole = whole;
+        Label = label;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Field)]
+public class RangeSlideMax : Attribute { } // Marker only—no params
+
 [AttributeUsage(AttributeTargets.Field)]
 public class RustMapperUIElement : Attribute
 {
@@ -51,7 +104,8 @@ public abstract class UIBuilder : MonoBehaviour
     public Toggle templateToggle;
     public Text label;
     public Button button, buttonbright;
-    public Slider slider;
+    public Slider slider;	
+    public RangeSlide rangeSlide;
     public Dropdown dropdown;
     public Vector3Field vector3Fields;
     public InputField inputField;
@@ -73,6 +127,126 @@ public abstract class UIBuilder : MonoBehaviour
         return newText;
     }
 	
+	private MethodInfo ResolveOnBind(FieldInfo field, object target)
+    {
+        var onBindAttr = field.GetCustomAttribute<OnBind>();
+        if (onBindAttr != null)
+        {
+            var method = target.GetType().GetMethod(onBindAttr.Method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (method == null || method.ReturnType != typeof(void) || method.GetParameters().Length != 0)
+            {
+                Debug.LogError($"Invalid [OnBind] on {field.Name}: Method '{onBindAttr.Method}' not found or invalid signature (must be parameterless void).");
+                return null;
+            }
+            return method;
+        }
+        return null;
+    }
+	
+    // Updated slider binding to support OnBind (invokes on value changed)
+    protected Slider CreateAndBindSlider(Transform parent, FieldInfo field, object target, float minVal, float maxVal, bool whole, string title)
+    {
+        if (slider == null)
+        {
+            Debug.LogError("UIBuilder's slider field is not assigned.");
+            return null;
+        }
+
+        Slider newSlider = Instantiate(slider, parent, false);
+        newSlider.gameObject.SetActive(true);
+
+        newSlider.minValue = minVal;
+        newSlider.maxValue = maxVal;
+        newSlider.wholeNumbers = whole;
+
+        // Initial value
+        float initialValue = 0f;
+        if (field.FieldType == typeof(float))
+            initialValue = (float)field.GetValue(target);
+        else if (field.FieldType == typeof(int))
+            initialValue = (int)field.GetValue(target);
+        newSlider.value = Mathf.Clamp(initialValue, minVal, maxVal);
+
+        // Resolve bound method from [OnBind] if present
+        MethodInfo boundMethod = ResolveOnBind(field, target);
+
+        // Write-back on change
+        newSlider.onValueChanged.AddListener((value) =>
+        {
+            try
+            {
+                if (field.FieldType == typeof(float))
+                    field.SetValue(target, value);
+                else if (field.FieldType == typeof(int))
+                    field.SetValue(target, whole ? Mathf.RoundToInt(value) : (int)value);
+                Debug.Log($"{field.Name} slider set to: {value}");
+
+                // Invoke bound method if any
+                boundMethod?.Invoke(target, null);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error binding slider {field.Name}: {e.Message}");
+            }
+        });
+
+        fieldToUIElement[field] = newSlider;
+        return newSlider;
+    }
+
+    // Updated range slide binding to support OnBind (invokes on slider released, per low/high field)
+    public RangeSlide CreateAndBindRangeSlide(Transform parent, FieldInfo lowField, FieldInfo highField, object targetObject, float minVal, float maxVal, bool whole, string title)
+    {
+        if (rangeSlide == null)
+        {
+            Debug.LogError("UIBuilder's rangeSlide field is not assigned.");
+            return null;
+        }
+
+        RangeSlide newRange = Instantiate(rangeSlide, parent, false);
+        newRange.gameObject.SetActive(true);
+
+        // Runtime config SO (populated from attribute – no disk asset)
+        SliderFieldSO runtimeSO = ScriptableObject.CreateInstance<SliderFieldSO>();
+        runtimeSO.minSetting = minVal;
+        runtimeSO.maxSetting = maxVal;
+        runtimeSO.whole = whole;
+        runtimeSO.title = "";
+        
+        runtimeSO.name = $"RuntimeRangeSO_{lowField.Name}";
+        runtimeSO.hideFlags = HideFlags.DontSave | HideFlags.HideInHierarchy;
+
+        newRange.sfData = runtimeSO;
+        newRange.Init(); // Your existing init sets up sliders/inputs/title
+
+        // Bind initial values
+        float lowVal = (float)lowField.GetValue(targetObject);
+        float highVal = (float)highField.GetValue(targetObject);
+        newRange.lowSlider.value = Mathf.Clamp(lowVal, minVal, maxVal);
+        newRange.highSlider.value = Mathf.Clamp(highVal, minVal, maxVal);
+        newRange.SliderChanged(); // Sync fields and clamps
+
+        // Resolve bound methods
+        MethodInfo lowBoundMethod = ResolveOnBind(lowField, targetObject);
+        MethodInfo highBoundMethod = ResolveOnBind(highField, targetObject);
+
+        // Write-back on release
+        newRange.onSliderReleased.AddListener(() =>
+        {
+            float low = newRange.lowSlider.value;
+            float high = newRange.highSlider.value;
+            lowField.SetValue(targetObject, whole ? Mathf.RoundToInt(low) : low);
+            highField.SetValue(targetObject, whole ? Mathf.RoundToInt(high) : high);
+            Debug.Log($"{lowField.Name}/{highField.Name} set to [{low}, {high}]");
+            
+            // Invoke bound methods if any
+            lowBoundMethod?.Invoke(targetObject, null);
+            highBoundMethod?.Invoke(targetObject, null);
+        });
+
+        fieldToUIElement[lowField] = newRange; // Key on Low for dictionary
+        return newRange;
+    }
 	
 
     protected ListView CreateAndBindListView(Transform parent, FieldInfo field, object target)
@@ -187,93 +361,111 @@ public abstract class UIBuilder : MonoBehaviour
         return newInputField;
     }
 
-    // Create and bind a Toggle
-    protected Toggle CreateAndBindToggle(Transform parent, FieldInfo field, object target)
-    {
-        if (templateToggle == null)
-        {
-            Debug.LogError($"{GetType().Name}'s templateToggle field is not assigned.");
-            return null;
-        }
+	protected Toggle CreateAndBindToggle(Transform parent, FieldInfo field, object target)
+	{
+		if (templateToggle == null)
+		{
+			Debug.LogError($"{GetType().Name}'s templateToggle field is not assigned.");
+			return null;
+		}
 
-        Toggle newToggle = Instantiate(templateToggle, parent, false);
+		Toggle newToggle = Instantiate(templateToggle, parent, false);
 
-        if (field.FieldType == typeof(bool))
-        {
-            newToggle.isOn = (bool)field.GetValue(target);
-        }
-        else
-        {
-            Debug.LogError($"Unsupported field type {field.FieldType} for Toggle binding.");
-            Destroy(newToggle.gameObject);
-            return null;
-        }
+		if (field.FieldType == typeof(bool))
+		{
+			newToggle.isOn = (bool)field.GetValue(target);
+		}
+		else
+		{
+			Debug.LogError($"Unsupported field type {field.FieldType} for Toggle binding.");
+			Destroy(newToggle.gameObject);
+			return null;
+		}
 
-        newToggle.onValueChanged.AddListener((value) =>
-        {
-            try
-            {
-                field.SetValue(target, value);
-                Debug.Log($"{field.Name} set to: {value}");
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"Error binding {field.Name}: {e.Message}");
-            }
-        });
+		// Resolve bound method from [OnBind] if present
+		MethodInfo boundMethod = ResolveOnBind(field, target);
 
-        return newToggle;
-    }
+		newToggle.onValueChanged.AddListener((value) =>
+		{
+			try
+			{
+				field.SetValue(target, value);
+				Debug.Log($"{field.Name} set to: {value}");
 
-    // Create and bind a Dropdown
-    protected Dropdown CreateAndBindDropdown(Transform parent, FieldInfo field, object target)
-    {
-        if (dropdown == null)
-        {
-            Debug.LogError($"{GetType().Name}'s dropdown field is not assigned.");
-            return null;
-        }
+				// Invoke bound method if any
+				if (boundMethod != null)
+				{
+					boundMethod.Invoke(target, null);
+					Debug.Log($"Invoked [OnBind] method {boundMethod.Name} for {field.Name}");
+				}
+			}
+			catch (Exception e)
+			{
+				Debug.LogError($"Error binding {field.Name}: {e.Message}");
+			}
+		});
 
-        Dropdown newDropdown = Instantiate(dropdown, parent, false);
+		return newToggle;
+	}
 
-        if (field.FieldType.IsEnum)
-        {
-            string[] enumNames = Enum.GetNames(field.FieldType);
-            newDropdown.options.Clear();
-            foreach (string name in enumNames)
-                newDropdown.options.Add(new Dropdown.OptionData(name));
+	protected Dropdown CreateAndBindDropdown(Transform parent, FieldInfo field, object target)
+	{
+		if (dropdown == null)
+		{
+			Debug.LogError($"{GetType().Name}'s dropdown field is not assigned.");
+			return null;
+		}
 
-            object currentValue = field.GetValue(target);
-            int index = Array.IndexOf(enumNames, currentValue.ToString());
-            newDropdown.value = index >= 0 ? index : 0;
+		Dropdown newDropdown = Instantiate(dropdown, parent, false);
 
-            newDropdown.onValueChanged.AddListener((value) =>
-            {
-                try
-                {
-                    object enumValue = Enum.Parse(field.FieldType, enumNames[value]);
-                    field.SetValue(target, enumValue);
-                    Debug.Log($"{field.Name} set to: {enumValue}");
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError($"Error binding {field.Name}: {e.Message}");
-                    object currentEnumValue = field.GetValue(target);
-                    int currentIndex = Array.IndexOf(enumNames, currentEnumValue.ToString());
-                    if (currentIndex >= 0)
-                        newDropdown.value = currentIndex;
-                }
-            });
-        }
-        else
-        {
-            Debug.LogError($"Unsupported field type {field.FieldType} for Dropdown binding.");
-            Destroy(newDropdown.gameObject);
-            return null;
-        }
+		if (field.FieldType.IsEnum)
+		{
+			string[] enumNames = Enum.GetNames(field.FieldType);
+			newDropdown.options.Clear();
+			foreach (string name in enumNames)
+				newDropdown.options.Add(new Dropdown.OptionData(name));
 
-        return newDropdown;
-    }
+			object currentValue = field.GetValue(target);
+			int index = Array.IndexOf(enumNames, currentValue.ToString());
+			newDropdown.value = index >= 0 ? index : 0;
+
+			// Resolve bound method from [OnBind] if present
+			MethodInfo boundMethod = ResolveOnBind(field, target);
+
+			newDropdown.onValueChanged.AddListener((value) =>
+			{
+				try
+				{
+					object enumValue = Enum.Parse(field.FieldType, enumNames[value]);
+					field.SetValue(target, enumValue);
+					Debug.Log($"{field.Name} set to: {enumValue}");
+
+					// Invoke bound method if any
+					if (boundMethod != null)
+					{
+						boundMethod.Invoke(target, null);
+						Debug.Log($"Invoked [OnBind] method {boundMethod.Name} for {field.Name}");
+					}
+				}
+				catch (Exception e)
+				{
+					Debug.LogError($"Error binding {field.Name}: {e.Message}");
+					object currentEnumValue = field.GetValue(target);
+					int currentIndex = Array.IndexOf(enumNames, currentEnumValue.ToString());
+					if (currentIndex >= 0)
+						newDropdown.value = currentIndex;
+				}
+			});
+		}
+		else
+		{
+			Debug.LogError($"Unsupported field type {field.FieldType} for Dropdown binding.");
+			Destroy(newDropdown.gameObject);
+			return null;
+		}
+
+		return newDropdown;
+	}
 
     // Create and bind a Vector3Field
     protected Vector3Field CreateAndBindVector3Field(Transform parent, FieldInfo field, object target)

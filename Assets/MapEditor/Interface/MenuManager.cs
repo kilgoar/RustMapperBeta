@@ -272,6 +272,7 @@ public Toggle CreateCustomToggle(string iconPath = null)
     if (!string.IsNullOrEmpty(iconPath))
     {
         Texture2D texture = ModManager.LoadTexture(iconPath);
+		
         if (texture != null)
         {
             Sprite iconSprite = ModManager.CreateSprite(texture);
@@ -292,8 +293,8 @@ public Toggle CreateCustomToggle(string iconPath = null)
             checkmarkImage.sprite = iconSprite;
 
             // Define and apply colors
-            Color activeColor = new Color32(0x72, 0x8D, 0x44, 0xFF); // #728d44
-            Color inactiveColor = new Color32(0x8F, 0x8F, 0x8F, 0xFF); // #d9d9d9
+            Color activeColor = AppManager.Instance.color6;
+            Color inactiveColor = AppManager.Instance.color5;
 
             backgroundImage.color = inactiveColor; // Inactive state
             checkmarkImage.color = activeColor;    // Active state
@@ -319,11 +320,21 @@ public Toggle CreateCustomToggle(string iconPath = null)
     return newToggle;
 }
 
-// In MenuManager.cs
+public void RecolorToggle(Transform customToggle){
+	
+	    Image backgroundImage = customToggle.transform.Find("Background")?.GetComponent<Image>();
+        Image checkmarkImage = customToggle.transform.Find("Background/Checkmark")?.GetComponent<Image>();
+
+        Color activeColor = AppManager.Instance.color6;
+        Color inactiveColor = AppManager.Instance.color5;
+
+        backgroundImage.color = inactiveColor; // Inactive state
+        checkmarkImage.color = activeColor;    // Active state
+}
+
+
 public Toggle CreateWindowToggle(string iconPath)
 {
-    
-    // Use CreateCustomToggle with the icon path
     Toggle newToggle = CreateCustomToggle(iconPath);
 
     if (newToggle != null)

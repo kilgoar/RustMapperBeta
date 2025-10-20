@@ -63,14 +63,14 @@ Material:
     m_Ints: []
     m_Floats:
     - _BiomeMode: 0
-    - _BrushSize: 0.0390625
-    - _BrushStrength: 1
+    - _BrushSize: 0.43554688
+    - _BrushStrength: 5
     - _Cutoff: 1
     - _CutoffRange: 0
     - _DecalLayerMask: 0
     - _DstBlend: 0
     - _LODTransitionDistance: 50
-    - _LandMask: 0
+    - _LandMask: 1
     - _Layer0_Factor: 1
     - _Layer0_Falloff: 1
     - _Layer0_Metallic: 0
@@ -125,7 +125,7 @@ Material:
     - _SplatRatio: 1.0009766
     - _SrcBlend: 1
     - _TerrainParallax: 0
-    - _TerrainTarget: 0.033333335
+    - _TerrainTarget: 0.00083333335
     - _Terrain_Type: 0
     - _TopologyMode: -1
     - _UseTerrainOverrides: 0
@@ -135,7 +135,7 @@ Material:
     - _WetnessLayer_Wetness: 0
     - _ZWrite: 1
     m_Colors:
-    - _BrushPos: {r: 0.3388672, g: 0.96777344, b: 0, a: 0}
+    - _BrushPos: {r: 0.5722656, g: 0.044921875, b: 0, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _LayerFallback_Albedo: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   m_BuildTextureStacks: []

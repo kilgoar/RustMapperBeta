@@ -197,6 +197,7 @@ public class SelectionUndoAction : IUndoAction
         return (_beforeSelectedObjects.Count + _afterSelectedObjects.Count + 2) * 1024;
     }
 }
+
 	
 	public class UndoCreateGameObjects : IUndoAction
 	{
@@ -1452,6 +1453,9 @@ public class SelectionUndoAction : IUndoAction
 				public bool hAscend, hDescend, sAscend, sDescend, cAscend,cDescend;
 				public bool featureMenu, rotationMenu, scaleMenu, placementMenu, collisionMenu, presetMenu, jitterMenu, preview;
 				
+				public bool snapXtransMax, snapYtransMax, snapZtransMax, snapXtransMin, snapYtransMin, snapZtransMin;
+				
+				
 				public Vector3 scalesLow, scalesHigh, rotationsLow, rotationsHigh, jitterLow, jitterHigh, slideHigh, slideLow;
 				public float zOffset, colliderDistance, closeColliderDistance, balance;
 				public float slopeLow, slopeHigh; //legacy
@@ -1554,6 +1558,7 @@ public class SelectionUndoAction : IUndoAction
 			public float waterTransparency;
 			public bool loadbundleonlaunch;
 			public bool terrainTextureSet;
+			public bool tooltip;
 			public int loadBatch;
 			public int newSize;
 			public float newHeight;

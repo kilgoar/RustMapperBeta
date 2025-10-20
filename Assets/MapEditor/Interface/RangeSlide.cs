@@ -58,7 +58,7 @@ public class RangeSlide : MonoBehaviour
         highSlider.onValueChanged.AddListener(_ => SliderChanged());
     }
 
-    private void FieldChanged()
+    public void FieldChanged()
     {
         if (float.TryParse(lowField.text, out float lowValue) && float.TryParse(highField.text, out float highValue))
         {
@@ -70,15 +70,19 @@ public class RangeSlide : MonoBehaviour
         }
     }
 
-    private void SliderChanged()
-    {
-        lowSlider.value = Mathf.Clamp(lowSlider.value, lowSlider.minValue, highSlider.value);
-        highSlider.value = Mathf.Clamp(highSlider.value, lowSlider.value, highSlider.maxValue);
+	public void SliderChanged()
+	{
+		// When dragging, clamp to each other, don't push
+		float newLow = Mathf.Clamp(lowSlider.value, lowSlider.minValue, highSlider.value);
+		float newHigh = Mathf.Clamp(highSlider.value, lowSlider.value, highSlider.maxValue);
 
-        UpdateFieldsFromSliders();
-    }
+		lowSlider.value = newLow;
+		highSlider.value = newHigh;
 
-    private void UpdateFieldsFromSliders()
+		UpdateFieldsFromSliders();
+	}
+
+    public void UpdateFieldsFromSliders()
     {
         if (sfData.whole)
         {
@@ -92,12 +96,12 @@ public class RangeSlide : MonoBehaviour
         }
     }
 
-    private void OnEnable()
+    public void OnEnable()
     {
         UpdateFieldsFromSliders();
     }
     
-    private void OnValidate()
+    public void OnValidate()
     {
         Init();
     }

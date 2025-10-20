@@ -179,16 +179,18 @@ public class TooltipManager : MonoBehaviour
     // Show the tooltip for the specified GameObject
     public void ShowTooltip(GameObject target)
     {
-		gameObject.transform.SetAsLastSibling();
-        if (target == null || !instantiatedTooltips.ContainsKey(target))
-        {
-            Debug.LogWarning("TooltipManager: Cannot show tooltip: Target is null or not in instantiatedTooltips.");
-            return;
-        }
+		if(SettingsManager.application.tooltip){
+			gameObject.transform.SetAsLastSibling();
+			if (target == null || !instantiatedTooltips.ContainsKey(target))
+			{
+				Debug.LogWarning("TooltipManager: Cannot show tooltip: Target is null or not in instantiatedTooltips.");
+				return;
+			}
 
-        TooltipTemplate tooltip = instantiatedTooltips[target];
-        tooltip.gameObject.SetActive(true);
-        lastShownTooltip = tooltip; // Track the shown tooltip
+			TooltipTemplate tooltip = instantiatedTooltips[target];
+			tooltip.gameObject.SetActive(true);
+			lastShownTooltip = tooltip; // Track the shown tooltip
+		}
     }
 
     // Hide the tooltip for the specified GameObject
@@ -235,7 +237,7 @@ public class TooltipManager : MonoBehaviour
 
 	public void ShowTooltipAtPosition(GameObject target, Vector2 cursorPosition)
 	{
-
+		if(!SettingsManager.application.tooltip){ return; }
 		// Check if the target or its parent is in instantiatedTooltips
 		if (!instantiatedTooltips.ContainsKey(target))
 		{

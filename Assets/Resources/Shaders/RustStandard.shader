@@ -57,7 +57,12 @@ Shader "Custom/Rust/Standard"
         _ShoreWetnessLayer_Range("Shore Range", Float) = 0.0
         _ShoreWetnessLayer_WetAlbedoScale("Shore Wet Albedo Scale", Float) = 0.5
         _ShoreWetnessLayer_WetSmoothness("Shore Wet Smoothness", Float) = 0.5
-
+        _Mode ("__mode", Float) = 0
+		_Cull ("Cull", Float) = 2
+		_SrcBlend ("__src", Float) = 1
+        _DstBlend ("__dst", Float) = 0
+		_ZWrite ("__zw", Float) = 1
+		[Enum(UV0,0,UV1,1)] _UVSec ("Layer UV Set", Float) = 0
         // Selection Indicator Properties
         [Toggle(_SELECTION_ON)] _SelectionOn("Selection Indicator", Float) = 0
         _SelectionColor("Selection Color", Color) = (1,0,0,1)
@@ -65,7 +70,10 @@ Shader "Custom/Rust/Standard"
 
     SubShader
     {
-        Tags { "RenderType"="Opaque" "PerformanceChecks"="False" }
+        Tags { "RenderType"="Transparent" "Queue"="Transparent" "PerformanceChecks"="False" }
+		Blend [_SrcBlend] [_DstBlend]
+		ZWrite [_ZWrite]
+		Cull [_Cull]
         LOD 300
 
         CGPROGRAM
@@ -142,6 +150,7 @@ Shader "Custom/Rust/Standard"
         float _ShoreWetnessLayer_Range;
         float _ShoreWetnessLayer_WetAlbedoScale;
         float _ShoreWetnessLayer_WetSmoothness;
+		float _Mode;
 
         // Selection Properties
         float _SelectionOn;
@@ -176,18 +185,25 @@ Shader "Custom/Rust/Standard"
             }
 
             // Use SpecGlossMap for Metallic and Smoothness
-            fixed4 specGloss = tex2D(_SpecGlossMap, uv);
-            //o.Metallic = _Metallic;
-            //o.Smoothness = _Glossiness * specGloss.a;
+
 
             // Apply outline
             ApplyOutline(albedo.rgb, WorldNormalVector(IN, o.Normal), uv, _SelectionOn, _SelectionColor);
 
+			
+
             o.Albedo = albedo.rgb;
             o.Emission = tex2D(_EmissionMap, uv).rgb * _EmissionColor.rgb;
-            o.Alpha = albedo.a;
-            
-            clip(albedo.a - _Cutoff);
+
+            if(_Mode > .1){
+				clip(albedo.a - _Cutoff);
+			}
+			if(_Mode > 2.5){
+				o.Alpha = albedo.a;
+			    fixed4 specGloss = tex2D(_SpecGlossMap, uv);
+				//o.Metallic = _Metallic;
+				o.Smoothness = _Glossiness;
+			}
         }
         ENDCG
     }

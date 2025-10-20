@@ -205,9 +205,6 @@ public static Texture2D LoadTexture(string filePath)
         Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, false); // Use RGBA32, no mipmaps, non-linear
         if (texture.LoadImage(pngBytes, false)) // Mark non-readable to save memory
         {
-            texture.filterMode = FilterMode.Point; // Pixel-perfect loading
-            texture.wrapMode = TextureWrapMode.Clamp;
-            texture.Apply(false, false);
             return texture;
         }
         else
@@ -385,7 +382,7 @@ public static void LoadSkin(string path)
         newSprites.Add(newSprite);
 		
 		    // Check if sprite name is color1, color2, or color3 and extract first-pixel color
-			if (newSprite.name == "color1" || newSprite.name == "color2" || newSprite.name == "color3" || newSprite.name == "color4")
+			if (newSprite.name == "color1" || newSprite.name == "color2" || newSprite.name == "color3" || newSprite.name == "color4" || newSprite.name == "color5" || newSprite.name == "color6")
 			{
 				// Get the first pixel color (bottom-left corner of the sprite's rect)
 				Rect spriteRect = newSprite.rect;
@@ -411,6 +408,16 @@ public static void LoadSkin(string path)
 				{
 					AppManager.Instance.color4 = pixelColor;
 					Debug.Log($"Set AppManager.color4 to {pixelColor} for sprite '{newSprite.name}'");
+				}
+				else if (newSprite.name == "color5")
+				{
+					AppManager.Instance.color5 = pixelColor;
+					Debug.Log($"Set AppManager.color5 to {pixelColor} for sprite '{newSprite.name}'");
+				}
+				else if (newSprite.name == "color6")
+				{
+					AppManager.Instance.color6 = pixelColor;
+					Debug.Log($"Set AppManager.color6 to {pixelColor} for sprite '{newSprite.name}'");
 				}
 			}
 		
@@ -444,6 +451,12 @@ public static void LoadSkin(string path)
                 updatedImages++;
             }
         }
+		else if (uiImage!=null && uiImage.sprite != null){
+			if(uiImage.transform.parent.name.Contains("TemplateToggle")){
+				//Debug.Log("found custom window toggle");
+				MenuManager.Instance.RecolorToggle(uiImage.transform.parent);
+			}
+		}
     }
 
     // Update Button SpriteState in windowPanels and menuPanel
@@ -821,7 +834,7 @@ public static TemplateWindow CreateTestWindow()
     // Create the test window
     TemplateWindow testWindow = AppManager.Instance.CreateWindow(
         titleText: "Test Window",
-        rect: new Rect(300, -150, 800, 800),
+        rect: new Rect(300, -150, 800, 400),
         iconPath: Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "HarmonyMods", "testIcon.png")
     );
 

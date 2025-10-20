@@ -19,6 +19,8 @@ public class GeologyWindow : MonoBehaviour
 	public Text footer, item;
 	public Slider xSlideL,ySlideL,zSlideL, xSlideH, ySlideH, zSlideH,xRot,yRot,zRot, xRotH, yRotH, zRotH, xScale, yScale, zScale, xScaleH, yScaleH, zScaleH, xJitter, yJitter, zJitter, xJitterH, yJitterH, zJitterH, height, heightH, slope, slopeH,curve, curveH, frequency;
 	public Toggle flip, geofield, snapX, snapY, snapZ, preview, curveRange, slopeRange, heightRange, rayTest, lockScales, lockAspect, lockHeight, hAscending, hDescending, sAscending, sDescending, cAscending, cDescending, applyTerrains;
+	public Toggle snapXtransMax, snapYtransMax, snapZtransMax, snapXtransMin, snapYtransMin, snapZtransMin;
+	
 	
 	//preview slides
 	public SliderField frequencySF;
@@ -126,75 +128,99 @@ public class GeologyWindow : MonoBehaviour
 		cAscending.onValueChanged.AddListener(_ => SendSettings());
 		cDescending.onValueChanged.AddListener(_ => SendSettings());
 		
+		
+    snapXtransMax.onValueChanged.AddListener(isOn =>
+    {        if (isOn)
+        {            snapXtransMin.SetIsOnWithoutNotify(false);
+            SendSettings();
+        }
+    });
+    snapXtransMin.onValueChanged.AddListener(isOn =>
+    {        if (isOn)
+        {            snapXtransMax.SetIsOnWithoutNotify(false);
+            SendSettings();
+        }
+    });
+
+    snapYtransMax.onValueChanged.AddListener(isOn =>
+    {        if (isOn)
+        {            snapYtransMin.SetIsOnWithoutNotify(false);
+            SendSettings();
+        }
+    });
+    snapYtransMin.onValueChanged.AddListener(isOn =>
+    {        if (isOn)        {
+            snapYtransMax.SetIsOnWithoutNotify(false);
+            SendSettings();
+        }
+    });
+
+    snapZtransMax.onValueChanged.AddListener(isOn =>
+    {        if (isOn)        {
+            snapZtransMin.SetIsOnWithoutNotify(false);
+            SendSettings();
+        }
+    });
+    snapZtransMin.onValueChanged.AddListener(isOn =>
+    {        if (isOn)        {
+            snapZtransMax.SetIsOnWithoutNotify(false);
+            SendSettings();
+        }
+    });
+		
 		applyTerrains.onValueChanged.AddListener(_ => SendSettings());
 		
 			hAscending.onValueChanged.AddListener(isOn =>
-			{
-				if (isOn)
-				{
-					hDescending.SetIsOnWithoutNotify(false);
+			{				if (isOn)
+				{					hDescending.SetIsOnWithoutNotify(false);
 					SendSettings();
 				}
 			});
 			hDescending.onValueChanged.AddListener(isOn =>
-			{
-				if (isOn)
-				{
-					hAscending.SetIsOnWithoutNotify(false);
+			{				if (isOn)
+				{					hAscending.SetIsOnWithoutNotify(false);
 					SendSettings();
 				}
 			});
 
 			sAscending.onValueChanged.AddListener(isOn =>
-			{
-				if (isOn)
-				{
-					sDescending.SetIsOnWithoutNotify(false);
+			{				if (isOn)
+				{					sDescending.SetIsOnWithoutNotify(false);
 					SendSettings();
 				}
 			});
 			sDescending.onValueChanged.AddListener(isOn =>
-			{
-				if (isOn)
-				{
-					sAscending.SetIsOnWithoutNotify(false);
+			{				if (isOn)
+				{					sAscending.SetIsOnWithoutNotify(false);
 					SendSettings();
 				}
 			});
 
 			cAscending.onValueChanged.AddListener(isOn =>
-			{
-				if (isOn)
-				{
-					cDescending.SetIsOnWithoutNotify(false);
+			{				if (isOn)
+				{					cDescending.SetIsOnWithoutNotify(false);
 					SendSettings();
 				}
 			});
 			cDescending.onValueChanged.AddListener(isOn =>
-			{
-				if (isOn)
-				{
-					cAscending.SetIsOnWithoutNotify(false);
+			{				if (isOn)
+				{					cAscending.SetIsOnWithoutNotify(false);
 					SendSettings();
 				}
 			});
 		
 		xScale.onValueChanged.AddListener(value =>
-		{
-			if (lockScales.isOn)
-			{
-				yScale.value=value;
-				zScale.value=value;
+		{			if (lockScales.isOn)
+			{				yScale.value=value;
+							zScale.value=value;
 			}
 			SendSettings();
 		});
 		
 		xScaleH.onValueChanged.AddListener(value =>
-		{
-			if (lockScales.isOn)
-			{
-				yScaleH.value=value;
-				zScaleH.value=value;
+		{			if (lockScales.isOn)
+			{				yScaleH.value=value;
+							zScaleH.value=value;
 			}
 			SendSettings();
 		});
@@ -460,10 +486,10 @@ public class GeologyWindow : MonoBehaviour
 		geologySettings.scalesLow = new Vector3(xScale.value, yScale.value, zScale.value);
 		geologySettings.scalesHigh = new Vector3(xScaleH.value, yScaleH.value, zScaleH.value);
 
-		geologySettings.jitterLow = new Vector3(xSlideL.value, ySlideL.value, zSlideL.value);
-		geologySettings.jitterHigh = new Vector3(xSlideH.value, ySlideH.value, zSlideH.value);
-		geologySettings.slideLow = new Vector3(xJitter.value, yJitter.value, zJitter.value);
-		geologySettings.slideHigh = new Vector3(xJitterH.value, yJitterH.value, zJitterH.value);
+		geologySettings.slideLow = new Vector3(xSlideL.value, ySlideL.value, zSlideL.value);
+		geologySettings.slideHigh = new Vector3(xSlideH.value, ySlideH.value, zSlideH.value);
+		geologySettings.jitterLow = new Vector3(xJitter.value, yJitter.value, zJitter.value);
+		geologySettings.jitterHigh = new Vector3(xJitterH.value, yJitterH.value, zJitterH.value);
 
 		geologySettings.hAscend = hAscending.isOn;
 		geologySettings.sAscend = sAscending.isOn;
@@ -498,6 +524,13 @@ public class GeologyWindow : MonoBehaviour
 		geologySettings.normalizeZ = snapZ.isOn;
 		geologySettings.closeOverlap = lockAspect.isOn;
 		
+	    geologySettings.snapXtransMax = snapXtransMax.isOn;
+		geologySettings.snapYtransMax = snapYtransMax.isOn;
+		geologySettings.snapZtransMax = snapZtransMax.isOn;
+		geologySettings.snapXtransMin = snapXtransMin.isOn;
+		geologySettings.snapYtransMin = snapYtransMin.isOn;
+		geologySettings.snapZtransMin = snapZtransMin.isOn;
+		
 		geologySettings.biomeExclusive = applyTerrains.isOn;
 		
 		geologySettings.useSeed = lockHeight.isOn;
@@ -529,21 +562,21 @@ public class GeologyWindow : MonoBehaviour
 		yScaleH.SetValueWithoutNotify(geologySettings.scalesHigh.y);
 		zScaleH.SetValueWithoutNotify(geologySettings.scalesHigh.z);
 		
-		xSlideL.SetValueWithoutNotify(geologySettings.jitterLow.x);
-		ySlideL.SetValueWithoutNotify(geologySettings.jitterLow.y);
-		zSlideL.SetValueWithoutNotify(geologySettings.jitterLow.z);
+		xSlideL.SetValueWithoutNotify(geologySettings.slideLow.x);
+		ySlideL.SetValueWithoutNotify(geologySettings.slideLow.y);
+		zSlideL.SetValueWithoutNotify(geologySettings.slideLow.z);
 		
-		xSlideH.SetValueWithoutNotify(geologySettings.jitterHigh.x);
-		ySlideH.SetValueWithoutNotify(geologySettings.jitterHigh.y);
-		zSlideH.SetValueWithoutNotify(geologySettings.jitterHigh.z);
+		xSlideH.SetValueWithoutNotify(geologySettings.slideHigh.x);
+		ySlideH.SetValueWithoutNotify(geologySettings.slideHigh.y);
+		zSlideH.SetValueWithoutNotify(geologySettings.slideHigh.z);
 		
-		xJitter.SetValueWithoutNotify(geologySettings.slideLow.x);
-		yJitter.SetValueWithoutNotify(geologySettings.slideLow.y);
-		zJitter.SetValueWithoutNotify(geologySettings.slideLow.z);
+		xJitter.SetValueWithoutNotify(geologySettings.jitterLow.x);
+		yJitter.SetValueWithoutNotify(geologySettings.jitterLow.y);
+		zJitter.SetValueWithoutNotify(geologySettings.jitterLow.z);
 		
-		xJitterH.SetValueWithoutNotify(geologySettings.slideHigh.x);
-		yJitterH.SetValueWithoutNotify(geologySettings.slideHigh.y);
-		zJitterH.SetValueWithoutNotify(geologySettings.slideHigh.z);
+		xJitterH.SetValueWithoutNotify(geologySettings.jitterHigh.x);
+		yJitterH.SetValueWithoutNotify(geologySettings.jitterHigh.y);
+		zJitterH.SetValueWithoutNotify(geologySettings.jitterHigh.z);
 		
 		Debug.Log("geology vectors retrieved");
 
@@ -579,6 +612,14 @@ public class GeologyWindow : MonoBehaviour
 		hDescending.SetIsOnWithoutNotify(geologySettings.hDescend);
 		sDescending.SetIsOnWithoutNotify(geologySettings.sDescend);
 		cDescending.SetIsOnWithoutNotify(geologySettings.cDescend);
+		
+		
+		snapXtransMax.SetIsOnWithoutNotify(geologySettings.snapXtransMax);
+		snapYtransMax.SetIsOnWithoutNotify(geologySettings.snapYtransMax);
+		snapZtransMax.SetIsOnWithoutNotify(geologySettings.snapZtransMax);
+		snapXtransMin.SetIsOnWithoutNotify(geologySettings.snapXtransMin);
+		snapYtransMin.SetIsOnWithoutNotify(geologySettings.snapYtransMin);
+		snapZtransMin.SetIsOnWithoutNotify(geologySettings.snapZtransMin);
 
 
 		// Biome toggles

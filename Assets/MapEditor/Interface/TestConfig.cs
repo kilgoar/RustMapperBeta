@@ -15,6 +15,11 @@ public enum TestMode { Easy, Medium, Hard }
 
 public class TestConfig
 {
+	public void TestMessage(){
+		Debug.Log("onbind is working correctly");
+	}
+	
+	
     [BeginWindow("Test Configuration Window")]
     public readonly string Description = "This is a test configuration";
 
@@ -59,4 +64,29 @@ public class TestConfig
         Debug.Log("Applying configuration changes");
         Speed = 20;
     }
+
+    [SliderUIElement(0f, 10f, true, "Volume Level")]
+    public int Volume = 5;  // Bound to slider (whole numbers)
+
+    [SliderUIElement(0.5f, 2f, false, "Speed Factor")]
+	[OnBind("TestMessage")]
+    public float SpeedFactor = 1f;  // Bound to slider (decimal)
+
+    [RangeSlideMin(0.5f, 2f, false, "Speed Multiplier")]
+	[OnBind("TestMessage")]
+    public float SpeedLow = 1f;  // Bound to low slider
+
+    [RangeSlideMax]
+    public float SpeedHigh = 1.5f; // Bound to high slider (marker attribute)
+	
+	[OnWindowEnable]
+	public void WindowEnable(){
+		Debug.Log("test window enabled");
+	}
+	
+	[OnWindowDisable]
+	public void WindowDisable(){
+		Debug.Log("test window disabled");
+	}
+	
 }

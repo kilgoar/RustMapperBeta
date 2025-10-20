@@ -23,7 +23,7 @@ public class AppManager : MonoBehaviour
 	
 	private Dictionary<Text, string> textColorMapping = new Dictionary<Text, string>();
 	
-	public Color color1, color2, color3, color4;
+	public Color color1, color2, color3, color4, color5, color6;
 	
 	public GameObject menuPanel;
 	public GameObject loadScreen, quitScreen, compassScreen, confirmationTemplate, tooltipTemplate;
@@ -36,8 +36,13 @@ public class AppManager : MonoBehaviour
 	public Canvas uiCanvas;
 	public static AppManager Instance { get; private set; }
 	
+	public void GenerateWindows(){  //add windows here
+		TerrainGenWindow.CreateWindow();
+	}
+	
     private void Awake()
     {
+		
         if (Instance == null)
         {
             Instance = this;            
@@ -48,6 +53,7 @@ public class AppManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
+		
     }
 	
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -83,7 +89,8 @@ public class AppManager : MonoBehaviour
 		MapManager.RuntimeInit();
 		Debug.Log("map manager initialized");
 		SocketManager.LoadSocketData();
-		Debug.Log("sockets initialized");
+		Debug.Log("sockets initialized");		
+
     }
 
 	private void Start()
@@ -126,6 +133,9 @@ public class AppManager : MonoBehaviour
             CloseButtons[i].onClick.AddListener(() => CloseWindow(index));
         }
 		
+		GenerateWindows();
+		
+		
 		CollectLabels();
 		CollectInputFields();
 		CollectWindowManagers();
@@ -139,8 +149,8 @@ public class AppManager : MonoBehaviour
 			}
 		Debug.Log("loading startup skin at " + application.startupSkin);
 		ModManager.LoadSkin(application.startupSkin);
-		
 		LoadWindowStates();
+		
 	}
 	
 	
@@ -1102,8 +1112,8 @@ public void OnWindowToggle(Toggle windowToggle, GameObject windowPanel)
 			return;
 		}
 
-		// Define the green color used in the toggle's active state
-		Color greenColor = AppManager.Instance.color1;
+		// Define the color used in the toggle's active state
+		Color greenColor = AppManager.Instance.color6;
 
 		if (string.IsNullOrEmpty(iconPath))
 		{

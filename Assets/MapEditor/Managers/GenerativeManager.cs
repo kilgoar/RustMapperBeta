@@ -618,6 +618,149 @@ public static void PaintRange(Layers layerData, float minBlend = 20f, float min 
     TerrainManager.Callbacks.InvokeLayerUpdated(layerType, layerIndex);
 }
 
+[ConsoleCommand("Paint slopes, heights, or curves range")]
+public static void PaintBlend(Layers layerData, float minBlend = 20f, float min = 30f, float max = 60f, float maxBlend = 70f, string topography = "slopes", float strength = 1.0f)
+{
+    SyncTerrainResolutions();
+    // Validate slope range
+    if (!(minBlend <= min && min < max && max <= maxBlend))
+    {
+        Debug.LogError($"Invalid slope range: minBlend ({minBlend}) must be < min ({min}) < max ({max}) < maxBlend ({maxBlend}).");
+        return;
+    }
+
+    // Validate strength parameter
+    if (strength < 0f || strength > 1f)
+    {
+        Debug.LogError($"Invalid strength value: strength ({strength}) must be between 0 and 1.");
+        return;
+    }
+
+    // Determine the layer type and index from the Layers object
+    LayerType layerType;
+    int layerIndex = -1;
+    if (layerData.Ground != 0)
+    {
+        layerType = LayerType.Ground;
+        layerIndex = TerrainSplat.TypeToIndex((int)layerData.Ground);
+    }
+    else if (layerData.Biome != 0)
+    {
+        layerType = LayerType.Biome;
+        layerIndex = TerrainBiome.TypeToIndex((int)layerData.Biome);
+    }
+    else if (layerData.Topologies != 0)
+    {
+        layerType = LayerType.Topology;
+        layerIndex = TerrainTopology.TypeToIndex((int)layerData.Topologies);
+    }
+    else
+    {
+        Debug.LogError("No valid layer specified in Layers object.");
+        return;
+    }
+
+    // Get the current layer data
+    float[,,] layerMap = TerrainManager.GetLayerData(layerType, layerIndex);
+    float[,,] before = (float[,,])layerMap.Clone();
+    int splatRes = layerMap.GetLength(0); // Splatmap resolution
+    int layerCount = TerrainManager.LayerCount(layerType); // 8 for Ground, 4 for Biome, 2 for Topology
+
+    TerrainManager.UpdateHeightCache();
+    int heightRes = TerrainManager.HeightMapRes;
+    
+    float[,] slopes = new float[heightRes, heightRes];
+    if (topography.Equals("slopes") || topography.Equals("slope"))
+    {
+        slopes = TerrainManager.Slope;
+    }
+    else if (topography.Equals("heights") || topography.Equals("height"))
+    {
+        slopes = TerrainManager.Land.terrainData.GetHeights(0, 0, heightRes, heightRes);
+        Debug.LogError("polling heightmap " + slopes[0, 0]);
+    }
+    else if (topography.Equals("curves") || topography.Equals("curve"))
+    {
+        slopes = TerrainManager.Curvature;
+    }
+
+    float splatRatio = TerrainManager.SplatRatio; // e.g., 2 if 2049 heightmap vs. 1024 splatmap
+    float slope;
+    // Register undo before modifying
+    TerrainManager.RegisterSplatMapUndo($"Paint Slope Blend {layerType} Index {layerIndex}, {minBlend}-{min}-{max}-{maxBlend}, Strength {strength}", before);
+
+    // Get BlendMapTexture pixels for checking
+    Color[] blendMapPixels = TerrainManager.BlendMapTexture.GetPixels();
+
+    for (int i = 0; i < splatRes; i++)
+    {
+        for (int j = 0; j < splatRes; j++)
+        {
+            // Check BlendMapTexture value at (i, j)
+            int pixelIndex = i * splatRes + j; // Convert 2D coordinates to 1D array index
+            
+
+            // Map splat coordinates to heightmap space
+            int heightX = Mathf.FloorToInt(i * splatRatio);
+            int heightY = Mathf.FloorToInt(j * splatRatio);
+            heightX = Mathf.Clamp(heightX, 0, heightRes - 1);
+            heightY = Mathf.Clamp(heightY, 0, heightRes - 1);
+
+            slope = slopes[heightX, heightY];
+
+            float blendStrength;
+
+            // Calculate blending strength based on slope
+            if (slope < minBlend)
+            {
+                blendStrength = 0f; // Below minBlend: fully inactive
+            }
+            else if (slope < min)
+            {
+                // Gradient from minBlend to min
+                blendStrength = Mathf.InverseLerp(minBlend, min, slope);
+            }
+            else if (slope <= max)
+            {
+                blendStrength = 1f; // Between min and max: fully active
+            }
+            else if (slope < maxBlend)
+            {
+                // Gradient from max to maxBlend
+                blendStrength = Mathf.InverseLerp(maxBlend, max, slope);
+            }
+            else
+            {
+                blendStrength = 0f; // Above maxBlend: fully inactive
+            }
+
+            // Apply the strength parameter to scale the blend strength
+            blendStrength *= strength;
+			blendStrength *= blendMapPixels[pixelIndex].a;
+
+            if (layerType == LayerType.Topology)
+            {
+                if (blendStrength > 0f)
+                {
+                    layerMap[i, j, 1] = 0f;
+                    layerMap[i, j, 0] = 1f;
+                }
+                continue;
+            }
+            else
+            {
+                ApplyLayerBlend(layerMap, i, j, layerIndex, layerCount, blendStrength);
+            }
+        }
+    }
+
+    // Apply the updated layer
+    TerrainManager.SetSplatMap(layerMap, layerType, layerIndex);
+
+    // Notify listeners
+    TerrainManager.Callbacks.InvokeLayerUpdated(layerType, layerIndex);
+}
+
 
 private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerIndex, int layerCount, float strength)
 {
@@ -2668,6 +2811,157 @@ private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerI
 	}
 	
 	
+[ConsoleCommand("Preview slopes, heights, or curves range")]
+public static void PreviewPaintRange(float minBlend = 20f, float min = 30f, float max = 60f, float maxBlend = 70f, string topography = "slopes", float strength = 1.0f, bool blend = false)
+{
+    CoroutineManager.Instance.StartRuntimeCoroutine(PreviewBlendCoroutine(minBlend, min, max, maxBlend, topography, strength, blend));
+}
+
+private static IEnumerator PreviewBlendCoroutine(float minBlend = 20f, float min = 30f, float max = 60f, float maxBlend = 70f, string topography = "slopes", float strength = 1.0f, bool blend = false)
+{
+    TerrainManager.SyncTerrainResolutions();
+
+    // Validate range
+    if (!(minBlend <= min && min < max && max <= maxBlend))
+    {
+        Debug.LogError($"Invalid range: minBlend ({minBlend}) must be <= min ({min}) < max ({max}) <= maxBlend ({maxBlend}).");
+        yield break;
+    }
+
+    // Validate strength
+    if (strength < 0f || strength > 1f)
+    {
+        Debug.LogError($"Invalid strength value: strength ({strength}) must be between 0 and 1.");
+        yield break;
+    }
+
+    // Resolution checks
+    int heightRes = TerrainManager.HeightMapRes;
+    if (heightRes == 0)
+    {
+        Debug.LogError("HeightMapRes is zero.");
+        yield break;
+    }
+
+    // Get topography data
+    float[,] topoData;
+    if (topography.Equals("slopes", StringComparison.OrdinalIgnoreCase))
+    {
+        if (TerrainManager.Slope == null || TerrainManager.Slope.GetLength(0) != heightRes || TerrainManager.Slope.GetLength(1) != heightRes)
+        {
+            Debug.LogError($"Slope map is null or has incorrect dimensions: Expected {heightRes}x{heightRes}, Got {(TerrainManager.Slope != null ? $"{TerrainManager.Slope.GetLength(0)}x{TerrainManager.Slope.GetLength(1)}" : "null")}");
+            yield break;
+        }
+        topoData = TerrainManager.Slope;
+    }
+    else if (topography.Equals("heights", StringComparison.OrdinalIgnoreCase))
+    {
+        if (TerrainManager.Land?.terrainData == null)
+        {
+            Debug.LogError("TerrainData or Land is null for height map.");
+            yield break;
+        }
+        topoData = TerrainManager.Land.terrainData.GetHeights(0, 0, heightRes, heightRes);
+    }
+    else if (topography.Equals("curves", StringComparison.OrdinalIgnoreCase))
+    {
+        if (TerrainManager.Curvature == null || TerrainManager.Curvature.GetLength(0) != heightRes || TerrainManager.Curvature.GetLength(1) != heightRes)
+        {
+            Debug.LogError($"Curvature map is null or has incorrect dimensions: Expected {heightRes}x{heightRes}, Got {(TerrainManager.Curvature != null ? $"{TerrainManager.Curvature.GetLength(0)}x{TerrainManager.Curvature.GetLength(1)}" : "null")}");
+            yield break;
+        }
+        topoData = TerrainManager.Curvature;
+    }
+    else
+    {
+        Debug.LogError($"Invalid topography type: {topography}. Must be 'slopes', 'heights', or 'curves'.");
+        yield break;
+    }
+
+    // Get BlendMapTexture pixels (still at splatmap resolution for blending)
+    int splatRes = TerrainManager.SplatMapRes;
+    Color[] blendMapPixels = null;
+    if (blend)
+    {
+        if (splatRes == 0)
+        {
+            Debug.LogError("SplatMapRes is zero, preventing blend map access.");
+            yield break;
+        }
+        blendMapPixels = TerrainManager.BlendMapTexture?.GetPixels();
+        if (blendMapPixels == null || blendMapPixels.Length != splatRes * splatRes)
+        {
+            Debug.LogError($"BlendMapTexture is null or has incorrect size: Expected {splatRes * splatRes}, Got {(blendMapPixels != null ? blendMapPixels.Length : "null")}");
+            yield break;
+        }
+    }
+
+    // Initialize mask pixels for R8 texture at heightmap resolution
+    Color[] maskPixels = new Color[heightRes * heightRes];
+    float splatRatio = (float)heightRes / splatRes; // Used only for blend map access
+
+    // Process the mask pixels at heightmap resolution
+    for (int i = 0; i < heightRes; i++)
+    {
+        for (int j = 0; j < heightRes; j++)
+        {
+            float value = topoData[i, j];
+
+            float blendStrength;
+            if (value < minBlend)
+            {
+                blendStrength = 0f;
+            }
+            else if (value < min)
+            {
+                blendStrength = Mathf.InverseLerp(minBlend, min, value);
+            }
+            else if (value <= max)
+            {
+                blendStrength = 1f;
+            }
+            else if (value < maxBlend)
+            {
+                blendStrength = Mathf.InverseLerp(maxBlend, max, value);
+            }
+            else
+            {
+                blendStrength = 0f;
+            }
+
+            if (blend && blendMapPixels != null)
+            {
+                int splatX = Mathf.FloorToInt(i / splatRatio);
+                int splatY = Mathf.FloorToInt(j / splatRatio);
+                splatX = Mathf.Clamp(splatX, 0, splatRes - 1);
+                splatY = Mathf.Clamp(splatY, 0, splatRes - 1);
+                int pixelIndexSplat = splatX * splatRes + splatY;
+                blendStrength *= strength * blendMapPixels[pixelIndexSplat].a;
+            }
+            else
+            {
+                blendStrength *= strength;
+            }
+
+            int pixelIndex = i * heightRes + j;
+            maskPixels[pixelIndex] = new Color(blendStrength, 0f, 0f, 0f);
+        }
+
+        if ((i + 1) % 100 == 0)
+        {
+            yield return null;
+        }
+    }
+
+    // Apply the mask pixels to the R8 texture
+    TerrainManager.MaskTexture.SetPixels(maskPixels);
+    TerrainManager.MaskTexture.Apply();
+
+    // Notify completion
+    yield break;
+}
+	
+	
 
 	public static class RandomTS
 	{
@@ -3295,12 +3589,13 @@ public static void EntityDumpMap()
             Vector3 offsetPerpendicular = Vector3.Cross(normal, Vector3.up);
             Vector3 antiNormal = Vector3.Cross(normal, offsetPerpendicular);
 
+			//apply jitter in local space
             Vector3 position = prePosition
                                + antiNormal * UnityEngine.Random.Range(geo.jitterLow.z, geo.jitterHigh.z)
                                + normal * UnityEngine.Random.Range(geo.jitterLow.y, geo.jitterHigh.y)
                                + offsetPerpendicular * UnityEngine.Random.Range(geo.jitterLow.x, geo.jitterHigh.x);
 
-
+			//apply and randomize scales
 			Vector3 rScale;
 			if(!geo.closeOverlap){
 				rScale = new Vector3(
@@ -3320,7 +3615,7 @@ public static void EntityDumpMap()
 				
 			}
 
-			// First, initialize the rotation with zero or base values
+			// initialize the rotation with zero or base values
 			Vector3 rRotate = Vector3.zero;
 			Vector3 jRotate = Vector3.zero;
 			// Apply normalization to align with the terrain surface
@@ -3341,23 +3636,93 @@ public static void EntityDumpMap()
 			dummy.transform.Rotate(jRotate, Space.Self);
 			Vector3 fRotate = dummy.transform.rotation.eulerAngles;
 			
-			
-			Vector3 slideOffset = new Vector3(
-				UnityEngine.Random.Range(geo.slideLow.x, geo.slideHigh.x),
-				UnityEngine.Random.Range(geo.slideLow.y, geo.slideHigh.y),
-				UnityEngine.Random.Range(geo.slideLow.z, geo.slideHigh.z)
-			);
-			
-			// Transform the offset from local space to world space using the prefab's final rotation
-			Vector3 offset = Quaternion.Euler(fRotate) * slideOffset;
-
-			// Add the transformed offset to the position
-			position += offset;
-			
-
-            // Select the feature (GeologyItem) before collision testing
+			// Select the feature, resolve a path
             int selection = UnityEngine.Random.Range(0, oddsList.Count);
             GeologyItem selectedItem = oddsList[selection];
+			string prefabPath = selectedItem.custom ? selectedItem.customPrefab : $"{selectedItem.prefabID}.prefab";
+			
+			Vector3 slideOffset = Vector3.zero;
+			Vector3 testPosition = position;
+
+
+		for (int axis = 0; axis < 3; axis++)
+		{
+			bool snapMax = false, snapMin = false;
+			float minValue = 0f, maxValue = 0f;
+
+			switch (axis)
+			{
+				case 0: // X-axis
+					snapMax = geo.snapXtransMax;
+					snapMin = geo.snapXtransMin;
+					minValue = geo.slideLow.x;
+					maxValue = geo.slideHigh.x;
+					break;
+				case 1: // Y-axis
+					snapMax = geo.snapYtransMax;
+					snapMin = geo.snapYtransMin;
+					minValue = geo.slideLow.y;
+					maxValue = geo.slideHigh.y;
+					break;
+				case 2: // Z-axis
+					snapMax = geo.snapZtransMax;
+					snapMin = geo.snapZtransMin;
+					minValue = geo.slideLow.z;
+					maxValue = geo.slideHigh.z;
+					break;
+			}
+			
+			//Debug.Log("pass1:" + axis);
+			//Debug.Log("minimum slide:" + minValue);
+			//Debug.Log("minimum slide:" + maxValue);
+			
+			// First pass: Find the first valid offset
+			Vector3 firstOffset = CalculateSlideOffsetForAxis(
+				snapMax, snapMin, minValue, maxValue, slideOffset, position,
+				Quaternion.Euler(fRotate), axis, selectedItem, prefabPath,
+				selectedItem.custom, fRotate, rScale);
+
+			// Second pass: Refine if snapMax or snapMin is active
+			if (snapMax || snapMin)
+			{
+				// Calculate refined range for the second pass
+				float step = (maxValue - minValue) / 10f;
+				float refineMin=0f;
+				float refineMax=0f;
+				if (snapMax)
+				{
+					refineMin = firstOffset[axis]; // Current valid offset
+					refineMax += step; // Previous step, clamped
+				}
+				else // snapMin
+				{
+					refineMax = firstOffset[axis]; // Current valid offset
+					refineMin -= step; // Next step, clamped
+				}
+
+				//Debug.Log("pass2:" + axis);
+				//Debug.Log("minimum slide:" + minValue);
+				//Debug.Log("minimum slide:" + maxValue);
+
+				// Second pass: Refine with a smaller step size
+				slideOffset = CalculateSlideOffsetForAxis(
+					snapMax, snapMin, refineMin, refineMax, firstOffset, position,
+					Quaternion.Euler(fRotate), axis, selectedItem, prefabPath,
+					selectedItem.custom, fRotate, rScale);
+			}
+			else
+			{
+				slideOffset = firstOffset; // Use the first pass result (random offset)
+			}
+		}
+
+			
+			// Transform the offset from local space to world space using the prefab's final rotation
+			position += Quaternion.Euler(fRotate) * slideOffset;
+
+			
+
+
 
             bool placeFeature = true;
 			if( selectedItem.custom){
@@ -3383,24 +3748,12 @@ public static void EntityDumpMap()
             // Handle cliffTest (ray testing) with dynamic ray data loading
             if (testing)
             {
-                // Determine the prefab path based on GeologyItem
-				string prefabPath;
-                if (selectedItem.custom && !string.IsNullOrEmpty(selectedItem.customPrefab))
-                {
-                    // Use custom prefab path if available
-                    prefabPath = selectedItem.customPrefab;
-                }
-                else
-                {
-                    prefabPath = $"{selectedItem.prefabID}.prefab";
-                }
 
                 // Load ray data for the selected prefab
                 List<PrefabData> rayList = GetRayDataFromPrefab(ResolveRayTemplateFile(prefabPath, selectedItem.custom));
 
                 // Perform terrain collision test
-                if (!PrefabManager.inTerrain(new PrefabData("f", 261440689, position, Quaternion.Euler(fRotate), rScale), rayList))
-                {
+                if (!PrefabManager.inTerrain(new PrefabData("f", 261440689, position, Quaternion.Euler(fRotate), rScale), rayList))                {
                     placeFeature = false;
                 }
             }
@@ -3412,32 +3765,27 @@ public static void EntityDumpMap()
 			}
 			
 			// Check other collision conditions
-            foreach (GeologyCollisions collision in geo.geologyCollisions)
-            {
+            foreach (GeologyCollisions collision in geo.geologyCollisions)            {
                 bool sphere = PrefabManager.sphereCollision(position, collision.radius, (int)collision.layer);
-                if (collision.minMax == sphere)
-                {
+                if (collision.minMax == sphere)                {
                     placeFeature = false;
                     break;
                 }
             }
 
             // Place the feature if all conditions are met
-            if (placeFeature)
-            {
+            if (placeFeature)            {
                 SpawnFeature(selectedItem, position, fRotate, rScale, parentObject);
                 count[prefabName]++;
 				fullCount ++;
                 if (prefabCollisions) yield return null;
             }
-            else
-            {
+            else            {
                 cullcount[prefabName]++;
 				fullCullCount ++;
             }
 
-            if (GeologyWindow.Instance != null)
-            {
+            if (GeologyWindow.Instance != null)            {
                 GeologyWindow.Instance.footer.text = geo.title + ": " + GeologySpawns + " spawns, " + fullCullCount + " excluded, " + fullCount + " items placed";
                 GeologyWindow.Instance.Progress((1f * fullCount + fullCullCount) / (1f * GeologySpawns));
             }
@@ -3512,9 +3860,60 @@ public static void EntityDumpMap()
 		
 	}
 
+	private static Vector3 CalculateSlideOffsetForAxis(
+		bool snapMax, bool snapMin, float minValue, float maxValue, 
+		Vector3 slideOffset, Vector3 position, Quaternion rotation, 
+		int axisIndex, GeologyItem selectedItem, string prefabPath, 
+		bool isCustom, Vector3 fRotate, Vector3 rScale)
+	{
+		float step = (maxValue - minValue) / 10f; // Adjust step size as needed
+		if (step <= 0f){Debug.LogError("0 or negative range, snapping means nothing"); return Vector3.zero;}
+		Vector3 offset = slideOffset;
+
+		if (snapMax)
+		{
+			for (float value = maxValue; value >= minValue; value -= step)
+			{
+				offset[axisIndex] = value;
+				Vector3 transformedOffset = rotation * offset;
+				Vector3 testPosition = position + transformedOffset;
+				if (RaysValid(testPosition, selectedItem, prefabPath, isCustom, fRotate, rScale))
+				{
+					return offset;
+				}
+			}
+		}
+		else if (snapMin)
+		{
+			for (float value = minValue; value <= maxValue; value += step)
+			{
+				offset[axisIndex] = value;
+				Vector3 transformedOffset = rotation * offset;
+				Vector3 testPosition = position + transformedOffset;
+				if (RaysValid(testPosition, selectedItem, prefabPath, isCustom, fRotate, rScale))
+				{
+					return offset;
+				}
+			}
+		}
+		else
+		{
+			offset[axisIndex] = UnityEngine.Random.Range(minValue, maxValue);
+		}
+
+		return offset;
+	}
+
+	// Helper function to perform raytest for a single position
+	public static bool RaysValid(Vector3 testPos, GeologyItem selectedItem, string prefabPath, bool isCustom, Vector3 fRotate, Vector3 rScale)
+	{
+		List<PrefabData> rayList = GetRayDataFromPrefab(ResolveRayTemplateFile(prefabPath, isCustom));
+		return PrefabManager.inTerrain(new PrefabData("f", 261440689, testPos, Quaternion.Euler(fRotate), rScale), rayList);
+	}
+
 	public static string ResolveRayTemplateFile(string geoItem, bool custom)
 	{
-		Debug.Log(geoItem + " resolving ray template");
+		//Debug.Log(geoItem + " resolving ray template");
 		
 		string fileName = geoItem;
 		string rayName = "";
@@ -3522,11 +3921,11 @@ public static void EntityDumpMap()
 		{
 			fileName = Path.GetFileNameWithoutExtension(geoItem) + "rays.prefab";
 			rayName = Path.Combine(SettingsManager.AppDataPath(), "Presets", "Geology", fileName);
-			Debug.Log("ray template expected at:" + rayName);
+			//Debug.Log("ray template expected at:" + rayName);
 			return rayName;
 		}
 		
-		Debug.Log("ray template at:" + rayName);
+		//Debug.Log("ray template at:" + rayName);
 		rayName = Path.Combine(SettingsManager.AppDataPath(), "Presets", "Geology", geoItem);
 		return rayName;
 	}

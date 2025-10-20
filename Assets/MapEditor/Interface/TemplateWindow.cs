@@ -12,8 +12,11 @@ public class TemplateWindow : UIBuilder
 	public Toggle toggle;
     public Button close, rescale;
     public GameObject itemView;
-    public RangeSlide rangeSlide;
     public object targetObject;
+	
+	// Store bound lifecycle methods
+    private MethodInfo onEnableMethod;
+    private MethodInfo onDisableMethod;
 
     public GameObject CreateItemView(Transform parent)
     {
@@ -25,258 +28,348 @@ public class TemplateWindow : UIBuilder
         return Instantiate(itemView, parent, false);
     }
 
-    public void Build(object target)
+
+    private Stack<GameObject> explicitHorizontalGroupStack = new Stack<GameObject>();
+public void Build(object target)
+{
+    if (target == null)
     {
+        Debug.LogError("Target object is null. Cannot build UI.");
+        return;
+    }
 
-        if (target == null)
+    EnableTemplates(true);
+
+    targetObject = target;
+    Type type = targetObject.GetType();
+    title.text = type.Name;
+
+    fieldToUIElement.Clear();
+
+    var members = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+        .Cast<MemberInfo>()
+        .Concat(type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+        .OrderBy(m => m.MetadataToken)
+        .ToList();
+
+    int? beginToken = null;
+    string windowTitle = type.Name;
+    foreach (var member in members)
+    {
+        var beginAttr = member.GetCustomAttribute<BeginWindow>();
+        if (beginAttr != null && beginToken == null)
         {
-            Debug.LogError("Target object is null. Cannot build UI.");
-            return;
+            beginToken = member.MetadataToken;
+            windowTitle = beginAttr.Title;
+            title.text = windowTitle;
         }
-		
-		EnableTemplates(true);
-		
-        targetObject = target;
-        Type type = targetObject.GetType();
-        title.text = type.Name;
+    }
 
-        fieldToUIElement.Clear();
+    GameObject scrollViewObj = CreateItemView(transform);
+    if (scrollViewObj == null) return;
 
-        var members = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-            .Cast<MemberInfo>()
-            .Concat(type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Cast<MemberInfo>())
-            .OrderBy(m => m.MetadataToken)
-            .ToList();
+    ScrollRect scrollRect = scrollViewObj.GetComponent<ScrollRect>();
+    Transform contentTransform = scrollRect.content;
+    if (contentTransform == null)
+    {
+        Debug.LogError("ScrollRect content is not assigned.");
+        return;
+    }
 
-        int? beginToken = null;
-        string windowTitle = type.Name;
-        foreach (var member in members)
+    RectTransform contentRect = contentTransform.GetComponent<RectTransform>();
+    contentRect.anchorMin = new Vector2(0, 1);
+    contentRect.anchorMax = new Vector2(1, 1);
+    contentRect.pivot = new Vector2(0, 1);
+    contentRect.anchoredPosition = Vector2.zero;
+    contentRect.sizeDelta = new Vector2(0, 0);
+
+    VerticalLayoutGroup verticalLayout = contentTransform.GetComponent<VerticalLayoutGroup>();
+    if (verticalLayout == null)
+    {
+        verticalLayout = contentTransform.gameObject.AddComponent<VerticalLayoutGroup>();
+        verticalLayout.padding = new RectOffset(5, 5, 5, 5);
+        verticalLayout.spacing = 5;
+        verticalLayout.childAlignment = TextAnchor.UpperLeft;
+        verticalLayout.childControlWidth = false;
+        verticalLayout.childForceExpandWidth = false;
+        verticalLayout.childControlHeight = false;
+        verticalLayout.childForceExpandHeight = false;
+    }
+
+    int elementCount = 0;
+    float contentHeight = 0;
+    float contentSpacing = 5;
+    float maxContentWidth = 0;
+    List<GameObject> horizontalContainers = new List<GameObject>();
+    FieldInfo pendingMinField = null;
+    RangeSlideMin pendingMinAttr = null;
+
+    foreach (var member in members)
+    {
+        if (beginToken != null && member.MetadataToken < beginToken)
+            continue;
+
+        // Determine the parent based on the current stack state
+        Transform elementParent = explicitHorizontalGroupStack.Count > 0 
+            ? explicitHorizontalGroupStack.Peek().transform 
+            : contentTransform;
+
+        // Check for group attributes
+        bool hasHorizontalGroup = member.GetCustomAttribute<HorizontalGroup>() != null;
+        bool hasEndHorizontalGroup = member.GetCustomAttribute<EndHorizontalGroup>() != null;
+
+        // Handle [EndHorizontalGroup] first if present
+        if (hasEndHorizontalGroup)
         {
-            var beginAttr = member.GetCustomAttribute<BeginWindow>();
-            if (beginAttr != null && beginToken == null)
+            if (explicitHorizontalGroupStack.Count == 0)
             {
-                beginToken = member.MetadataToken;
-                windowTitle = beginAttr.Title;
-                title.text = windowTitle;
+                Debug.LogWarning($"[EndHorizontalGroup] without matching [HorizontalGroup] at {member.Name}. Ignoring.");
+            }
+            else
+            {
+                GameObject closedContainer = explicitHorizontalGroupStack.Pop();
+                elementCount++;
             }
         }
 
-        GameObject scrollViewObj = CreateItemView(transform);
-        if (scrollViewObj == null) return;
-
-        ScrollRect scrollRect = scrollViewObj.GetComponent<ScrollRect>();
-        Transform contentTransform = scrollRect.content;
-        if (contentTransform == null)
+        // Handle [HorizontalGroup] after closing any previous group
+        if (hasHorizontalGroup)
         {
-            Debug.LogError("ScrollRect content is not assigned.");
-            return;
+            if (horizontalContainer == null)
+            {
+                Debug.LogError("TemplateWindow's horizontalContainer field is not assigned.");
+                return;
+            }
+            GameObject newHorizontalContainer = Instantiate(horizontalContainer, contentTransform, false);
+            newHorizontalContainer.name = $"{member.Name}_HorizontalGroup";
+            horizontalContainers.Add(newHorizontalContainer);
+            explicitHorizontalGroupStack.Push(newHorizontalContainer);
+
+            HorizontalLayoutGroup layoutGroup = newHorizontalContainer.GetComponent<HorizontalLayoutGroup>();
+
+
+            contentHeight += 50 + contentSpacing;
+            Debug.Log($"Opened [HorizontalGroup] for {member.Name}: {newHorizontalContainer.name}");
+
+            // Update elementParent to the new group for the current field
+            elementParent = newHorizontalContainer.transform;
         }
 
-        RectTransform contentRect = contentTransform.GetComponent<RectTransform>();
-        contentRect.anchorMin = new Vector2(0, 1);
-        contentRect.anchorMax = new Vector2(1, 1);
-        contentRect.pivot = new Vector2(0, 1);
-        contentRect.anchoredPosition = Vector2.zero;
-        contentRect.sizeDelta = new Vector2(0, 0);
-
-        VerticalLayoutGroup verticalLayout = contentTransform.GetComponent<VerticalLayoutGroup>();
-        if (verticalLayout == null)
+        // Process fields
+        if (member is FieldInfo field)
         {
-            verticalLayout = contentTransform.gameObject.AddComponent<VerticalLayoutGroup>();
-            verticalLayout.padding = new RectOffset(5, 5, 5, 5);
-            verticalLayout.spacing = 5;
-            verticalLayout.childAlignment = TextAnchor.UpperLeft;
-            verticalLayout.childControlWidth = true;
-            verticalLayout.childControlHeight = false;
-            verticalLayout.childForceExpandWidth = true;
-            verticalLayout.childForceExpandHeight = false;
-        }
+            RustMapperUIElement attr = field.GetCustomAttribute<RustMapperUIElement>();
+            string labelText = attr?.Label ?? field.Name;
 
-        int elementCount = 0;
-        Stack<GameObject> horizontalContainerStack = new Stack<GameObject>();
-        float contentHeight = 0;
-        float contentSpacing = 5;
-        List<GameObject> horizontalContainers = new List<GameObject>();
+            bool isLabel = field.FieldType == typeof(string) && 
+                (field.IsInitOnly || field.IsLiteral || field.GetCustomAttribute<System.Runtime.CompilerServices.IsReadOnlyAttribute>() != null);
 
-        foreach (var member in members)
-        {
-            if (beginToken != null && member.MetadataToken < beginToken)
+            if (isLabel)
+            {
+                Text newText = CreateLabelText(elementParent, (string)field.GetValue(targetObject) ?? labelText);
+                if (newText != null)
+                {
+                    fieldToUIElement[field] = newText;
+                    if (explicitHorizontalGroupStack.Count == 0)
+                    {
+                        contentHeight += newText.GetComponent<RectTransform>().sizeDelta.y + contentSpacing;
+                        maxContentWidth = Mathf.Max(maxContentWidth, newText.GetComponent<RectTransform>().sizeDelta.x);
+                    }
+                    elementCount++;
+                    Debug.Log($"Created label for {field.Name} under {elementParent.name}");
+                }
+            }
+            else if (field.GetCustomAttribute<RangeSlideMin>() is RangeSlideMin minAttr && field.FieldType == typeof(float))
+            {
+                pendingMinField = field;
+                pendingMinAttr = minAttr;
+                Debug.Log($"Pending [RangeSlideMin] for {field.Name}");
                 continue;
+            }
+            else if (field.GetCustomAttribute<RangeSlideMax>() != null && field.FieldType == typeof(float))
+            {
+                if (pendingMinField != null && pendingMinAttr != null)
+                {
+                    if (horizontalContainer == null)
+                    {
+                        Debug.LogError("TemplateWindow's horizontalContainer field is not assigned.");
+                        return;
+                    }
+                    GameObject implicitContainer = Instantiate(horizontalContainer, elementParent, false);
+                    implicitContainer.name = $"{pendingMinField.Name}_ImplicitContainer";
+                    horizontalContainers.Add(implicitContainer);
+                    Transform implicitParent = implicitContainer.transform;
 
-            bool hasHorizontalGroup = member.GetCustomAttribute<HorizontalGroup>() != null;
-            bool hasEndHorizontalGroup = member.GetCustomAttribute<EndHorizontalGroup>() != null;
+                    HorizontalLayoutGroup layoutGroup = implicitContainer.GetComponent<HorizontalLayoutGroup>();
 
-            Transform elementParent = horizontalContainerStack.Count > 0 ? horizontalContainerStack.Peek().transform : contentTransform;
 
-            if (hasHorizontalGroup)
+                    string rangeLabel = pendingMinAttr.Label ?? pendingMinField.Name;
+                    CreateLabelText(implicitParent, rangeLabel);
+                    CreateAndBindRangeSlide(implicitParent, pendingMinField, field, targetObject, pendingMinAttr.Min, pendingMinAttr.Max, pendingMinAttr.Whole, pendingMinAttr.Label);
+
+                    elementCount++;
+
+                    pendingMinField = null;
+                    pendingMinAttr = null;
+                }
+                else
+                {
+                    Debug.LogWarning($"[RangeSlideMax] on {field.Name} but no matching [RangeSlideMin]. Treating as normal float.");
+                }
+            }
+            else if (field.GetCustomAttribute<SliderUIElement>() is SliderUIElement sliderAttr && 
+                     (field.FieldType == typeof(float) || field.FieldType == typeof(int)))
             {
                 if (horizontalContainer == null)
                 {
                     Debug.LogError("TemplateWindow's horizontalContainer field is not assigned.");
                     return;
                 }
-                GameObject newHorizontalContainer = Instantiate(horizontalContainer, elementParent, false);
-                newHorizontalContainer.name = $"{member.Name}_HorizontalContainer";
-                horizontalContainers.Add(newHorizontalContainer);
-                horizontalContainerStack.Push(newHorizontalContainer);
-                elementParent = newHorizontalContainer.transform;
-                if (horizontalContainerStack.Count == 1)
-                    contentHeight += 50 + contentSpacing;
+                GameObject implicitContainer = Instantiate(horizontalContainer, elementParent, false);
+                implicitContainer.name = $"{field.Name}_ImplicitContainer";
+                horizontalContainers.Add(implicitContainer);
+                Transform implicitParent = implicitContainer.transform;
+
+                HorizontalLayoutGroup layoutGroup = implicitContainer.GetComponent<HorizontalLayoutGroup>();
+
+
+                string sliderLabel = sliderAttr.Label ?? labelText;
+                CreateLabelText(implicitParent, sliderLabel);
+                CreateAndBindSlider(implicitParent, field, targetObject, sliderAttr.Min, sliderAttr.Max, sliderAttr.Whole, sliderAttr.Label);
+                elementCount++;
             }
-
-            if (member is FieldInfo field)
+            else if (field.FieldType.IsGenericType && field.FieldType.GetGenericTypeDefinition() == typeof(List<>))
             {
-                RustMapperUIElement attr = field.GetCustomAttribute<RustMapperUIElement>();
-                string labelText = attr?.Label ?? field.Name;
-
-                bool isLabel = field.FieldType == typeof(string) && (field.IsInitOnly || field.IsLiteral || (field.GetCustomAttribute<System.Runtime.CompilerServices.IsReadOnlyAttribute>() != null));
-
-                if (isLabel)
+                if (horizontalContainer == null)
                 {
-                    Text newText = CreateLabelText(elementParent, (string)field.GetValue(targetObject) ?? labelText);
-                    if (newText != null)
-                    {
-                        fieldToUIElement[field] = newText;
-                        if (horizontalContainerStack.Count == 0)
-                            contentHeight += newText.GetComponent<RectTransform>().sizeDelta.y + contentSpacing;
-                    }
+                    Debug.LogError("TemplateWindow's horizontalContainer field is not assigned.");
+                    return;
+                }
+                GameObject implicitContainer = Instantiate(horizontalContainer, elementParent, false);
+                implicitContainer.name = $"{field.Name}_ImplicitContainer";
+                horizontalContainers.Add(implicitContainer);
+                Transform implicitParent = implicitContainer.transform;
+
+                HorizontalLayoutGroup layoutGroup = implicitContainer.GetComponent<HorizontalLayoutGroup>();
+
+
+                ListView listView = CreateAndBindListView(implicitParent, field, targetObject);
+                if (listView != null)
+                {
+                    fieldToUIElement[field] = listView;
                     elementCount++;
                 }
-                else if (field.FieldType.IsGenericType && field.FieldType.GetGenericTypeDefinition() == typeof(List<>))
-				{
-					if (horizontalContainerStack.Count == 0)
-					{
-						if (horizontalContainer == null)
-						{
-							Debug.LogError("TemplateWindow's horizontalContainer field is not assigned.");
-							return;
-						}
-						GameObject newHorizontalContainer = Instantiate(horizontalContainer, contentTransform, false);
-						newHorizontalContainer.name = $"{field.Name}_HorizontalContainer";
-						horizontalContainers.Add(newHorizontalContainer);
-						horizontalContainerStack.Push(newHorizontalContainer);
-						elementParent = newHorizontalContainer.transform;
-						contentHeight += 100 + contentSpacing; // Increased height for ListView
-					}
+            }
+            else
+            {
+                if (horizontalContainer == null)
+                {
+                    Debug.LogError("TemplateWindow's horizontalContainer field is not assigned.");
+                    return;
+                }
+                GameObject implicitContainer = Instantiate(horizontalContainer, elementParent, false);
+                implicitContainer.name = $"{field.Name}_ImplicitContainer";
+                horizontalContainers.Add(implicitContainer);
+                Transform implicitParent = implicitContainer.transform;
 
-					// Skip creating external label for ListView since it has its own
-					// CreateLabelText(elementParent, labelText); // Removed
+                HorizontalLayoutGroup layoutGroup = implicitContainer.GetComponent<HorizontalLayoutGroup>();
 
-					ListView listView = CreateAndBindListView(elementParent, field, targetObject);
-					if (listView != null)
-					{
-						if (horizontalContainerStack.Count == 0)
-							contentHeight += listView.GetComponent<RectTransform>().sizeDelta.y + contentSpacing;
-						elementCount++;
-					}
 
-					if (horizontalContainerStack.Count > 0 && !hasHorizontalGroup && elementParent.gameObject == horizontalContainerStack.Peek())
-					{
-						horizontalContainerStack.Pop();
-						elementCount++;
-					}
+
+
+                Component uiElement = null;
+                if (field.FieldType == typeof(string) || field.FieldType == typeof(int) || field.FieldType == typeof(uint) || field.FieldType == typeof(float)){
+					CreateLabelText(implicitParent, labelText);
+                    uiElement = CreateAndBindInputField(implicitParent, field, targetObject);
+				}
+                else if (field.FieldType == typeof(bool)){
+                    uiElement = CreateAndBindToggle(implicitParent, field, targetObject);
+					CreateLabelText(implicitParent, "  " +labelText);
+				}
+                else if (field.FieldType.IsEnum){
+                    uiElement = CreateAndBindDropdown(implicitParent, field, targetObject);
+				}
+                else if (field.FieldType == typeof(Vector3)){
+					CreateLabelText(implicitParent, labelText);
+                    uiElement = CreateAndBindVector3Field(implicitParent, field, targetObject);
 				}
                 else
                 {
-                    if (horizontalContainerStack.Count == 0)
-                    {
-                        if (horizontalContainer == null)
-                        {
-                            Debug.LogError("TemplateWindow's horizontalContainer field is not assigned.");
-                            return;
-                        }
-                        GameObject newHorizontalContainer = Instantiate(horizontalContainer, contentTransform, false);
-                        newHorizontalContainer.name = $"{field.Name}_HorizontalContainer";
-                        horizontalContainers.Add(newHorizontalContainer);
-                        horizontalContainerStack.Push(newHorizontalContainer);
-                        elementParent = newHorizontalContainer.transform;
-                        contentHeight += 50 + contentSpacing;
-                    }
-
-                    CreateLabelText(elementParent, labelText);
-
-                    Component uiElement = null;
-                    if (field.FieldType == typeof(string) || field.FieldType == typeof(int) || field.FieldType == typeof(uint) || field.FieldType == typeof(float))
-                        uiElement = CreateAndBindInputField(elementParent, field, targetObject);
-                    else if (field.FieldType == typeof(bool))
-                        uiElement = CreateAndBindToggle(elementParent, field, targetObject);
-                    else if (field.FieldType.IsEnum)
-                        uiElement = CreateAndBindDropdown(elementParent, field, targetObject);
-                    else if (field.FieldType == typeof(Vector3))
-                        uiElement = CreateAndBindVector3Field(elementParent, field, targetObject);
-                    else
-                    {
-                        Debug.LogWarning($"Unsupported field type {field.FieldType} for field {field.Name}");
-                        if (horizontalContainerStack.Count > 0 && horizontalContainerStack.Peek() == elementParent.gameObject)
-                            horizontalContainerStack.Pop();
-                        continue;
-                    }
-
-                    if (uiElement != null)
-                        fieldToUIElement[field] = uiElement;
-
-                    if (horizontalContainerStack.Count > 0 && !hasHorizontalGroup && elementParent.gameObject == horizontalContainerStack.Peek())
-                    {
-                        horizontalContainerStack.Pop();
-                        elementCount++;
-                    }
+                    Debug.LogWarning($"Unsupported field type {field.FieldType} for {field.Name}");
+                    Destroy(implicitContainer);
+                    continue;
                 }
-            }
-            else if (member is MethodInfo method && method.ReturnType == typeof(void) && method.GetParameters().Length == 0)
-            {
-                RustMapperButton attr = member.GetCustomAttribute<RustMapperButton>();
-                string labelText = attr?.Label ?? method.Name;
 
-                Button button = CreateAndBindButton(elementParent, method, targetObject, labelText);
-                if (button != null)
+                if (uiElement != null)
                 {
-                    if (horizontalContainerStack.Count == 0)
-                        contentHeight += button.GetComponent<RectTransform>().sizeDelta.y + contentSpacing;
+                    fieldToUIElement[field] = uiElement;
                     elementCount++;
                 }
             }
+        }
+        else if (member is MethodInfo method && method.ReturnType == typeof(void) && method.GetParameters().Length == 0)
+        {
+            if (method.GetCustomAttribute<OnWindowEnable>() != null)
+                onEnableMethod = method;
+            if (method.GetCustomAttribute<OnWindowDisable>() != null)
+                onDisableMethod = method;
 
-            if (hasEndHorizontalGroup)
+            RustMapperButton attr = method.GetCustomAttribute<RustMapperButton>();
+            if (attr != null)
             {
-                if (horizontalContainerStack.Count == 0)
-                    Debug.LogWarning($"[EndHorizontalGroup] without matching [HorizontalGroup] at {member.Name}. Ignoring.");
-                else
+                string labelText = attr.Label ?? method.Name;
+                Button button = CreateAndBindButton(elementParent, method, targetObject, labelText);
+                if (button != null)
                 {
-                    horizontalContainerStack.Pop();
-                    if (horizontalContainerStack.Count == 0)
-                        elementCount++;
+                    if (explicitHorizontalGroupStack.Count == 0)
+                    {
+                        contentHeight += button.GetComponent<RectTransform>().sizeDelta.y + contentSpacing;
+                        maxContentWidth = Mathf.Max(maxContentWidth, button.GetComponent<RectTransform>().sizeDelta.x);
+                    }
+                    elementCount++;
+                    Debug.Log($"Created Button for {method.Name} under {elementParent.name}");
                 }
             }
         }
-
-        while (horizontalContainerStack.Count > 0)
-        {
-            Debug.LogWarning($"Unclosed [HorizontalGroup] detected. Closing automatically.");
-            horizontalContainerStack.Pop();
-            elementCount++;
-        }
-
-        foreach (var container in horizontalContainers)
-        {
-            if (container.transform.childCount == 0)
-            {
-                Debug.LogWarning($"Removing empty horizontal container: {container.name}");
-                contentHeight -= 50 + contentSpacing;
-                Destroy(container);
-            }
-        }
-
-        contentRect.sizeDelta = new Vector2(contentRect.sizeDelta.x, contentHeight);
-
-        foreach (var component in gameObject.GetComponentsInChildren<Component>(true))
-        {
-            if (component is Behaviour behaviour)
-                behaviour.enabled = true;
-        }
-
-        Debug.Log($"Generated UI with {elementCount} elements for {type.Name}");
-		EnableTemplates(false);
     }
+
+    // Close any unclosed groups
+    while (explicitHorizontalGroupStack.Count > 0)
+    {
+        GameObject unclosedContainer = explicitHorizontalGroupStack.Pop();
+        //unclosedContainer.GetComponent<RectTransform>().sizeDelta = new Vector2(containerWidth, unclosedContainer.GetComponent<RectTransform>().sizeDelta.y);
+        elementCount++;
+    }
+
+    // Remove empty containers
+    foreach (var container in horizontalContainers)
+    {
+        if (container.transform.childCount == 0)
+        {
+            Debug.LogWarning($"Removing empty horizontal container: {container.name}");
+            contentHeight -= 50 + contentSpacing;
+            Destroy(container);
+        }
+    }
+
+    contentRect.sizeDelta = new Vector2(maxContentWidth, contentHeight);
+
+    LayoutRebuilder.ForceRebuildLayoutImmediate(contentRect);
+
+    Debug.Log($"Generated UI with {elementCount} elements for {type.Name}, content width: {maxContentWidth}, height: {contentHeight}");
+    EnableTemplates(false);
+}
+
+private float CalculateContainerWidth(GameObject container)
+{
+    float width = -2000f;
+    foreach (RectTransform child in container.GetComponentsInChildren<RectTransform>())    {
+            width += child.sizeDelta.x;
+    }
+    return width;
+}
+
+
 
 /*
     private void Update()
@@ -515,6 +608,49 @@ public class TemplateWindow : UIBuilder
                 Debug.LogError($"Error syncing UI for {field.Name}: {e.Message}");
             }
         }
+    }
+	
+	// Unity lifecycle: OnEnable for the TemplateWindow GameObject itself
+    private void OnEnable()
+    {
+        Debug.Log("TemplateWindow GameObject enabled.");
+
+        // Invoke the attribute's method if Build has been called and method is cached
+        if (targetObject != null && onEnableMethod != null)
+        {
+            try
+            {
+                onEnableMethod.Invoke(targetObject, null);
+                Debug.Log($"Invoked [OnWindowEnable] method: {onEnableMethod.Name}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error invoking OnWindowEnable {onEnableMethod.Name}: {e.Message}");
+            }
+        }
+        else if (onEnableMethod != null)
+        {
+            Debug.LogWarning("[OnWindowEnable] method found but targetObject is null - ensure Build() is called before enabling the GameObject.");
+        }
+    }
+
+    // Unity lifecycle: OnDisable for the TemplateWindow GameObject itself
+    private void OnDisable()
+    {
+        if (targetObject != null && onDisableMethod != null)
+        {
+            try
+            {
+                onDisableMethod.Invoke(targetObject, null);
+                Debug.Log($"Invoked [OnWindowDisable] method: {onDisableMethod.Name}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error invoking OnWindowDisable {onDisableMethod.Name}: {e.Message}");
+            }
+        }
+
+        Debug.Log("TemplateWindow GameObject disabled.");
     }
 	
 }

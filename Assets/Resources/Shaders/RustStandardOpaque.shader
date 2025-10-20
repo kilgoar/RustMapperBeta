@@ -58,6 +58,13 @@ Shader "Custom/Rust/StandardOpaque"
         _ShoreWetnessLayer_WetAlbedoScale("Shore Wet Albedo Scale", Float) = 0.5
         _ShoreWetnessLayer_WetSmoothness("Shore Wet Smoothness", Float) = 0.5
 
+		_Mode ("__mode", Float) = 0
+		_Cull ("Cull", Float) = 2
+		_SrcBlend ("__src", Float) = 1
+        _DstBlend ("__dst", Float) = 0
+		_ZWrite ("__zw", Float) = 1
+		[Enum(UV0,0,UV1,1)] _UVSec ("Layer UV Set", Float) = 0
+
         // Selection Indicator Properties
         [Toggle(_SELECTION_ON)] _SelectionOn("Selection Indicator", Float) = 0
         _SelectionColor("Selection Color", Color) = (1,0,0,1)
@@ -65,9 +72,11 @@ Shader "Custom/Rust/StandardOpaque"
 
     SubShader
     {
-        Tags { "RenderType"="Opaque" "PerformanceChecks"="False" }
-        LOD 300
-
+        Tags { "RenderType"="Transparent" "Queue"="Transparent" "PerformanceChecks"="False" }
+		Blend [_SrcBlend] [_DstBlend]
+		ZWrite [_ZWrite]
+		Cull [_Cull]
+		LOD 300
         CGPROGRAM
         #pragma target 3.0
         #pragma surface surf Standard fullforwardshadows
@@ -142,6 +151,9 @@ Shader "Custom/Rust/StandardOpaque"
         float _ShoreWetnessLayer_Range;
         float _ShoreWetnessLayer_WetAlbedoScale;
         float _ShoreWetnessLayer_WetSmoothness;
+		float _Cull;
+		float _Mode;
+		float _DstBlend;
 
         // Selection Properties
         float _SelectionOn;
@@ -175,19 +187,25 @@ Shader "Custom/Rust/StandardOpaque"
                 o.Occlusion = lerp(1.0, tex2D(_OcclusionMap, uv).r, _OcclusionStrength);
             }
 
-            // Use SpecGlossMap for Metallic and Smoothness
-            fixed4 specGloss = tex2D(_SpecGlossMap, uv);
-            //o.Metallic = _Metallic;
-            //o.Smoothness = _Glossiness * specGloss.a;
+
+			
+			if(_Mode > 0.5 && _Mode < 1.5){
+				clip(albedo.a - _Cutoff);
+			}
+			if(_Mode > 2.5){
+				o.Alpha = albedo.a;
+				 // Use SpecGlossMap for Metallic and Smoothness
+				fixed4 specGloss = tex2D(_SpecGlossMap, uv);
+				//o.Metallic = _Metallic;
+				o.Smoothness = _Glossiness * specGloss.a;
+			}
 
             // Apply outline
             ApplyOutline(albedo.rgb, WorldNormalVector(IN, o.Normal), uv, _SelectionOn, _SelectionColor);
 
             o.Albedo = albedo.rgb;
             o.Emission = tex2D(_EmissionMap, uv).rgb * _EmissionColor.rgb;
-            o.Alpha = albedo.a;
-            _Cutoff = .5-_Cutoff;
-            clip(albedo.a - _Cutoff);
+
         }
         ENDCG
     }
