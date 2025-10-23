@@ -542,7 +542,7 @@ public static void PaintRange(Layers layerData, float minBlend = 20f, float min 
     else if (topography.Equals("heights") || topography.Equals("height"))
     {
         slopes = TerrainManager.Land.terrainData.GetHeights(0, 0, heightRes, heightRes);
-        Debug.LogError("polling heightmap " + slopes[0, 0]);
+        Debug.Log("polling heightmap " + slopes[0, 0]);
     }
     else if (topography.Equals("curves") || topography.Equals("curve"))
     {
@@ -677,7 +677,7 @@ public static void PaintBlend(Layers layerData, float minBlend = 20f, float min 
     else if (topography.Equals("heights") || topography.Equals("height"))
     {
         slopes = TerrainManager.Land.terrainData.GetHeights(0, 0, heightRes, heightRes);
-        Debug.LogError("polling heightmap " + slopes[0, 0]);
+        Debug.Log("polling heightmap " + slopes[0, 0]);
     }
     else if (topography.Equals("curves") || topography.Equals("curve"))
     {

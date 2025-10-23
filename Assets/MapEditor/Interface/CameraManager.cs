@@ -255,38 +255,55 @@ public void InitializeGizmos()
             _workGizmo.Gizmo.SetEnabled(enabled);
         }
     }
+	
+	private void HandleCameraDictionary()
+	{
+		// Skip if any UI input field is active, load screen, or camera locked
+		if (AppManager.Instance.IsAnyInputFieldActive() || 
+			LoadScreen.Instance.isEnabled || 
+			lockCam) 
+			return;
+		//Debug.Log("checking camera binds"); i have validated the method is calling and passing the conditions
+		for (int i = 0; i <= 9; i++)
+		{
+			string saveBind = $"saveCameraSlot{i}";
+			string loadBind = $"loadCameraSlot{i}";
+
+			if (BindManager.WasPressedThisFrame(saveBind))
+			{
+				Debug.Log("save pressed");
+				Compass.Instance.SaveCameraSlot(i);
+				return; 
+			}
+			else if (BindManager.WasPressedThisFrame(loadBind))
+			{
+				Debug.Log("load pressed");
+				Compass.Instance.LoadCameraSlot(i);
+				return;
+			}
+		}
+	}
+	
 
 	void Update()
 	{
 		if (cam == null) return;
 		if (lockCam == true) return;
-		if (LoadScreen.Instance.isEnabled)
-			return;
-
+		if (LoadScreen.Instance.isEnabled) return;
 
 			UpdateGizmoState();
 
-        // Rotate camera (right click)
-        if (BindManager.IsPressed("rotateCamera"))
-        {
-            // Capture cursor position on first frame of rotation
-            if (!isRotating)
-            {
+        if (BindManager.IsPressed("rotateCamera"))        {
+            if (!isRotating)            {
                 fixedCursorPos = Mouse.current.position.ReadValue();
                 isRotating = true;
             }
 
-            //Cursor.visible = true;
             Mouse.current.WarpCursorPosition(fixedCursorPos);
-
-            // Perform camera rotation
             mouseMovement = Mouse.current.delta;
             pitch -= mouseMovement.ReadValue().y * rotationSpeed;
             yaw += mouseMovement.ReadValue().x * rotationSpeed;
-            
-            // Apply rotation
-            Quaternion dutchlessTilt = Quaternion.Euler(pitch, yaw, 0f);
-            cam.transform.rotation = dutchlessTilt;
+            cam.transform.rotation = Quaternion.Euler(pitch, yaw, 0f);
         }
         else
         {
@@ -307,83 +324,39 @@ public void InitializeGizmos()
 			else if (BindManager.WasPressedThisFrame("gizmoToggleSpace")) ToggleGizmoSpace();
 			else if (BindManager.WasPressedThisFrame("transparencyToggle")) FadeSelection();
 
-				if(BindManager.WasPressedThisFrame("mirrorDuplicate")){
-					DuplicateMirrorSelection(); return;
-				}
-				else if (BindManager.WasPressedThisFrame("duplicate"))			{
-					DuplicateSelection();	return;
-				}
-				
-				if (BindManager.WasPressedThisFrame("createParent"))			{
-					CreateParent();
-					return;
-				}
-				if (BindManager.WasPressedThisFrame("flatten"))			{
-					Flatten();
-					return;
-				}
+			if (BindManager.WasPressedThisFrame("mirrorDuplicate")) { DuplicateMirrorSelection(); return; }
+			else if (BindManager.WasPressedThisFrame("duplicate")) { DuplicateSelection(); return; }
+			if (BindManager.WasPressedThisFrame("createParent")) { CreateParent(); return; }
+			if (BindManager.WasPressedThisFrame("flatten")) { Flatten(); return; }
 
 
-			// Movement speed modifiers and corresponding gizmo sensitivity
-			if (BindManager.IsPressed("moveVerySlow"))
-			{
-				sprint = 0.0375f; // Alt and Shift pressed		
-			}
-			else if (BindManager.IsPressed("moveFast"))
-			{
-				sprint = 3f; // Only Shift pressed
-			}
-			else if (BindManager.IsPressed("moveSlow"))
-			{
-				sprint = 0.075f; // Only Alt pressed
-			}
-			
-			if (BindManager.IsPressed("gizmoVeryFine"))
-			{
-				gizmoSensitivity = .01f;
-			}
-			else if (BindManager.IsPressed("gizmoFine"))
-			{
-				gizmoSensitivity = .1f;
-			}
+			// Speed modifiers
+			if (BindManager.IsPressed("moveVerySlow")) sprint = 0.0375f;
+			else if (BindManager.IsPressed("moveFast")) sprint = 3f;
+			else if (BindManager.IsPressed("moveSlow")) sprint = 0.075f;			
+
+			if (BindManager.IsPressed("gizmoVeryFine")) gizmoSensitivity = 0.01f;
+			else if (BindManager.IsPressed("gizmoFine")) gizmoSensitivity = 0.1f;
 
 			SetGizmoSensitivity(gizmoSensitivity);
+			
+			HandleCameraDictionary();
 
 			float currentSpeed = movementSpeed * sprint * Time.deltaTime;
-
 			globalMove = Vector3.zero;
 			
-			if(!Keyboard.current.ctrlKey.isPressed){
-
-				if (BindManager.IsPressed("moveForward"))
-				{
-					globalMove += cam.transform.forward * currentSpeed;
-				}
-				if (BindManager.IsPressed("moveBackward"))
-				{
-					globalMove -= cam.transform.forward * currentSpeed;
-				}
-				if (BindManager.IsPressed("moveLeft"))
-				{
-					globalMove -= cam.transform.right * currentSpeed;
-				}
-				if (BindManager.IsPressed("moveRight"))
-				{
-					globalMove += cam.transform.right * currentSpeed;
-				}
-				if (BindManager.IsPressed("moveDown"))
-				{
-					globalMove -= cam.transform.up * currentSpeed;
-				}
-				if (BindManager.IsPressed("moveUp"))
-				{
-					globalMove += cam.transform.up * currentSpeed;
-				}
+			if (!Keyboard.current.ctrlKey.isPressed)
+			{
+				if (BindManager.IsPressed("moveForward")) globalMove += cam.transform.forward * currentSpeed;
+				if (BindManager.IsPressed("moveBackward")) globalMove -= cam.transform.forward * currentSpeed;
+				if (BindManager.IsPressed("moveLeft")) globalMove -= cam.transform.right * currentSpeed;
+				if (BindManager.IsPressed("moveRight")) globalMove += cam.transform.right * currentSpeed;
+				if (BindManager.IsPressed("moveDown")) globalMove -= cam.transform.up * currentSpeed;
+				if (BindManager.IsPressed("moveUp")) globalMove += cam.transform.up * currentSpeed;
 			}
 			
 			
-			if (BindManager.WasPressedThisFrame("delete"))
-			{
+			if (BindManager.WasPressedThisFrame("delete"))		{
 				DeleteSelection();
 			}
 
@@ -393,17 +366,15 @@ public void InitializeGizmos()
 				position = cam.transform.position;
 				currentTime = Time.time;
 
-				if (currentTime - lastUpdateTime > updateFrequency)
-				{
+				if (currentTime - lastUpdateTime > updateFrequency)				{
 					AreaManager.UpdateSectors(position, settings.prefabRenderDistance);
 					lastUpdateTime = currentTime;
 				}
-				wasMoving = true; // Mark that the camera is moving
+				wasMoving = true;
 			}
-			else if (wasMoving) // Camera stopped this frame
-			{
+			else if (wasMoving) 			{
 				AreaManager.UpdateSectors(position, settings.prefabRenderDistance);
-				wasMoving = false; // Reset moving state
+				wasMoving = false; 
 			}
 
 			AppManager.Instance.UpdateInspector();

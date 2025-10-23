@@ -153,6 +153,66 @@ public class TerrainGenWindow
 			if(PaintBlendMap){	GenerativeManager.PaintBlend(TerrainManager.CreateLayerFromKeyword(LayerKeyword), min - minBlendFactor, min, max, max + maxBlendFactor, topography, strength); }
 			else{ GenerativeManager.PaintRange(TerrainManager.CreateLayerFromKeyword(LayerKeyword), min - minBlendFactor, min, max, max + maxBlendFactor, topography, strength);}
 		}
+		[RustMapperButton("Copy Command")]
+		public void CopyCommandToClipboard()
+		{
+			// Determine min/max and blend factors based on active topography mode
+			float minVal, maxVal, minBlendFactor, maxBlendFactor;
+			string topography;
+
+			if (Height)
+			{
+				minVal = minHeight / 1000f;
+				maxVal = maxHeight / 1000f;
+				minBlendFactor = minBlend / 50f;
+				maxBlendFactor = maxBlend / 50f;
+				topography = "heights";
+			}
+			else if (Slope)
+			{
+				minVal = minSlope;
+				maxVal = maxSlope;
+				minBlendFactor = minBlend * 15f;
+				maxBlendFactor = maxBlend * 15f;
+				topography = "slopes";
+			}
+			else if (Curve)
+			{
+				minVal = minCurve / 1000f;
+				maxVal = maxCurve / 1000f;
+				minBlendFactor = minBlend / 500f;
+				maxBlendFactor = maxBlend / 500f;
+				topography = "curves";
+			}
+			else
+			{
+				// Fallback: should not happen due to mutual exclusion, but safe default
+				minVal = maxVal = 0f;
+				minBlendFactor = maxBlendFactor = 0f;
+				topography = "heights";
+			}
+
+			// Calculate final range bounds including blend
+			float rangeMinOuter = minVal - minBlendFactor;
+			float rangeMinInner = minVal;
+			float rangeMaxInner = maxVal;
+			float rangeMaxOuter = maxVal + maxBlendFactor;
+
+			// Get the string representation of the selected keyword
+			string keywordStr = LayerKeyword?.ToLower() ?? "dirt";
+
+			// Choose method: PaintBlend if checkbox is on, otherwise PaintRange
+			string method = PaintBlendMap ? "PaintBlend" : "PaintRange";
+
+			// Construct the final command string
+			string command = $"g.{method} {keywordStr},{rangeMinOuter:F6},{rangeMinInner:F6},{rangeMaxInner:F6},{rangeMaxOuter:F6},{topography},{strength:F6}";
+
+			// Copy to clipboard
+			GUIUtility.systemCopyBuffer = command;
+
+			// Optional: Log for debugging
+			Debug.Log($"Terrain fill command copied to clipboard:\n{command}");
+		}
 	[EndHorizontalGroup]
 	
 	

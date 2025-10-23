@@ -72,6 +72,98 @@ namespace RustMapEditor.Variables
         long EstimateMemoryUsage();
     }
 	
+	[Serializable]
+	class LocalizationEntry
+	{
+		public string keyHash;      // unique, stable SHA-256 hash (16 hex chars)
+		public string english;      // original text
+		public string translation;  // translator fills this
+	}
+
+	[Serializable]
+	class LocalizationFile
+	{
+		public List<LocalizationEntry> entries = new List<LocalizationEntry>();
+	}
+	
+	[System.Serializable]
+    class CameraEntry
+    {
+		public WorldSerialization.VectorData position;
+		public WorldSerialization.VectorData rotation; 
+
+        public CameraEntry() { }
+        public CameraEntry(Vector3 pos, Quaternion rot)
+        {
+            position = pos;
+            rotation = rot;
+        }
+    }
+	
+	[System.Serializable]
+	struct CameraSlots
+	{
+		// Fixed 10 slots
+		public CameraEntry Slot0;
+		public CameraEntry Slot1;
+		public CameraEntry Slot2;
+		public CameraEntry Slot3;
+		public CameraEntry Slot4;
+		public CameraEntry Slot5;
+		public CameraEntry Slot6;
+		public CameraEntry Slot7;
+		public CameraEntry Slot8;
+		public CameraEntry Slot9;
+
+		// Indexer for easy access
+		public CameraEntry this[int index]
+		{
+			get
+			{
+				return index switch
+				{
+					0 => Slot0,
+					1 => Slot1,
+					2 => Slot2,
+					3 => Slot3,
+					4 => Slot4,
+					5 => Slot5,
+					6 => Slot6,
+					7 => Slot7,
+					8 => Slot8,
+					9 => Slot9,
+					_ => throw new System.IndexOutOfRangeException("Slot must be 0–9")
+				};
+			}
+			set
+			{
+				switch (index)
+				{
+					case 0: Slot0 = value; break;
+					case 1: Slot1 = value; break;
+					case 2: Slot2 = value; break;
+					case 3: Slot3 = value; break;
+					case 4: Slot4 = value; break;
+					case 5: Slot5 = value; break;
+					case 6: Slot6 = value; break;
+					case 7: Slot7 = value; break;
+					case 8: Slot8 = value; break;
+					case 9: Slot9 = value; break;
+					default: throw new System.IndexOutOfRangeException("Slot must be 0–9");
+				}
+			}
+		}
+
+		// Helper: Check if any slot has data
+		public bool HasAnyData()
+		{
+			return Slot0 != null || Slot1 != null || Slot2 != null || Slot3 != null ||
+				   Slot4 != null || Slot5 != null || Slot6 != null || Slot7 != null ||
+				   Slot8 != null || Slot9 != null;
+		}
+	}
+		
+	
 public class SelectionUndoAction : IUndoAction
 {
     private readonly string _operationName;
@@ -1566,6 +1658,7 @@ public class SelectionUndoAction : IUndoAction
 			public TerrainSplat.Enum newSplat;
 			public string startupSkin;
 			public List<string> recentFiles;
+			public string language;
 	}
 	
 /*

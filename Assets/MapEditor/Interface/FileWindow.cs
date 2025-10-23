@@ -85,12 +85,15 @@ public class FileWindow : MonoBehaviour
 					var world = new WorldSerialization();
 					world.Load(fullPath);
 					MapManager.Load(WorldConverter.WorldToTerrain(world), fullPath);
+					Compass.Instance.CurrentFileName = fullPath;
 					break;
 				case "prefab":
 					MonumentManager.LoadREPrefab(fullPath);
+					Compass.Instance.CurrentFileName = fullPath;
 					break;
 				case "monument":
 					MonumentManager.LoadMonument(fullPath);
+					Compass.Instance.CurrentFileName = fullPath;
 					break;
 				case "json":
 					MapManager.LoadDumpJSON(fullPath);
@@ -112,6 +115,7 @@ public class FileWindow : MonoBehaviour
 			List<string> pathList = new List<string> { fullPath };
 			SettingsManager.AddPathsAsNodes(tree, pathList);
 			
+
 			footer.text = fullPath + " opened";
 		}
 		catch (Exception e)
@@ -142,13 +146,16 @@ public class FileWindow : MonoBehaviour
 			{
 				case "map":
 					MapManager.Save(fullPath);
+					Compass.Instance.CurrentFileName = fullPath;
 					break;
 				case "prefab":
 					MapManager.SaveCustomPrefab(fullPath);
+					Compass.Instance.CurrentFileName = fullPath;
 					RefreshAssets();
 					break;
 				case "monument":
 					MapManager.SaveMonument(fullPath);
+					Compass.Instance.CurrentFileName = fullPath;
 					RefreshAssets();
 					break;
 				case "json":

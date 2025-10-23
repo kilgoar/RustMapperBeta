@@ -7,6 +7,12 @@ using UnityEngine.Events;
 using UnityEngine.UI;
 using RustMapEditor.Variables;
 using UIRecycleTreeNamespace;
+
+using System.Linq;
+using Newtonsoft.Json;
+using System.Security.Cryptography;
+using System.Text; 
+
 using static TerrainManager;
 
 public class AppManager : MonoBehaviour
@@ -90,6 +96,9 @@ public class AppManager : MonoBehaviour
 		Debug.Log("map manager initialized");
 		SocketManager.LoadSocketData();
 		Debug.Log("sockets initialized");		
+		
+
+
 
     }
 
@@ -149,8 +158,10 @@ public class AppManager : MonoBehaviour
 			}
 		Debug.Log("loading startup skin at " + application.startupSkin);
 		ModManager.LoadSkin(application.startupSkin);
+		
 		LoadWindowStates();
 		
+
 	}
 	
 	
@@ -663,7 +674,7 @@ public void ActivateWindow(int index)
 		
 		SetColors();
         
-        //AnalyzeTextColors();
+        //ExportEnglishLocalizationTemplate();
     }
 	
 	// Overload of CollectImages to collect images and sprites from a specific GameObject
@@ -691,6 +702,9 @@ public void ActivateWindow(int index)
 		Text[] texts = target.GetComponentsInChildren<Text>(true); // Include inactive
 		allLabels.AddRange(texts);
 		Debug.Log($"Collected {texts.Length} Text components from {target.name}");
+		
+		
+				AppManager.Instance.ApplyLocalization(SettingsManager.application.language);
 	}
 
 	// Overload of CollectInputFields to collect InputField components from a specific GameObject
@@ -1300,5 +1314,136 @@ public void OnWindowToggle(Toggle windowToggle, GameObject windowPanel)
 
 				return newItemView;
     }
+	
+public void ExportEnglishLocalizationTemplate()
+{
+    var file = new LocalizationFile();
+
+    // Use a HashSet to track already-seen hashes (fast O(1) lookup)
+    var seenHashes = new HashSet<string>();
+
+    foreach (var txt in allLabels.Where(t => t != null))
+    {
+        string raw = txt.text;
+
+        if (string.IsNullOrWhiteSpace(raw))
+            continue;
+
+        string trimmed = raw.Trim();
+
+        if (IsNumericString(trimmed))
+            continue;
+
+        string hashPath = BuildHierarchyPath(txt);
+        string hash     = ComputeStableHash(hashPath);
+
+        if (!seenHashes.Add(hash))       {
+            continue;
+        }
+
+        file.entries.Add(new LocalizationEntry
+        {
+            keyHash     = hash,
+            english     = trimmed,
+            translation = trimmed
+        });
+    }
+
+    string folder = Path.Combine(SettingsManager.AppDataPath(), "Presets", "Language");
+    Directory.CreateDirectory(folder);
+
+    string path = Path.Combine(folder, "English.json");
+    string json = JsonConvert.SerializeObject(file, Formatting.Indented);
+    File.WriteAllText(path, json, Encoding.UTF8);
+
+    Debug.Log($"English localization template exported → {path} ({file.entries.Count} translatable entries)");
+}
+
+	private bool IsNumericString(string input)
+	{
+		if (string.IsNullOrEmpty(input))
+			return false;
+
+		string cleaned = input.Replace(",", "").Replace("$", "").Replace("%", "").Trim();
+
+		if (double.TryParse(cleaned, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _))
+			return true;
+
+		return false;
+	}
+	
+	private string ComputeStableHash(string input)
+	{
+		using (var sha256 = SHA256.Create())
+		{
+			byte[] bytes = Encoding.UTF8.GetBytes(input);
+			byte[] hash  = sha256.ComputeHash(bytes);
+
+			// 8 bytes → 16 hex chars: short, unique, stable
+			StringBuilder sb = new StringBuilder();
+			for (int i = 0; i < 8; i++)
+				sb.Append(hash[i].ToString("x2"));
+			return sb.ToString();
+		}
+	}
+	
+	private string BuildHierarchyPath(Text txt)
+	{
+		List<string> parts = new List<string>();
+		Transform t = txt.transform;
+
+		while (t != null && t != uiCanvas.transform)
+		{
+			if (windowPanels.Contains(t.gameObject))
+			{
+				parts.Add($"Win{windowPanels.IndexOf(t.gameObject)}");
+				break;
+			}
+			parts.Add(t.name);
+			t = t.parent;
+		}
+
+		parts.Reverse();
+		return string.Join("/", parts);
+	}
+	
+	public void ApplyLocalization(string language)
+	{
+		string folder = Path.Combine(SettingsManager.AppDataPath(), "Presets", "Language");
+		string path   = Path.Combine(folder, $"{language}.json");
+
+		if (!File.Exists(path))
+		{
+			Debug.LogWarning($"Localization file not found: {path}");
+			return;
+		}
+
+		string json = File.ReadAllText(path, Encoding.UTF8);
+		var file = JsonConvert.DeserializeObject<LocalizationFile>(json);
+
+		var dict = file.entries
+			.Where(e => !string.IsNullOrWhiteSpace(e.translation))
+			.ToDictionary(e => e.keyHash, e => e.translation.Trim());
+
+		int applied = 0;
+		foreach (var txt in allLabels.Where(t => t != null))
+		{
+			string hashPath = BuildHierarchyPath(txt);
+			string hash = ComputeStableHash(hashPath);
+
+			if (dict.TryGetValue(hash, out string translation))
+			{
+
+				txt.text = translation;
+				applied++;
+			}
+		}
+
+		// Force canvas rebuild to reflow text immediately
+		Canvas.ForceUpdateCanvases();
+
+		Debug.Log($"Localization '{language}' applied – {applied}/{allLabels.Count} labels updated.");
+	}
+	
 
 }

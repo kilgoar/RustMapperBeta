@@ -15,6 +15,10 @@ public class SettingsWindow : MonoBehaviour
     public Slider prefabRender;
     public InputField directoryField;
 	public Dropdown SkinDropdown;
+	
+	public Dropdown LanguageDropdown;
+	public string[] languageFiles; 
+	
     public Toggle assetLoadToggle, tooltipToggle;
     public UIRecycleTree tree;
     public Text footer;
@@ -157,6 +161,7 @@ public class SettingsWindow : MonoBehaviour
         //styleToggle.isOn = settings.terrainTextureSet;
 		LoadSkins();
         LoadDriveList();
+		LoadLanguages(); 
 		PopulateBindUI();
     }
 
@@ -180,28 +185,18 @@ public class SettingsWindow : MonoBehaviour
 
     private void InitializeListeners()
     {
-        /*
-        prefabRender.onValueChanged.RemoveAllListeners();
-        directoryField.onEndEdit.RemoveAllListeners();
-        assetLoadToggle.onValueChanged.RemoveAllListeners();
-        styleToggle.onValueChanged.RemoveAllListeners();
-        tree.onNodeExpandStateChanged.RemoveAllListeners();
-        tree.onSelectionChanged.RemoveAllListeners();
-        bundleButtons[0].onClick.RemoveAllListeners();
-        bundleButtons[1].onClick.RemoveAllListeners();
-		*/
+
         SkinDropdown.onValueChanged.AddListener(OnSkinChanged);
         prefabRender.onValueChanged.AddListener(CameraChange);
         directoryField.onEndEdit.AddListener(DirectoryChange);
         assetLoadToggle.onValueChanged.AddListener(AssetLoader);
 		tooltipToggle.onValueChanged.AddListener(TooltipChanged);
-        //styleToggle.onValueChanged.AddListener(StyleChange);
-        //styleToggle.onValueChanged.AddListener(ToggleStyle);
         tree.onNodeExpandStateChanged.AddListener(OnExpand);
         tree.onSelectionChanged.AddListener(OnSelect);
         bundleButtons[0].onClick.AddListener(OnLoadBundle);
         bundleButtons[1].onClick.AddListener(OnUnloadBundle);
 		
+		LanguageDropdown.onValueChanged.AddListener(OnLanguageChanged);
 		
 		openAppData.onClick.AddListener(OpenAppDataFolder); 
 		defaultBinds.onClick.AddListener(BindManager.SetDefaultBinds);
@@ -379,4 +374,50 @@ public class SettingsWindow : MonoBehaviour
         bundleButtons[0].interactable = isValidBundle && !AssetManager.IsInitialised;
         bundleButtons[1].interactable = AssetManager.IsInitialised;
     }
+	
+	
+	private void LoadLanguages()
+	{
+		string folder = Path.Combine(SettingsManager.AppDataPath(), "Presets", "Language");
+
+		if (!Directory.Exists(folder))		{
+			Debug.LogWarning($"Language folder not found: {folder}, restoring defaults");
+			SettingsManager.CopyDirectory(Path.Combine("Presets","Language"), Path.Combine(SettingsManager.AppDataPath(),"Presets","Language"));
+		}
+
+
+
+
+		// Grab every .json file (case-insensitive)
+		languageFiles = Directory.GetFiles(folder, "*.json")
+								 .Select(Path.GetFileNameWithoutExtension)
+								 .OrderBy(s => s)
+								 .ToArray();
+
+		LanguageDropdown.ClearOptions();
+		LanguageDropdown.AddOptions(languageFiles.ToList());
+
+		// Restore previously saved language (if any)
+		string saved = SettingsManager.application.language;
+		int savedIdx = Array.IndexOf(languageFiles, saved);
+		LanguageDropdown.value = savedIdx >= 0 ? savedIdx : 0;
+
+		LanguageDropdown.interactable = languageFiles.Length > 0;
+	}
+
+
+	private void OnLanguageChanged(int index)
+	{
+		if (index < 0 || index >= languageFiles.Length) return;
+
+		string selected = languageFiles[index];
+		
+		AppManager.Instance.ApplyLocalization(selected);
+		
+		settings.language = selected;
+		SettingsManager.application = settings;
+		SettingsManager.SaveSettings();
+
+
+	}
 }

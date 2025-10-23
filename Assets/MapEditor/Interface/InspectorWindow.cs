@@ -9,12 +9,15 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UIRecycleTreeNamespace;
+using Newtonsoft.Json;
 using static WorldSerialization;
 
 public class InspectorWindow : MonoBehaviour
 {
     public Text footer, selection;
     public Button findInBreaker, saveCustom, applyTerrain;
+	
+	public Button copyPosBtn, copyRotBtn, copyScaleBtn, copyAllBtn, pasteBtn;
 	
 	public Button mirrorScaleXButton;
 	public Button mirrorScaleYButton;
@@ -125,6 +128,11 @@ public class InspectorWindow : MonoBehaviour
 				}
 			});
 			
+			copyPosBtn.onClick.AddListener  (() => CopyTransformToClipboard(true , false, false));
+			copyRotBtn.onClick.AddListener  (() => CopyTransformToClipboard(false, true , false));
+			copyScaleBtn.onClick.AddListener(() => CopyTransformToClipboard(false, false, true ));
+			copyAllBtn.onClick.AddListener (() => CopyTransformToClipboard(true , true , true ));
+			pasteBtn.onClick.AddListener    (PasteTransformFromClipboard);
 			
 			// Add listeners for mirror scale buttons
 			mirrorScaleXButton.onClick.AddListener(() => MirrorRotations(CameraManager.Instance._selectedObjects, Axis.X));
@@ -979,6 +987,154 @@ public void UpdateData()
         collidersEnabled.SetIsOnWithoutNotify(false); // Disable toggle when no selection
     }
 }
+
+[Serializable]
+private class TransformClipboardData
+{
+    public VectorData position;
+    public VectorData rotation;   // euler angles
+    public VectorData scale;
+}
+
+public void CopyTransformToClipboard(
+    bool copyPosition = true,
+    bool copyRotation = true,
+    bool copyScale    = true)
+{
+    if (CameraManager.Instance._selectedObjects.Count == 0)
+    {
+        Debug.LogWarning("CopyTransform: nothing selected.");
+        return;
+    }
+
+    GameObject go = CameraManager.Instance._selectedObjects[^1];
+    Transform t   = go.transform;
+    bool useLocal = CameraManager.Instance.isLocal;
+
+    var data = new TransformClipboardData();
+
+    if (copyPosition) data.position = t.localPosition;
+    if (copyRotation) data.rotation = useLocal ? t.localEulerAngles : t.eulerAngles;
+    if (copyScale)    data.scale    = t.localScale;   // scale is always local
+
+    var settings = new JsonSerializerSettings
+    {
+        NullValueHandling = NullValueHandling.Ignore   // <-- crucial
+    };
+
+    string json = JsonConvert.SerializeObject(data, Formatting.None, settings);
+    GUIUtility.systemCopyBuffer = json;
+
+    footer.text = "Copied transform data to clipboard";
+}
+
+public void OnEnable(){
+	footer.text = "";
+}
+
+public void PasteTransformFromClipboard()
+{
+    string json = GUIUtility.systemCopyBuffer;
+    if (string.IsNullOrWhiteSpace(json))
+    {
+        Debug.LogWarning("PasteTransform: clipboard is empty.");
+        return;
+    }
+
+    TransformClipboardData data;
+    try
+    {
+        data = JsonConvert.DeserializeObject<TransformClipboardData>(json);
+    }
+    catch (Exception ex)
+    {
+        Debug.LogWarning($"PasteTransform: invalid JSON – {ex.Message}");
+        return;
+    }
+
+    if (data == null)
+    {
+        Debug.LogWarning("PasteTransform: nothing deserialized.");
+        return;
+    }
+
+    var selected  = CameraManager.Instance._selectedObjects;
+    if (selected.Count == 0) return;
+
+    bool useLocal = CameraManager.Instance.isLocal;
+
+    foreach (GameObject go in selected)
+    {
+        if (go == null) continue;
+        Transform t = go.transform;
+        PrefabDataHolder holder = go.GetComponent<PrefabDataHolder>();
+        bool isCollection = go.CompareTag("Collection");
+
+        // ---------- POSITION ----------
+        if (data.position != null)
+        {
+            if (useLocal) t.localPosition = data.position;
+            else          t.position      = data.position;
+
+            if (holder != null && !isCollection)
+                holder.prefabData.position = data.position;
+        }
+
+        // ---------- ROTATION ----------
+        if (data.rotation != null)
+        {
+            Quaternion q = Quaternion.Euler(data.rotation);
+            if (useLocal) t.localRotation = q;
+            else          t.rotation      = q;
+
+            if (holder != null && !isCollection)
+                holder.prefabData.rotation = data.rotation;
+        }
+
+        // ---------- SCALE ----------
+        if (data.scale != null)
+        {
+            t.localScale = data.scale;
+
+            if (holder != null && !isCollection)
+                holder.prefabData.scale = data.scale;
+        }
+
+        // keep snapshot in sync
+        if (go == _lastProcessedSelection)
+            SendPrefabData(go);
+        else
+            UpdateTransformSnapshot(go);
+    }
+
+    // ----- UI refresh for the last-selected object -----
+    if (_lastProcessedSelection != null)
+    {
+        if (data.position != null)
+        {
+            prefabDataFields[0].text = data.position.x.ToString("F3");
+            prefabDataFields[1].text = data.position.y.ToString("F3");
+            prefabDataFields[2].text = data.position.z.ToString("F3");
+        }
+        if (data.rotation != null)
+        {
+            prefabDataFields[3].text = data.rotation.x.ToString("F3");
+            prefabDataFields[4].text = data.rotation.y.ToString("F3");
+            prefabDataFields[5].text = data.rotation.z.ToString("F3");
+        }
+        if (data.scale != null)
+        {
+            prefabDataFields[6].text = data.scale.x.ToString("F3");
+            prefabDataFields[7].text = data.scale.y.ToString("F3");
+            prefabDataFields[8].text = data.scale.z.ToString("F3");
+        }
+        SendPrefabData(_lastProcessedSelection);
+    }
+
+    CameraManager.Instance.UpdateGizmoState();
+    Debug.Log("PasteTransform completed.");
+}
+
 
 // Update DefaultPrefabData to reset collider toggle
 public void DefaultPrefabData()

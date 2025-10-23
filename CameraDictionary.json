@@ -1,0 +1,70 @@
+{
+  "default": {
+    "Slot0": null,
+    "Slot1": {
+      "position": {
+        "x": 968.9752,
+        "y": 774.278564,
+        "z": 501.2545
+      },
+      "rotation": {
+        "x": 34.75,
+        "y": 294.0,
+        "z": 2.07820062E-06
+      }
+    },
+    "Slot2": {
+      "position": {
+        "x": 506.480072,
+        "y": 514.720154,
+        "z": 505.536163
+      },
+      "rotation": {
+        "x": 54.7500076,
+        "y": 244.5,
+        "z": 2.95860946E-06
+      }
+    },
+    "Slot3": null,
+    "Slot4": null,
+    "Slot5": null,
+    "Slot6": null,
+    "Slot7": null,
+    "Slot8": null,
+    "Slot9": null
+  },
+  "E:\\marstest.map": {
+    "Slot0": null,
+    "Slot1": {
+      "position": {
+        "x": 943.7191,
+        "y": 574.5017,
+        "z": 603.036865
+      },
+      "rotation": {
+        "x": 358.5,
+        "y": 53.5,
+        "z": 0.0
+      }
+    },
+    "Slot2": {
+      "position": {
+        "x": 1941.27441,
+        "y": 598.9599,
+        "z": 934.9983
+      },
+      "rotation": {
+        "x": 17.25,
+        "y": 278.75,
+        "z": 0.0
+      }
+    },
+    "Slot3": null,
+    "Slot4": null,
+    "Slot5": null,
+    "Slot6": null,
+    "Slot7": null,
+    "Slot8": null,
+    "Slot9": null
+  }
+}
