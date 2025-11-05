@@ -749,6 +749,58 @@ public class ConsoleWindow : MonoBehaviour
 				{
 					convertedParams.Add(paramValue);
 				}
+				else if (paramType == typeof(GeologyItem))
+				{
+					// --------------------------------------------------------------
+					// INPUT: a single string, e.g.
+					//   "12345678"                               → prefabID, custom = false
+					//   "assets/prefabs/rock_01.prefab"          → prefabID, custom = false
+					//   "MyCustomRocks/rock_big.prefab"          → customPrefab, custom = true
+					// --------------------------------------------------------------
+
+					string raw = paramValue.Trim();
+
+					GeologyItem item = new GeologyItem
+					{
+						custom       = false,
+						customPrefab = null,
+						prefabID     = 0,
+						// the other fields keep their default values
+					};
+
+					// 1. Try a direct numeric ID
+					if (uint.TryParse(raw, out uint directId))
+					{
+						item.prefabID = directId;
+						convertedParams.Add(item);
+						continue;               // next method parameter
+					}
+
+					// 2. Try the PathLookup (no file-system check)
+					if (AssetManager.PathLookup.TryGetValue(raw, out uint lookupId))
+					{
+						item.prefabID = lookupId;
+						convertedParams.Add(item);
+						continue;
+					}
+
+					// 3. Nothing matched → treat it as a *custom* prefab path.
+					//    The path is relative to the user’s AppData folder.
+					string fullPath = Path.Combine(SettingsManager.AppDataPath(), raw);
+
+					if (File.Exists(fullPath))
+					{
+						item.custom       = true;
+						item.customPrefab = raw;          // store the *relative* path exactly as typed
+						convertedParams.Add(item);
+						continue;
+					}
+
+					// --------------------------------------------------------------
+					// If we get here the string is completely unknown.
+					Post($"GeologyItem: cannot resolve '{raw}'. It is not a uint, not in PathLookup, and no file exists at '{fullPath}'.");
+					throw new FormatException($"Unable to create GeologyItem from '{raw}'.");
+				}
 				else
 				{
 					throw new System.NotSupportedException($"Parameter type {paramType.Name} not supported for automatic conversion.");

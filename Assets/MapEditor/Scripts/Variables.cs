@@ -348,15 +348,19 @@ public class SelectionUndoAction : IUndoAction
 
 		public void OnRemoved()
 		{
-			// Clean up duplicated objects and recycle parent
-			foreach (GameObject go in _createdObjects)
+			// Only destroy objects that are currently in the recycle bin (i.e., were undone and not redone)
+			for (int i = _createdObjects.Count - 1; i >= 0; i--)
 			{
+				var go = _createdObjects[i];
 				if (go != null)
 				{
-					UnityEngine.Object.DestroyImmediate(go);
+					if (go.transform.parent == _recycleParent.transform)		{
+						UnityEngine.Object.DestroyImmediate(go);
+					}
 				}
 			}
 			_createdObjects.Clear();
+
 			if (_recycleParent != null)
 			{
 				UnityEngine.Object.DestroyImmediate(_recycleParent);
@@ -433,23 +437,26 @@ public class SelectionUndoAction : IUndoAction
 
 		public void OnRemoved()
 		{
-			// Clean up cloned objects and parent
-			foreach (var clone in _recycledObjects)
+			// Only destroy objects currently in the recycle bin
+			foreach (var go in _recycledObjects)
 			{
-				if (clone != null)
+				if (go != null && go.transform.parent == _cloneParent.transform)
 				{
-					UnityEngine.Object.DestroyImmediate(clone);
+					UnityEngine.Object.DestroyImmediate(go);
 				}
 			}
-			foreach (var restored in _restoredObjects)
+
+			foreach (var go in _restoredObjects)
 			{
-				if (restored != null)
+				if (go != null && go.transform.parent == _cloneParent.transform)
 				{
-					UnityEngine.Object.DestroyImmediate(restored);
+					UnityEngine.Object.DestroyImmediate(go);
 				}
 			}
+
 			_recycledObjects.Clear();
 			_restoredObjects.Clear();
+
 			if (_cloneParent != null)
 			{
 				UnityEngine.Object.DestroyImmediate(_cloneParent);

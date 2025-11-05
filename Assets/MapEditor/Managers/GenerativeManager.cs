@@ -914,9 +914,9 @@ private static void ApplyLayerBlend(float[,,] layerMap, int x, int z, int layerI
 		{
 			heightMap = sourceHeightMap;
 		}
-
 		// Apply to terrain
 		Land.terrainData.SetHeights(0, 0, heightMap);
+		TerrainManager.UpdateHeightCache();
 		Callbacks.InvokeHeightMapUpdated(TerrainType.Land); // Notify listeners
 	}
 
@@ -3064,6 +3064,24 @@ private static IEnumerator PreviewBlendCoroutine(float minBlend = 20f, float min
 		}
 		else
 			return spawnCustom(item, position, rotation, scale, parent);
+	}
+	
+	[ConsoleCommand("Spawn a geology item custom prefab or monument, position x,y,z")]
+	public static GameObject SpawnAnyItem(GeologyItem item, float x, float y, float z)
+	{
+		Transform parent = null;
+		Vector3 position = new Vector3(x, y, z);
+		Vector3 rotation = Vector3.zero;
+		Vector3 scale = Vector3.one;
+
+		if (!item.custom)
+		{
+			return spawnGeoItem(item, position, rotation, scale, parent);
+		}
+		else
+		{
+			return spawnCustom(item, position, rotation, scale, parent);
+		}
 	}
 	
 	public static GameObject SpawnFeature(GeologyItem item, Transform parent = null)

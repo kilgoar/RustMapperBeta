@@ -9,7 +9,7 @@ public static class AreaManager
 {
     public static Area ActiveArea = new Area(0, 512, 0, 512); // This is used by other methods to track the splat map resolution
 
-    private static List<Area> sectors = new List<Area>();
+    public static List<Area> sectors = new List<Area>();
     private static Dictionary<Area, List<PrefabDataHolder>> prefabDataBySector = new Dictionary<Area, List<PrefabDataHolder>>();
 
     public static void Reset()
@@ -39,6 +39,9 @@ public static class AreaManager
             }
         }
     }
+	
+	
+	
 
     public static Area CreateSector(int x, int z)
     {

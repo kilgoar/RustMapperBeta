@@ -2641,30 +2641,70 @@ public static void NudgeHeightMap(float offset)
 		
         RegisterHeightMapUndoRedo(TerrainType.Land, "Erode HeightMap", before);
     }
-
-    /// <summary>Smooths the HeightMap.</summary>
-    /// <param name="filterStrength">The strength of the smoothing.</param>
-    /// <param name="blurDirection">The direction the smoothing should preference. Between -1f - 1f.</param>
-	[ConsoleCommand("heightmap smoothing")]
-    public static void SmoothHeightMap(float filterStrength, float blurDirection)
+	
+	
+[ConsoleCommand("heightmap smoothing full")]
+public static void SmoothHeightMap(float filterStrength)
+{
+    if (Height == null || Height.GetLength(0) != HeightMapRes || Height.GetLength(1) != HeightMapRes)
     {
-        float [,] before = (float[,])GetHeightMap().Clone();
-
-        Material mat = UnityEngine.TerrainTools.TerrainPaintUtility.GetBuiltinPaintMaterial();
-        UnityEngine.TerrainTools.BrushTransform brushXform = UnityEngine.TerrainTools.TerrainPaintUtility.CalculateBrushTransform(Land, HeightMapCentre, Land.terrainData.size.x, 0.0f);
-        UnityEngine.TerrainTools.PaintContext paintContext = UnityEngine.TerrainTools.TerrainPaintUtility.BeginPaintHeightmap(Land, brushXform.GetBrushXYBounds());
-        Vector4 brushParams = new Vector4(filterStrength, 0.0f, 0.0f, 0.0f);
-        mat.SetTexture("_BrushTex", FilterTexture);
-        mat.SetVector("_BrushParams", brushParams);
-        Vector4 smoothWeights = new Vector4(Mathf.Clamp01(1.0f - Mathf.Abs(blurDirection)), Mathf.Clamp01(-blurDirection), Mathf.Clamp01(blurDirection), 0.0f);
-        mat.SetVector("_SmoothWeights", smoothWeights);
-        UnityEngine.TerrainTools.TerrainPaintUtility.SetupTerrainToolMaterialProperties(paintContext, brushXform, mat);
-        Graphics.Blit(paintContext.sourceRenderTexture, paintContext.destinationRenderTexture, mat, (int)UnityEngine.TerrainTools.TerrainBuiltinPaintMaterialPasses.SmoothHeights);
-        UnityEngine.TerrainTools.TerrainPaintUtility.EndPaintHeightmap(paintContext, "Terrain Filter - Smooth Heights");
-		
-		RegisterHeightMapUndoRedo(TerrainType.Land, "Smooth HeightMap", before);
+        Debug.LogError($"Height array is invalid – expected {HeightMapRes}×{HeightMapRes}");
+        return;
     }
 
+    filterStrength = Mathf.Clamp01(filterStrength);
+    float[,] heightsIn = Land.terrainData.GetHeights(0,0,HeightMapRes,HeightMapRes);
+    float[,] smoothed   = new float[HeightMapRes, HeightMapRes];
+
+
+    // --------------------------------------------------------------------
+    // 2. 5×5 Gaussian kernel (same as the shader)
+    // --------------------------------------------------------------------
+    float[,] k = new float[5, 5]
+    {
+        { 1f/16f, 1f/8f, 1f/4f, 1f/8f, 1f/16f },
+        { 1f/8f,  1f/4f, 1f/2f, 1f/4f, 1f/8f  },
+        { 1f/4f,  1f/2f, 1f,    1f/2f, 1f/4f  },
+        { 1f/8f,  1f/4f, 1f/2f, 1f/4f, 1f/8f  },
+        { 1f/16f, 1f/8f, 1f/4f, 1f/8f, 1f/16f }
+    };
+
+    // --------------------------------------------------------------------
+    // 3. Convolve – fully unrolled, edge-aware, parallelised
+    // --------------------------------------------------------------------
+    Parallel.For(0, HeightMapRes, y =>
+    {
+        for (int x = 0; x < HeightMapRes; x++)
+        {
+            float sum  = 0f;
+            float wSum = 0f;
+
+            for (int dy = -2; dy <= 2; ++dy)
+            {
+                int ny = Mathf.Clamp(y + dy, 0, HeightMapRes - 1);
+                for (int dx = -2; dx <= 2; ++dx)
+                {
+                    int nx = Mathf.Clamp(x + dx, 0, HeightMapRes - 1);
+                    float w = k[dy + 2, dx + 2];
+
+                    sum  += heightsIn[nx, ny] * w;
+                    wSum += w;
+                }
+            }
+
+            float blurred = (wSum > 0f) ? sum / wSum : heightsIn[x, y];
+            smoothed[x, y] = Mathf.Lerp(heightsIn[x, y], blurred, filterStrength);
+            smoothed[x, y] = Mathf.Clamp01(smoothed[x, y]);
+        }
+    });
+
+
+    Land.terrainData.SetHeights(0, 0, smoothed);
+    UpdateHeightCache();
+    SyncHeightTextures();
+
+
+}
     #endregion
     #endregion
 
@@ -3112,6 +3152,172 @@ public static void SetBiomeRegion(float[,,] biomeData, int x, int y, int width, 
     Shader.SetGlobalTexture("Terrain_Biome", BiomeTexture);
     Shader.SetGlobalTexture("Terrain_Biome1", Biome1Texture);
 }
+
+	    public static void LoadSynchronous(MapInfo mapInfo)
+        {
+			LoadScreen.Instance.SetMessage1($"Loading Terrain");
+			
+			HeightMapRes = mapInfo.terrainRes;
+			SplatMapRes = mapInfo.splatRes;
+
+			// Initialize arrays directly from MapInfo
+			Height = mapInfo.land.heights;
+			Alpha = mapInfo.alphaMap;
+			Ground = mapInfo.splatMap;
+			Biome = mapInfo.biomeMap;
+			TopologyData.Set(mapInfo.topology);
+			
+			LoadScreen.Instance.SetMessage1($"Arrays initialized...");
+			LoadScreen.Instance.Progress1(.1f);
+			
+			if (Topology == null || Topology.Length != TerrainTopology.COUNT)
+			{
+				Topology = new float[TerrainTopology.COUNT][,,];
+			}
+			for (int i = 0; i < TerrainTopology.COUNT; i++)
+			{
+				Topology[i] = TopologyData.GetTopologyLayer(TerrainTopology.IndexToType(i));
+			}
+		
+            IsLoading = true;
+			SetTerrainsSynchronous(mapInfo);
+            SetSplatMapsSynchronous(mapInfo);			
+			
+					    // Handle blend map
+			if (mapInfo.blendMap != null)
+			{
+				Debug.Log("Disposing existing blend map texture");
+				UnityEngine.Object.DestroyImmediate(TerrainManager.BlendMapTexture);
+			}
+			
+			
+			InitializeTextures();
+			
+			//SyncHeightTexture();
+			SyncAlphaTexture();
+			SyncBiomeTexture();
+			Debug.Log("biome texture synchronized");
+			
+			if (mapInfo.blendMap != null)
+			{
+				Debug.Log("Applying blend map from MapInfo");				
+				TerrainManager.BlendMapTexture = mapInfo.blendMap;
+				TerrainManager.BlendMapTexture.Apply();
+				Shader.SetGlobalTexture("Terrain_BlendMap", TerrainManager.BlendMapTexture);
+				TerrainManager.Land.Flush();
+			}
+			else
+			{
+				Debug.LogWarning("No blend map provided in MapInfo");
+			}
+			
+			TopologyData.InitializeTexture();
+			TopologyData.UpdateTexture();
+			Debug.Log("topology texture synchronized");
+			AlphaDirty = false;
+			LayerDirty = false;
+			
+            ClearUndo();
+            AreaManager.Reset();
+			Debug.Log("Area Manager set");
+
+            IsLoading = false;
+			
+        }
+		
+		/// <summary>Loads and sets the Land and Water terrain objects.</summary>
+        private static void SetTerrainsSynchronous(MapInfo mapInfo)
+        {
+            HeightMapRes = mapInfo.terrainRes;
+
+            SetupTerrainSynchronous(mapInfo, Water);
+			
+			LoadScreen.Instance.SetMessage1("Water setup");
+			LoadScreen.Instance.Progress1(.3f);
+			
+			SetupTerrainSynchronous(mapInfo, Ocean);
+			
+			LoadScreen.Instance.SetMessage1("Ocean setup");
+			LoadScreen.Instance.Progress1(.4f);
+			
+		    SetupTerrainSynchronous(mapInfo, Land);
+			
+			LoadScreen.Instance.SetMessage1("Land setup");
+			LoadScreen.Instance.Progress1(.5f);
+
+        }
+		
+		private static void SetupTerrainSynchronous(MapInfo mapInfo, Terrain terrain)
+		{
+			if (terrain.terrainData.size != mapInfo.size)
+			{
+				Debug.Log("setting up terrain to size: "+ mapInfo.size +", height resolution" +  mapInfo.terrainRes +  ", splat resolution" + mapInfo.splatRes);
+				terrain.terrainData.heightmapResolution = mapInfo.terrainRes;
+				terrain.terrainData.size = mapInfo.size;
+				terrain.terrainData.alphamapResolution = mapInfo.splatRes;
+				terrain.terrainData.baseMapResolution = mapInfo.splatRes;
+			}
+
+			if (terrain.Equals(Water))
+			{
+				// Check and adjust water heights dimensions
+				int heightmapRes = mapInfo.water.heights.GetLength(0);
+				if (heightmapRes != terrain.terrainData.heightmapResolution)
+				{
+					Debug.LogWarning($"Adjusting terrain heightmap resolution from {terrain.terrainData.heightmapResolution} to {heightmapRes} to match water heights array.");
+					terrain.terrainData.heightmapResolution = heightmapRes;
+				}
+				terrain.terrainData.SetHeights(0, 0, mapInfo.water.heights);
+			}
+			else if (terrain.Equals(Land))
+			{
+				Debug.Log("setting land:");
+				// Check and adjust land heights dimensions
+				int heightmapRes = mapInfo.land.heights.GetLength(0);
+				if (heightmapRes != terrain.terrainData.heightmapResolution)
+				{
+					Debug.LogWarning($"Adjusting terrain heightmap resolution from {terrain.terrainData.heightmapResolution} to {heightmapRes} to match land heights array.");
+					terrain.terrainData.heightmapResolution = heightmapRes;
+				}
+				terrain.terrainData.SetHeights(0, 0, mapInfo.land.heights);
+			}
+
+
+		}
+
+
+        private static void SetSplatMapsSynchronous(MapInfo mapInfo)
+        {
+            SplatMapRes = mapInfo.splatRes;
+            SetSplatMap(mapInfo.splatMap, LayerType.Ground);
+						
+			LoadScreen.Instance.SetMessage1("Splat converted");
+			LoadScreen.Instance.Progress1(.6f);
+			
+            SetSplatMap(mapInfo.biomeMap, LayerType.Biome);
+			
+			LoadScreen.Instance.SetMessage1("Biome converted");
+			LoadScreen.Instance.Progress1(.7f);			
+			
+            SetAlphaMap(mapInfo.alphaMap);
+			
+			LoadScreen.Instance.SetMessage1("Alpha converted");
+			LoadScreen.Instance.Progress1(.8f);
+			
+            TopologyData.Set(mapInfo.topology);
+            Parallel.For(0, TerrainTopology.COUNT, i =>
+            {
+                if (CurrentLayerType != LayerType.Topology || TopologyLayer != i)
+                    SetSplatMap(TopologyData.GetTopologyLayer(TerrainTopology.IndexToType(i)), LayerType.Topology, i);
+            });
+            SetSplatMap(TopologyData.GetTopologyLayer(TerrainTopology.IndexToType(TopologyLayer)), LayerType.Topology, TopologyLayer);
+			
+			LoadScreen.Instance.SetMessage1("Terrains Completed");
+			LoadScreen.Instance.Progress1(0f);
+			LoadScreen.Instance.Complete(1);
+
+        }
+
 
 	/// <summary>Sets a region of the alpha map and updates the AlphaTexture.</summary>
 	/// <param name="alphaData">2D array containing alpha values for the region [height, width].</param>

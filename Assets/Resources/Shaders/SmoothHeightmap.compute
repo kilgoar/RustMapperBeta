@@ -1,0 +1,49 @@
+#pragma kernel SmoothFullMap
+
+// READ-ONLY input texture
+Texture2D<float> Heightmap;
+
+// WRITE-ONLY output texture
+RWTexture2D<float> Result;
+
+float FilterStrength;
+uint Width, Height;
+
+// 5x5 Gaussian kernel (normalized)
+static const float k[5][5] = {
+    { 1.0/16.0, 1.0/8.0,  1.0/4.0, 1.0/8.0,  1.0/16.0 },
+    { 1.0/8.0,  1.0/4.0, 1.0/2.0, 1.0/4.0, 1.0/8.0  },
+    { 1.0/4.0,  1.0/2.0, 1.0,     1.0/2.0, 1.0/4.0  },
+    { 1.0/8.0,  1.0/4.0, 1.0/2.0, 1.0/4.0, 1.0/8.0  },
+    { 1.0/16.0, 1.0/8.0,  1.0/4.0, 1.0/8.0,  1.0/16.0 }
+};
+
+[numthreads(8,8,1)]
+void SmoothFullMap (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= Width || id.y >= Height) return;
+
+    int2 texel = int2(id.x, id.y);
+    float original = Heightmap[texel];
+
+    float smoothed = 0.0;
+    float weightSum = 0.0;
+
+    [unroll]
+    for (int dy = -2; dy <= 2; ++dy)
+    {
+        [unroll]
+        for (int dx = -2; dx <= 2; ++dx)
+        {
+            int2 nb = clamp(texel + int2(dx, dy), int2(0,0), int2(Width-1, Height-1));
+            float w = k[dy+2][dx+2];
+            smoothed += Heightmap[nb] * w;
+            weightSum += w;
+        }
+    }
+
+    if (weightSum > 0.0) smoothed /= weightSum;
+
+    float finalHeight = lerp(original, smoothed, FilterStrength);
+    Result[texel] = clamp(finalHeight, 0.0, 1.0);
+}

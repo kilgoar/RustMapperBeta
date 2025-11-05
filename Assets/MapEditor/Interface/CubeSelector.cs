@@ -18,50 +18,56 @@ public class CubeSelector : MonoBehaviour
     private List<GameObject> cubeSelectedObjects = new List<GameObject>(); // Objects selected by the cube
     private List<GameObject> preservedSelections = new List<GameObject>(); // Pre-existing selections
 
-private void Awake()
-{
-    // Initialize selection cube
-    selectionCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-    selectionCube.name = "SelectionCube";
-    selectionCube.SetActive(false);
-    var renderer = selectionCube.GetComponent<Renderer>();
-    
-    // Load the new shader and texture
-    renderer.material = new Material(Shader.Find("Custom/Wireframe"));
-    
-    // Load the texture from Resources
-    Texture2D texture = Resources.Load<Texture2D>("Textures/selectbox");
-    if (texture == null)
+    // REUSABLE TEMP BUFFERS — allocated once, cleared and reused every frame
+    private readonly List<GameObject> _tempCurrent   = new List<GameObject>();
+    private readonly List<GameObject> _tempFiltered  = new List<GameObject>();
+	private Collider[] _tempColliderBuffer = new Collider[2048]; 
+    private readonly HashSet<GameObject> _tempHash   = new HashSet<GameObject>();
+
+    private void Awake()
     {
-        Debug.LogError("Failed to load texture at Resources/Textures/selectbox.png");
-    }
-    else
-    {
-        renderer.material.SetTexture("_MainTex", texture);
+        // Initialize selection cube
+        selectionCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        selectionCube.name = "SelectionCube";
+        selectionCube.SetActive(false);
+        var renderer = selectionCube.GetComponent<Renderer>();
         
-        // Define border sizes in pixels and convert to UV space
-        int textureWidth = texture.width; // 256
-        int textureHeight = texture.height; // 256
-        float borderLeftPixels = 5f;
-        float borderRightPixels = 5f;
-        float borderTopPixels = 5f;
-        float borderBottomPixels = 5f;
+        // Load the new shader and texture
+        renderer.material = new Material(Shader.Find("Custom/Wireframe"));
+        
+        // Load the texture from Resources
+        Texture2D texture = Resources.Load<Texture2D>("Textures/selectbox");
+        if (texture == null)
+        {
+            Debug.LogError("Failed to load texture at Resources/Textures/selectbox.png");
+        }
+        else
+        {
+            renderer.material.SetTexture("_MainTex", texture);
+            
+            // Define border sizes in pixels and convert to UV space
+            int textureWidth = texture.width; // 256
+            int textureHeight = texture.height; // 256
+            float borderLeftPixels = 5f;
+            float borderRightPixels = 5f;
+            float borderTopPixels = 5f;
+            float borderBottomPixels = 5f;
 
-        float sliceLeft = borderLeftPixels / textureWidth;
-        float sliceRight = borderRightPixels / textureWidth;
-        float sliceTop = borderTopPixels / textureHeight;
-        float sliceBottom = borderBottomPixels / textureHeight;
+            float sliceLeft = borderLeftPixels / textureWidth;
+            float sliceRight = borderRightPixels / textureWidth;
+            float sliceTop = borderTopPixels / textureHeight;
+            float sliceBottom = borderBottomPixels / textureHeight;
 
-        // Set material properties
-        renderer.material.SetColor("_WireColor", AppManager.Instance.color4);
-        renderer.material.SetFloat("_SliceLeft", sliceLeft);
-        renderer.material.SetFloat("_SliceRight", sliceRight);
-        renderer.material.SetFloat("_SliceTop", sliceTop);
-        renderer.material.SetFloat("_SliceBottom", sliceBottom);
+            // Set material properties
+            renderer.material.SetColor("_WireColor", AppManager.Instance.color4);
+            renderer.material.SetFloat("_SliceLeft", sliceLeft);
+            renderer.material.SetFloat("_SliceRight", sliceRight);
+            renderer.material.SetFloat("_SliceTop", sliceTop);
+            renderer.material.SetFloat("_SliceBottom", sliceBottom);
+        }
+        
+        Destroy(selectionCube.GetComponent<Collider>()); // Remove collider to avoid raycast interference
     }
-    
-    Destroy(selectionCube.GetComponent<Collider>()); // Remove collider to avoid raycast interference
-}
 
     public void Initialize(Camera camera, int prefabLayerMask)
     {
@@ -71,7 +77,7 @@ private void Awake()
 
     public void StartSelection(Vector2 screenPos)
     {
-		CameraManager.Instance._suppressUndoCreation = true;
+        CameraManager.Instance._suppressUndoCreation = true;
         if (!isSelecting)
         {
             isSelecting = true;
@@ -105,7 +111,7 @@ private void Awake()
 
     public void EndSelection()
     {
-		CameraManager.Instance._suppressUndoCreation = false;
+        CameraManager.Instance._suppressUndoCreation = false;
         if (isSelecting)
         {
             bool isMultiSelect = BindManager.IsPressed("multiSelect"); // Check multiSelect bind
@@ -118,7 +124,7 @@ private void Awake()
                     CameraManager.Instance.SelectPrefab(prefab);
                 }
             }
-			CameraManager.Instance.NotifySelectionChanged();
+            CameraManager.Instance.NotifySelectionChanged();
             // In multiSelect mode, leave all selections (preserved + cube) intact
             isSelecting = false;
             selectionCube.SetActive(false);
@@ -143,42 +149,42 @@ private void Awake()
         // Fallback: return point at planeDistance along the ray
         return ray.GetPoint(planeDistance);
     }
-	
-	public void UpdateFrustumVisualization(Vector2 screenPos)
-	{
-		// Update startPoint and endPoint to follow camera movement/rotation
-		startPoint = ScreenToPlanePoint(startScreenPos);
-		endPoint = ScreenToPlanePoint(screenPos);
+    
+    public void UpdateFrustumVisualization(Vector2 screenPos)
+    {
+        // Update startPoint and endPoint to follow camera movement/rotation
+        startPoint = ScreenToPlanePoint(startScreenPos);
+        endPoint = ScreenToPlanePoint(screenPos);
 
-		// Calculate the rectangle's center and size
-		Vector3 center = (startPoint + endPoint) / 2f;
-		Vector3 delta = endPoint - startPoint;
+        // Calculate the rectangle's center and size
+        Vector3 center = (startPoint + endPoint) / 2f;
+        Vector3 delta = endPoint - startPoint;
 
-		// Project delta onto camera's right and up vectors to get width and height
-		Vector3 camRight = cam.transform.right;
-		Vector3 camUp = cam.transform.up;
-		Vector3 camForward = cam.transform.forward;
+        // Project delta onto camera's right and up vectors to get width and height
+        Vector3 camRight = cam.transform.right;
+        Vector3 camUp = cam.transform.up;
+        Vector3 camForward = cam.transform.forward;
 
-		float width = Mathf.Abs(Vector3.Dot(delta, camRight));
-		float height = Mathf.Abs(Vector3.Dot(delta, camUp));
+        float width = Mathf.Abs(Vector3.Dot(delta, camRight));
+        float height = Mathf.Abs(Vector3.Dot(delta, camUp));
 
-		// Set rectangle scale with fixed depth
-		Vector3 scale = new Vector3(width, height, .001f);
-		if (scale.x < 0.01f) scale.x = 0.01f; // Prevent zero scale
-		if (scale.y < 0.01f) scale.y = 0.01f;
+        // Set rectangle scale with fixed depth
+        Vector3 scale = new Vector3(width, height, .001f);
+        if (scale.x < 0.01f) scale.x = 0.01f; // Prevent zero scale
+        if (scale.y < 0.01f) scale.y = 0.01f;
 
-		// Position the rectangle: center + slight offset along camera forward for visibility
-		Vector3 cubeCenter = center + camForward * (.01f / 2f);
-		selectionCube.transform.position = cubeCenter;
+        // Position the rectangle: center + slight offset along camera forward for visibility
+        Vector3 cubeCenter = center + camForward * (.01f / 2f);
+        selectionCube.transform.position = cubeCenter;
 
-		// Orient the rectangle to face the camera
-		selectionCube.transform.rotation = Quaternion.LookRotation(camForward, camUp);
+        // Orient the rectangle to face the camera
+        selectionCube.transform.rotation = Quaternion.LookRotation(camForward, camUp);
 
-		// Apply scale
-		selectionCube.transform.localScale = scale;
-	}
-	
-	    private void FilterTaggedObjects(List<GameObject> currentObjects, List<GameObject> filteredObjects)
+        // Apply scale
+        selectionCube.transform.localScale = scale;
+    }
+    
+    private void FilterTaggedObjects(List<GameObject> currentObjects, List<GameObject> filteredObjects)
     {
         // Filter out children of "Collection" tagged objects
         foreach (GameObject obj in currentObjects)
@@ -216,7 +222,7 @@ private void Awake()
             if (!filteredObjects.Contains(obj) && !preservedSelections.Contains(obj))
             {
                 cubeSelectedObjects.RemoveAt(i);
-                CameraManager.Instance.Unselect(obj);
+                CameraManager.Instance.UnselectPrefabLight(obj);
             }
         }
 
@@ -241,87 +247,92 @@ private void Awake()
             Mathf.Abs(screenPos.y - startScreenPos.y)
         );
 
-        // Build initial list of candidate objects
-        List<GameObject> currentObjectsInFrustum = new List<GameObject>();
+        // Build initial list of candidate objects — reuse _tempCurrent
+        _tempCurrent.Clear();
+
         foreach (PrefabDataHolder holder in PrefabManager.CurrentMapPrefabs)
         {
-			
-            GameObject validObject = CameraManager.Instance.FindParentWithTag(holder.gameObject, "Collection") ?? CameraManager.Instance.FindParentWithTag(holder.gameObject, "Prefab");
+            GameObject validObject = CameraManager.Instance.FindParentWithTag(holder.gameObject, "Collection") 
+                                  ?? CameraManager.Instance.FindParentWithTag(holder.gameObject, "Prefab");
 
             if (validObject != null)
             {
-                // Check if the object's within the screen rectangle
                 Vector3 boundsCenter = validObject.transform.position;
                 Vector3 screenPoint = cam.WorldToScreenPoint(boundsCenter);
 
                 if (screenRect.Contains(new Vector2(screenPoint.x, screenPoint.y)) && screenPoint.z > 0)
                 {
-                    if (!currentObjectsInFrustum.Contains(validObject))
+                    if (!_tempCurrent.Contains(validObject))
                     {
-                        currentObjectsInFrustum.Add(validObject);
+                        _tempCurrent.Add(validObject);
                     }
                 }
             }
         }
 
-        // Filter and update selections
-        List<GameObject> filteredObjects = new List<GameObject>();
-        FilterTaggedObjects(currentObjectsInFrustum, filteredObjects);
+        // Filter and update selections — reuse _tempFiltered
+        _tempFiltered.Clear();
+        FilterTaggedObjects(_tempCurrent, _tempFiltered);
     }
 
-    private void UpdateObjectsInCube()
-    {
-        // Get cube bounds in world space
-        Bounds cubeBounds = new Bounds(selectionCube.transform.position, selectionCube.transform.localScale);
+	private void UpdateObjectsInCube()
+	{
+		// Get cube bounds in world space
+		Bounds cubeBounds = new Bounds(selectionCube.transform.position, selectionCube.transform.localScale);
 
-        // Find all colliders within the cube bounds on the prefab layer
-        Collider[] colliders = Physics.OverlapBox(cubeBounds.center, cubeBounds.extents, selectionCube.transform.rotation, prefabMask);
+		// Use NonAlloc with pre-allocated array
+		int count = Physics.OverlapBoxNonAlloc(
+			cubeBounds.center,
+			cubeBounds.extents,
+			_tempColliderBuffer,
+			selectionCube.transform.rotation,
+			prefabMask
+		);
 
-        // Process colliders with a validity check for cube (always true since OverlapBox handles bounds)
-        ProcessCollidersForSelection(colliders, obj => true);
-    }
-	
-	private void ProcessCollidersForSelection(Collider[] colliders, System.Func<GameObject, bool> isValidForSelection)
-    {
-        // Use HashSet for efficient lookup
-        HashSet<GameObject> currentObjects = new HashSet<GameObject>();
+		// Process only the valid colliders returned (count <= buffer length)
+		ProcessCollidersForSelection(_tempColliderBuffer, count, obj => true);
+	}
+    
+	private void ProcessCollidersForSelection(Collider[] colliders, int count, System.Func<GameObject, bool> isValidForSelection)
+	{
+		_tempHash.Clear();
 
-        // Process colliders to find valid objects
-        foreach (Collider collider in colliders)
-        {
-            GameObject obj = collider.gameObject;
-            // Find the parent with "Collection" or "Prefab" tag
-            GameObject validObject = CameraManager.Instance.FindParentWithTag(obj, "Collection") ?? CameraManager.Instance.FindParentWithTag(obj, "Prefab");
+		for (int i = 0; i < count; i++)
+		{
+			Collider collider = colliders[i];
+			if (collider == null) continue;
 
-            // Only add if it has the correct tag and is valid for selection
-            if (validObject != null && isValidForSelection(validObject) && !currentObjects.Contains(validObject))
-            {
-                currentObjects.Add(validObject);
-            }
-        }
+			GameObject obj = collider.gameObject;
+			GameObject validObject = CameraManager.Instance.FindParentWithTag(obj, "Collection")
+								  ?? CameraManager.Instance.FindParentWithTag(obj, "Prefab");
 
-        // Unselect objects no longer in the selection, if not preserved
-        for (int i = cubeSelectedObjects.Count - 1; i >= 0; i--)
-        {
-            GameObject obj = cubeSelectedObjects[i];
-            if (!currentObjects.Contains(obj) && !preservedSelections.Contains(obj))
-            {
-                cubeSelectedObjects.RemoveAt(i);
-                CameraManager.Instance.Unselect(obj);
-            }
-        }
+			if (validObject != null && isValidForSelection(validObject) && !_tempHash.Add(validObject))
+			{
+				// _tempHash.Add returns false if already present
+			}
+		}
 
-        // Select new objects, if not already preserved
-        foreach (GameObject validObject in currentObjects)
-        {
-            if (!cubeSelectedObjects.Contains(validObject) && !preservedSelections.Contains(validObject))
-            {
-                cubeSelectedObjects.Add(validObject);
-                CameraManager.Instance.SelectPrefab(validObject);
-            }
-        }
-    }
+		// Unselect objects no longer in the selection
+		for (int i = cubeSelectedObjects.Count - 1; i >= 0; i--)
+		{
+			GameObject obj = cubeSelectedObjects[i];
+			if (!_tempHash.Contains(obj) && !preservedSelections.Contains(obj))
+			{
+				cubeSelectedObjects.RemoveAt(i);
+				CameraManager.Instance.Unselect(obj);
+			}
+		}
 
+		// Select new objects
+		foreach (GameObject validObject in _tempHash)
+		{
+			if (!cubeSelectedObjects.Contains(validObject) && !preservedSelections.Contains(validObject))
+			{
+				cubeSelectedObjects.Add(validObject);
+				CameraManager.Instance.SelectPrefab(validObject);
+			}
+		}
+	}
 
     private void UpdateCubeVisualization()
     {
@@ -353,14 +364,15 @@ private void Awake()
         selectionCube.transform.localScale = scale;
     }
 
-
-	public void Hide(){
-		selectionCube.SetActive(false);
-	}
-	
-	public void Show(){
-		selectionCube.SetActive(true);
-	}
+    public void Hide()
+    {
+        selectionCube.SetActive(false);
+    }
+    
+    public void Show()
+    {
+        selectionCube.SetActive(true);
+    }
 
     public bool IsSelecting => isSelecting;
 

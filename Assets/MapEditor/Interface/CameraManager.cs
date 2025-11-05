@@ -645,6 +645,24 @@ private void SetGizmoSensitivity(float gizmoSensitivity)
 				socket.Delete();
 			}
 		}
+		
+		if(_selectedRoad != null){  //old delete pathway
+			foreach (GameObject go in _selectedObjects) // Use ToList() to avoid modifying the collection while iterating
+			{
+				if (go != null)
+				{
+					//first find matching node by data in items window and delete it
+					Node toDestroy = itemTree.FindFirstNodeByDataRecursive(go);
+					if (toDestroy!=null){
+					toDestroy.parentNode.nodes.RemoveWithoutNotify(toDestroy);
+					}
+					UnityEngine.Object.Destroy(go); // Use UnityEngine.Object.Destroy for game objects
+					
+				}
+			}
+			_selectedObjects.Clear();
+			return;
+		}
 
 		// Register undo action will disable and move items to recycle bin
 		var undoAction = new DeleteSelectionUndoAction("Delete Selection", _selectedObjects.ToList());
@@ -1051,6 +1069,7 @@ public void DepopulateNodesForRoad(GameObject roadObject)
 	public void UnselectPrefabLight(GameObject go)
 	{
 		_selectedObjects.Remove(go);
+		EmissionHighlight(GetRenderers(go), false);
 	}
 	
 	
@@ -1060,7 +1079,7 @@ public void DepopulateNodesForRoad(GameObject roadObject)
         AppManager.Instance.SetInspector(go);
         EmissionHighlight(GetRenderers(go), true);
         UpdateGizmoState();
-        OnSelectionChanged?.Invoke(); // Notify listeners
+        //OnSelectionChanged?.Invoke(); // Notify listeners
     }
 
     public void SelectPrefab(GameObject go)

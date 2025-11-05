@@ -781,67 +781,18 @@ public static void LoadDumpJSON(string path)
 	[ConsoleCommand("Creates a new map synchronously")]
 	public static void NewMap(int size)
 	{
-		// Create MapInfo for a flat map
-		MapInfo mapInfo = EmptyMap(size, 503f, TerrainSplat.Enum.Grass, TerrainBiome.Enum.Temperate);
+		const TerrainSplat.Enum ground = TerrainSplat.Enum.Grass;
+		const TerrainBiome.Enum biome = TerrainBiome.Enum.Temperate;
+		const float landHeight = 503f;
 
-		// Synchronous terrain setup
-		isLoading = true;
+		var mapInfo = EmptyMap(size, landHeight, ground, biome);
 
-		// Delete existing prefabs and paths
-		PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs);
+		PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs, 0);
 		PathManager.DeletePaths(PathManager.CurrentMapPaths);
-
-		// Center scene objects
 		CentreSceneObjects(mapInfo);
-
-		// Set terrain data (simulating Coroutines.SetTerrains)
-		TerrainManager.Land.terrainData.heightmapResolution = mapInfo.terrainRes;
-		TerrainManager.Land.terrainData.size = mapInfo.size;
-		TerrainManager.Land.terrainData.alphamapResolution = mapInfo.splatRes;
-		TerrainManager.Land.terrainData.baseMapResolution = mapInfo.splatRes;
+		TerrainManager.LoadSynchronous(mapInfo);
 		
-		TerrainManager.Ocean.terrainData.heightmapResolution = mapInfo.terrainRes;
-		TerrainManager.Ocean.terrainData.size = mapInfo.size;
-		TerrainManager.Ocean.terrainData.alphamapResolution = mapInfo.splatRes;
-		TerrainManager.Ocean.terrainData.baseMapResolution = mapInfo.splatRes;
-		
-		TerrainManager.Water.terrainData.heightmapResolution = mapInfo.terrainRes;
-		TerrainManager.Water.terrainData.alphamapResolution = mapInfo.splatRes;
-		TerrainManager.Water.terrainData.baseMapResolution = mapInfo.splatRes;
-		TerrainManager.Water.terrainData.size = mapInfo.size;
-
-		TerrainManager.Land.terrainData.SetHeights(0, 0, mapInfo.land.heights);
-		TerrainManager.Water.terrainData.SetHeights(0, 0, mapInfo.water.heights);
-		TerrainManager.Callbacks.InvokeHeightMapUpdated(TerrainType.Land);
-
-		TerrainManager.SyncTerrainResolutions();
-		// Set splatmaps
-		TerrainManager.SetSplatMap(mapInfo.splatMap, LayerType.Ground);
-		TerrainManager.SetSplatMap(mapInfo.biomeMap, LayerType.Biome);
-		TerrainManager.SetAlphaMap(mapInfo.alphaMap);
-
-		// Set topology data
-		TopologyData.Set(mapInfo.topology);
-		for (int i = 0; i < TerrainTopology.COUNT; i++)
-		{
-			TerrainManager.SetSplatMap(TopologyData.GetTopologyLayer(TerrainTopology.IndexToType(i)), LayerType.Topology, i);
-		}
-		
-		TerrainManager.ChangeLayer(LayerType.Ground);
-
-		// Spawn prefabs and paths
-		PrefabManager.SpawnPrefabs(mapInfo.prefabData, 0);
-		PathManager.SpawnPaths(mapInfo.pathData, 0);
-
-		// Complete setup
-		AreaManager.Reset();
-		ClearUndo();
-		isLoading = false;
-
-		// Signal completion
 		Callbacks.OnMapLoaded("New Map");
-		
-		Debug.Log($"New map of size {size} created successfully.");
 	}
 	
     public static void CreateMap(int size, TerrainSplat.Enum ground, TerrainBiome.Enum biome, float landHeight = 503f)
@@ -1032,58 +983,6 @@ public static void LoadDumpJSON(string path)
 			}
 		
 		
-
-		
-		/*
-			public static IEnumerator LoadREPrefab(MapInfo mapInfo, string path = "")
-			{
-		#if UNITY_EDITOR
-				ProgressManager.RemoveProgressBars("Load:");
-
-				int progressID = Progress.Start("Load: " + path.Split('/').Last(), "Preparing Map", Progress.Options.Sticky);
-				int delPrefab = Progress.Start("Prefabs", null, Progress.Options.Sticky, progressID);
-				int spwPrefab = Progress.Start("Prefabs", null, Progress.Options.Sticky, progressID);
-				int spwCircuit = Progress.Start("Circuits", null, Progress.Options.Sticky, progressID);
-				int spwNPCs = Progress.Start("NPCs", null, Progress.Options.Sticky, progressID);
-				yield return null;
-
-				yield return PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs, delPrefab);
-				PrefabManager.DeleteCircuits(PrefabManager.CurrentMapElectrics);
-				PrefabManager.DeleteNPCs(PrefabManager.CurrentMapNPCs);
-
-				CentreSceneObjects(mapInfo);
-				PrefabManager.SpawnPrefabs(mapInfo.prefabData, spwPrefab);
-				PrefabManager.SpawnCircuits(mapInfo.circuitData, spwCircuit);
-				PrefabManager.SpawnNPCs(mapInfo.npcData, spwNPCs);
-
-				var sw = new System.Diagnostics.Stopwatch();
-				while (Progress.GetProgressById(spwPrefab).running)
-				{
-					if (sw.Elapsed.TotalMilliseconds > 0.05f)
-					{
-						sw.Restart();
-						yield return null;
-					}
-				}
-
-				Progress.Report(progressID, 0.99f, "Loaded");
-				Progress.Finish(progressID, Progress.Status.Succeeded);
-
-				Callbacks.OnMapLoaded(path);
-		#else
-				PrefabManager.DeletePrefabs(PrefabManager.CurrentMapPrefabs);
-				PrefabManager.DeleteCircuits(PrefabManager.CurrentMapElectrics);
-				PrefabManager.DeleteNPCs(PrefabManager.CurrentMapNPCs);
-				CentreSceneObjects(mapInfo);
-				PrefabManager.SpawnPrefabs(mapInfo.prefabData);
-				PrefabManager.SpawnCircuits(mapInfo.circuitData);
-				PrefabManager.SpawnNPCs(mapInfo.npcData);
-				Callbacks.OnMapLoaded(path);
-				yield return null;
-		#endif
-			}
-			*/
-
 			public static IEnumerator Load(MapInfo mapInfo, string path = "")
 			{
 				LoadScreen.Instance.Show();

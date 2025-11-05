@@ -201,7 +201,7 @@ namespace RustMapEditor.UI
             Elements.BeginToolbarHorizontal();
             if (Elements.ToolbarButton(ToolTips.smoothMap))
                 for (int i = 0; i < smoothPasses; i++)
-                    SmoothHeightMap(filterStrength, blurDirection);
+                    SmoothHeightMap(filterStrength);
             smoothPasses = EditorGUILayout.IntSlider(smoothPasses, 1, 100);
             Elements.EndToolbarHorizontal();
         }
