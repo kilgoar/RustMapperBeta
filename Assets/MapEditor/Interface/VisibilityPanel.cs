@@ -3,7 +3,15 @@ using UnityEngine.UI;
 
 public class VisibilityPanel : MonoBehaviour
 {
-    public Toggle prefabs, volumes, monumentVolumes, land, water;
+    public Toggle prefabs, volumes, monumentVolumes, land, water, wireframe;
+
+    [Header("Materials")]
+    public Material defaultTerrainMaterial;   // Assets/MapEditor/New Terrain Material
+    public Material wireframeMaterial;        // Assets/Resources/Materials/Terrain Wireframe
+
+    // Reference to the terrain GameObject (assign in inspector or auto-find)
+    [Header("Terrain Object")]
+    public GameObject terrainObject;          // Drag your "Land" or "Terrain" object here
 
     public static VisibilityPanel Instance { get; private set; }
 
@@ -37,6 +45,20 @@ public class VisibilityPanel : MonoBehaviour
 
         if (water != null)
             water.onValueChanged.AddListener(isOn => { if (isOn) ShowWater(); else HideWater(); });
+		
+		// WIRE FRAME TOGGLE
+        if (wireframe != null)
+        {
+            wireframe.onValueChanged.AddListener(isOn =>
+            {
+                if (isOn) EnableWireframe();
+                else DisableWireframe();
+            });
+
+            // Optional: sync initial state
+            if (wireframe.isOn) EnableWireframe();
+            else DisableWireframe();
+        }
     }
 
     // Layer indices based on provided information
@@ -46,6 +68,36 @@ public class VisibilityPanel : MonoBehaviour
     private const int VolumesLayer = 11; // Placeholder: Adjust if Volumes has a specific layer
     private const int MonumentVolumesLayer = 12; // Primary layer for MonumentVolumes
     private const int MonumentVolumesLayer2 = 13; // Additional layer for MonumentVolumes
+
+	private void EnableWireframe()
+	{
+		if (terrainObject == null || wireframeMaterial == null) return;
+
+		var terrain = terrainObject.GetComponent<Terrain>();
+		if (terrain != null)
+		{
+			terrain.materialTemplate = wireframeMaterial;
+			terrain.Flush();
+			Debug.Log("Wireframe mode ENABLED on Terrain");
+		}
+		else
+		{
+			Debug.LogError("No Terrain component found on " + terrainObject.name);
+		}
+	}
+
+	private void DisableWireframe()
+	{
+		if (terrainObject == null || defaultTerrainMaterial == null) return;
+
+		var terrain = terrainObject.GetComponent<Terrain>();
+		if (terrain != null)
+		{
+			terrain.materialTemplate = defaultTerrainMaterial;
+			terrain.Flush();
+			Debug.Log("Wireframe mode DISABLED - back to normal terrain");
+		}
+	}
 
     private void ShowPrefabs()
     {
@@ -131,4 +183,5 @@ public class VisibilityPanel : MonoBehaviour
 
         Debug.Log($"Layer {layer} ({LayerMask.LayerToName(layer)}) visibility set to {isVisible}");
     }
+	
 }

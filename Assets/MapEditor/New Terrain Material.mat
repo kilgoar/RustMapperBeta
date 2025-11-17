@@ -10,12 +10,14 @@ Material:
   m_Name: New Terrain Material
   m_Shader: {fileID: 4800000, guid: a3b7efc0f4e20864e84fe53cb4141a32, type: 3}
   m_ValidKeywords: []
-  m_InvalidKeywords: []
+  m_InvalidKeywords:
+  - WIREFRAME_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
+  m_CustomRenderQueue: 2000
+  stringTagMap:
+    RenderType: Opaque
   disabledShaderPasses: []
   m_SavedProperties:
     serializedVersion: 3
@@ -133,9 +135,12 @@ Material:
     - _WetnessLayer_WetAlbedoScale: 0
     - _WetnessLayer_WetSmoothness: 0
     - _WetnessLayer_Wetness: 0
+    - _WireframeMode: 1
+    - _WireframeThickness: 0.00308
     - _ZWrite: 1
     m_Colors:
-    - _BrushPos: {r: 0.7792969, g: 0.6953125, b: 0, a: 0}
+    - _BrushPos: {r: 0.51171875, g: 0.6171875, b: 0, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _LayerFallback_Albedo: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _WireframeColor: {r: 0, g: 1, b: 0, a: 1}
   m_BuildTextureStacks: []

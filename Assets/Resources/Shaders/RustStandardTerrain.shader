@@ -110,6 +110,7 @@ Shader "Custom/Rust/StandardTerrain"
         [HideInInspector] _ZWrite("ZWrite", Float) = 1.0
         _TerrainParallax("Terrain Parallax", Float) = 0.0
         _Terrain_Type("Terrain Type", Float) = 0.0
+		
     }
 
 
@@ -119,7 +120,7 @@ Shader "Custom/Rust/StandardTerrain"
         LOD 300
 
         CGPROGRAM
-        #pragma target 3.0
+        #pragma target 4.6  
         #pragma surface surf Standard vertex:vert
         #pragma multi_compile _ ALPHA_TEST
 		#define TERRAIN_SPLATMAP_COMMON_CGINC_INCLUDED
@@ -209,7 +210,6 @@ Shader "Custom/Rust/StandardTerrain"
 
 
 
-
         struct Input
         {
             float2 tc_Control0;// Terrain control UVs
@@ -277,6 +277,7 @@ Shader "Custom/Rust/StandardTerrain"
 		
         void surf(Input IN, inout SurfaceOutputStandard o)
         {
+			
 				float3 bio[5];
 				bio[0] = float3(1.0,0.6,0.0);
 				bio[1] = float3(0.0,0.3,0.0);
@@ -530,8 +531,9 @@ Shader "Custom/Rust/StandardTerrain"
 	}
 
         ENDCG
-    }
+	}
+	
 
     Fallback "Diffuse"
-    CustomEditor "RustStandardTerrainShaderGUI"
+    //CustomEditor "RustStandardTerrainShaderGUI"
 }
